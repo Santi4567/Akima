@@ -1,0 +1,6 @@
+const dbConfig = {
+  host: 'localhost',
+  user: 'akima_user',
+  password: 'fAvfeMnjOcVceeVo',
+  database: 'akima'
+};
