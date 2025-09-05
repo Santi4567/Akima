@@ -8,6 +8,7 @@
  */
 const express = require('express');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
+const { updateUser } = require('../controllers/authController');
 
 const router = express.Router();
 
@@ -21,6 +22,9 @@ router.get('/profile', verifyToken, (req, res) => {
     }
   });
 });
+
+// Ruta para modificar usuario (protegida)
+router.put('/:userId', verifyToken, updateUser);
 
 // Ruta solo para admins
 router.get('/admin/all', verifyToken, requireAdmin, (req, res) => {
