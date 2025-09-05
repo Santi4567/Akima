@@ -4,6 +4,7 @@
  * - Lógica de login (verificación de credenciales, generación de JWT)
  * - Validaciones de seguridad (SQL injection, XSS)
  * - Interacción con la base de datos
+ * - Ubicacion controllers/authController.js
  */
 
 const bcrypt = require('bcrypt');
@@ -149,7 +150,9 @@ const register = async (req, res) => {
   }
 };
 
-// Login de usuario
+
+
+// Login de usuario -----------------------------------------------------------------------------------
 const login = async (req, res) => {
   let connection;
   
@@ -183,7 +186,7 @@ const login = async (req, res) => {
     if (!sanitizedCorreo || !sanitizedPasswd) {
       return res.status(400).json({
         success: false,
-        error: 'CAMPOS_VACIOS_POST_SANITIZACION',
+        error: 'CAMPOS_VACIOS',
         message: 'Los campos no pueden estar vacíos'
       });
     }
@@ -262,12 +265,6 @@ const login = async (req, res) => {
       message: 'Inicio de sesión exitoso',
       data: {
         token: token,
-        user: {
-          id: user.ID,
-          nombre: user.Nombre,
-          correo: user.Correo,
-          isAdmin: Boolean(user.Admin)
-        },
         tokenInfo: {
           type: 'Bearer',
           expiresIn: '12h',

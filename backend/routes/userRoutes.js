@@ -1,3 +1,11 @@
+/**
+ * RUTAS DE USUARIOS (PROTEGIDAS)
+ * - GET /profile: Obtener perfil del usuario autenticado
+ * - GET /admin/*: Rutas solo para administradores
+ * - Aplica middlewares de autenticación y autorización
+ * - Define endpoints que requieren token válido
+ * - Ubicacion  routes/userRoutes.js 
+ */
 const express = require('express');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 

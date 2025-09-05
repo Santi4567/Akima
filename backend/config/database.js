@@ -4,6 +4,7 @@
  * - Pool de conexiones para mejor rendimiento
  * - Función para obtener conexiones
  * - Manejo de variables de entorno para BD
+ * - Ubicacion config/database.js 
  */
 const mysql = require('mysql2/promise');
 

@@ -4,6 +4,7 @@
  * - requireAdmin: Verifica que el usuario sea administrador
  * - Extrae información del usuario del token
  * - Manejo de errores de tokens (expirados, inválidos)
+ * - Ubicacion middleware/auth.js
  */
 
 

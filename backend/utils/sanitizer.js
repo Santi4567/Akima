@@ -4,6 +4,7 @@
  * - containsSQLInjection: Detecta patrones maliciosos
  * - Funciones reutilizables de seguridad
  * - Prevención de ataques comunes
+ * - Ubicacion utils/sanitizer.js
  */
 
 
