@@ -42,3 +42,13 @@ JWT con duracion de 12 horas
   "iat": 1670250000,    // Issued at (cuándo se creó)
   "exp": 1670293200     // Expires (cuándo expira)
 }
+
+
+Ejemplo de modificacion de datos 
+
+curl -X PUT http://localhost:3000/api/users/ID -H "Content-Type: application/json" -H "Authorization: Bearer Token_Here" -d '{ 
+"Nombre": "Juan Manzano", "Correo": "juan@test.com" 
+}'
+
+Si es un token de Administrador podra modificar a quien quiera 
+Si es de un usario no
