@@ -8,7 +8,9 @@
  */
 
 const express = require('express');
-const { register, login } = require('../controllers/authController');
+const { register } = require('../controllers/authController');
+const { login } = require('../controllers/loginController');
+
 
 const router = express.Router();
 

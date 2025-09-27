@@ -1,0 +1,35 @@
+{
+  "admin": "*",
+  "gerente": [
+    "add.users",
+    "view.users",
+    "add.products",
+    "edit.products",
+    "delete.products",
+    "view.products",
+    "add.clients",
+    "edit.clients",
+    "delete.clients",
+    "view.clients",
+    "view.sales",
+    "view.inventory",
+    "edit.inventory"
+  ],
+  "vendedor": [
+    "view.products",
+    "view.clients", 
+    "view.inventory",
+    "edit.users"
+  ],
+  "administracion": [
+    "add.users",
+    "edit.users",
+    "delete.users", 
+    "view.users",
+    "add.clients",
+    "edit.clients", 
+    "delete.clients",
+    "view.clients",
+    "view.sales"
+  ]
+}

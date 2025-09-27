@@ -1,18 +1,22 @@
 /**
  * MIDDLEWARES DE AUTENTICACIÓN Y AUTORIZACIÓN
  * - verifyToken: Verifica que el JWT sea válido
- * - requireAdmin: Verifica que el usuario sea administrador
- * - Extrae información del usuario del token
+ * - requireAdmin: Verifica que el usuario sea administrador (por rol)
+ * - requirePermission: Verifica permisos específicos
+ * - Extrae información del usuario del token incluyendo rol
  * - Manejo de errores de tokens (expirados, inválidos)
  * - Ubicacion middleware/auth.js
  */
 
-
 const jwt = require('jsonwebtoken');
+const { requirePermission, requireAdmin } = require('../utils/permissions');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'tu_clave_super_secreta_akima_2024';
 
-// Middleware para verificar JWT
+/**
+ * Middleware para verificar JWT
+ * Ahora incluye el rol del usuario en req.user
+ */
 const verifyToken = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -32,9 +36,10 @@ const verifyToken = (req, res, next) => {
       userId: decoded.userId,
       nombre: decoded.nombre,
       correo: decoded.correo,
-      isAdmin: decoded.isAdmin
+      rol: decoded.rol || 'vendedor', // Rol por defecto si no está en el token
+      isAdmin: decoded.rol === 'admin' // Compatibilidad hacia atrás
     };
-
+    
     next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
@@ -44,7 +49,7 @@ const verifyToken = (req, res, next) => {
         message: 'El token ha expirado'
       });
     }
-
+    
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({
         success: false,
@@ -52,7 +57,7 @@ const verifyToken = (req, res, next) => {
         message: 'Token inválido'
       });
     }
-
+    
     return res.status(500).json({
       success: false,
       error: 'ERROR_SERVIDOR',
@@ -61,20 +66,59 @@ const verifyToken = (req, res, next) => {
   }
 };
 
-// Middleware para verificar si es admin
-const requireAdmin = (req, res, next) => {
-  if (!req.user.isAdmin) {
+/**
+ * Middleware específico para requerir permisos de administrador
+ * Ahora usa el rol en lugar de isAdmin
+ */
+const requireAdminRole = (req, res, next) => {
+  const userRole = req.user?.rol || 'vendedor';
+  
+  if (userRole !== 'admin') {
     return res.status(403).json({
       success: false,
       error: 'ACCESO_DENEGADO',
       message: 'Se requieren permisos de administrador'
     });
   }
+  
   next();
+};
+
+/**
+ * Middleware genérico para verificar cualquier permiso específico
+ * Ejemplo de uso: requirePermission('edit.users')
+ */
+const checkUserPermission = (permission) => {
+  return requirePermission(permission);
+};
+
+/**
+ * Middlewares preconfigurados para usuarios
+ */
+const userPermissions = {
+  // Permisos para gestión de usuarios
+  canAddUsers: requirePermission('add.users'),
+  canEditUsers: requirePermission('edit.users'),
+  canDeleteUsers: requirePermission('delete.users'),
+  canViewUsers: requirePermission('view.users'),
+  
+  // Permisos para productos (para futuros endpoints)
+  canAddProducts: requirePermission('add.products'),
+  canEditProducts: requirePermission('edit.products'),
+  canDeleteProducts: requirePermission('delete.products'),
+  canViewProducts: requirePermission('view.products'),
+  
+  // Permisos para clientes
+  canAddClients: requirePermission('add.clients'),
+  canEditClients: requirePermission('edit.clients'),
+  canDeleteClients: requirePermission('delete.clients'),
+  canViewClients: requirePermission('view.clients')
 };
 
 module.exports = {
   verifyToken,
-  requireAdmin,
+  requireAdmin: requireAdminRole, // Mantenemos el nombre original para compatibilidad
+  requirePermission: checkUserPermission,
+  userPermissions,
   JWT_SECRET
 };

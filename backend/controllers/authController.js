@@ -1,20 +1,19 @@
 /**
  * CONTROLADOR DE AUTENTICACIÓN
  * - Lógica de registro de usuarios (validaciones, sanitización, encriptación)
- * - Lógica de login (verificación de credenciales, generación de JWT)
  * - Validaciones de seguridad (SQL injection, XSS)
+ * - Sistema de permisos basado en roles
  * - Interacción con la base de datos
  * - Ubicacion controllers/authController.js
  */
 
 const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
 const validator = require('validator');
 const { getConnection } = require('../config/database');
 const { sanitizeInput, containsSQLInjection } = require('../utils/sanitizer');
-const { JWT_SECRET } = require('../middleware/auth');
+const { checkPermission, canEditOwnProfile, getAllowedUserFields, PERMISSIONS } = require('../utils/permissions');
 
-// Registrar nuevo usuario
+// Registrar nuevo usuario--------------------------------------------------------------------
 const register = async (req, res) => {
   let connection;
   
@@ -122,19 +121,24 @@ const register = async (req, res) => {
     // 12. Encriptar contraseña
     const hashedPassword = await bcrypt.hash(sanitizedPasswd, 12);
 
-    // 13. Insertar usuario
+    // 13. Insertar usuario con cuenta inactiva y rol por defecto
+    const defaultRole = 'vendedor'; // Rol por defecto para nuevos registros
+    const defaultEstado = 0; // Cuenta inactiva por defecto
+    
     const [result] = await connection.execute(
-      'INSERT INTO users (Nombre, Correo, Passwd) VALUES (?, ?, ?)',
-      [sanitizedNombre, sanitizedCorreo, hashedPassword]
+      'INSERT INTO users (Nombre, Correo, Passwd, Estado, rol) VALUES (?, ?, ?, ?, ?)',
+      [sanitizedNombre, sanitizedCorreo, hashedPassword, defaultEstado, defaultRole]
     );
 
     res.status(201).json({
       success: true,
-      message: 'Usuario registrado exitosamente',
+      message: 'Usuario registrado exitosamente. Tu cuenta está pendiente de activación por un administrador.',
       data: {
         id: result.insertId,
         nombre: sanitizedNombre,
-        correo: sanitizedCorreo
+        correo: sanitizedCorreo,
+        estado: defaultEstado,
+        rol: defaultRole
       }
     });
 
@@ -151,14 +155,43 @@ const register = async (req, res) => {
 };
 
 
-
-// Login de usuario -----------------------------------------------------------------------------------
-const login = async (req, res) => {
+// Modificar datos de usuario con sistema de permisos basado en roles--------------------------------------------------------------------------------------
+const updateUser = async (req, res) => {
   let connection;
   
   try {
-    // Validaciones similares al registro...
-    const allowedFields = ['Correo', 'Passwd'];
+    const targetUserId = req.params.userId;
+    const currentUser = req.user;
+    const currentUserRole = currentUser.rol || 'vendedor';
+    const isOwner = currentUser.userId.toString() === targetUserId;
+
+    console.log('=== DEBUG PERMISOS ===');
+    console.log(`Usuario actual: ID ${currentUser.userId}, Rol: ${currentUserRole}`);
+    console.log(`Usuario objetivo: ID ${targetUserId}`);
+    console.log(`Es propietario: ${isOwner}`);
+
+    // 1. Verificar permisos de acceso
+    const canEditOthers = checkPermission(currentUserRole, PERMISSIONS.EDIT_USERS);
+    const canEditOwn = canEditOwnProfile(currentUserRole);
+
+    // Determinar si tiene acceso
+    let hasAccess = false;
+    if (isOwner && canEditOwn) {
+      hasAccess = true;
+    } else if (!isOwner && canEditOthers) {
+      hasAccess = true;
+    }
+
+    if (!hasAccess) {
+      return res.status(403).json({
+        success: false,
+        error: 'ACCESO_DENEGADO',
+        message: 'No tienes permisos para modificar esta información'
+      });
+    }
+
+    // 2. Obtener campos permitidos según el rol y si es propietario
+    const allowedFields = getAllowedUserFields(currentUserRole, isOwner);
     const receivedFields = Object.keys(req.body);
     
     const extraFields = receivedFields.filter(field => !allowedFields.includes(field));
@@ -166,155 +199,7 @@ const login = async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'CAMPOS_NO_PERMITIDOS',
-        message: `Solo se permiten los campos: ${allowedFields.join(', ')}`
-      });
-    }
-
-    const { Correo, Passwd } = req.body;
-    
-    if (!Correo || !Passwd) {
-      return res.status(400).json({
-        success: false,
-        error: 'CAMPOS_REQUERIDOS',
-        message: 'Los campos Correo y Passwd son obligatorios'
-      });
-    }
-
-    const sanitizedCorreo = sanitizeInput(Correo);
-    const sanitizedPasswd = sanitizeInput(Passwd);
-
-    if (!sanitizedCorreo || !sanitizedPasswd) {
-      return res.status(400).json({
-        success: false,
-        error: 'CAMPOS_VACIOS',
-        message: 'Los campos no pueden estar vacíos'
-      });
-    }
-
-    if (containsSQLInjection(sanitizedCorreo) || containsSQLInjection(sanitizedPasswd)) {
-      return res.status(400).json({
-        success: false,
-        error: 'INPUT_MALICIOSO',
-        message: 'Los datos contienen caracteres no permitidos'
-      });
-    }
-
-    if (!validator.isEmail(sanitizedCorreo)) {
-      return res.status(400).json({
-        success: false,
-        error: 'EMAIL_INVALIDO',
-        message: 'El formato del correo no es válido'
-      });
-    }
-
-    connection = await getConnection();
-
-    const [users] = await connection.execute(
-      'SELECT ID, Nombre, Correo, Passwd, Estado, Admin FROM users WHERE Correo = ?',
-      [sanitizedCorreo]
-    );
-
-    if (users.length === 0) {
-      return res.status(401).json({
-        success: false,
-        error: 'CREDENCIALES_INVALIDAS',
-        message: 'Correo o contraseña incorrectos'
-      });
-    }
-
-    const user = users[0];
-
-    // VERIFICAR ESTADO
-    if (!user.Estado) {
-      return res.status(403).json({
-        success: false,
-        error: 'CUENTA_INACTIVA',
-        message: 'Tu cuenta está inactiva. Contacta al administrador.'
-      });
-    }
-
-    // Verificar contraseña
-    const isPasswordValid = await bcrypt.compare(sanitizedPasswd, user.Passwd);
-    
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        success: false,
-        error: 'CREDENCIALES_INVALIDAS',
-        message: 'Correo o contraseña incorrectos'
-      });
-    }
-
-    // Crear JWT
-    const payload = {
-      userId: user.ID,
-      nombre: user.Nombre,
-      correo: user.Correo,
-      isAdmin: Boolean(user.Admin),
-      iat: Math.floor(Date.now() / 1000),
-      type: 'access_token'
-    };
-
-    const token = jwt.sign(payload, JWT_SECRET, {
-      expiresIn: '12h',
-      issuer: 'akima-api',
-      subject: user.ID.toString()
-    });
-
-    res.status(200).json({
-      success: true,
-      message: 'Inicio de sesión exitoso',
-      data: {
-        token: token,
-        tokenInfo: {
-          type: 'Bearer',
-          expiresIn: '12h',
-          expiresAt: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString()
-        }
-      }
-    });
-
-  } catch (error) {
-    console.error('Error en login:', error);
-    res.status(500).json({
-      success: false,
-      error: 'ERROR_SERVIDOR',
-      message: 'Error interno del servidor'
-    });
-  } finally {
-    if (connection) connection.release();
-  }
-};
-
-
-
-// Modificar datos de usuario--------------------------------------------------------------------------------------
-const updateUser = async (req, res) => {
-  let connection;
-  
-  try {
-    const targetUserId = req.params.userId;
-    const currentUser = req.user;
-    
-    // 1. Verificar permisos
-    if (!currentUser.isAdmin && currentUser.userId.toString() !== targetUserId) {
-      return res.status(403).json({
-        success: false,
-        error: 'ACCESO_DENEGADO',
-        message: 'Solo puedes modificar tu propia información'
-      });
-    }
-
-    // 2. Validar campos permitidos
-    const allowedFields = ['Nombre', 'Correo', 'Passwd', 'Estado'];
-    const userAllowedFields = currentUser.isAdmin ? allowedFields : allowedFields.filter(f => f !== 'Estado');
-    const receivedFields = Object.keys(req.body);
-    
-    const extraFields = receivedFields.filter(field => !userAllowedFields.includes(field));
-    if (extraFields.length > 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'CAMPOS_NO_PERMITIDOS',
-        message: `Los campos ${extraFields.join(', ')} no están permitidos`
+        message: `Los campos ${extraFields.join(', ')} no están permitidos para tu rol`
       });
     }
 
@@ -326,7 +211,7 @@ const updateUser = async (req, res) => {
       });
     }
 
-    const { Nombre, Correo, Passwd, Estado } = req.body;
+    const { Nombre, Correo, Passwd, Estado, rol } = req.body;
     const updates = {};
     const queryParams = [];
 
@@ -408,8 +293,16 @@ const updateUser = async (req, res) => {
       queryParams.push(hashedPassword);
     }
 
-    // 6. Procesar Estado (solo admin)
+    // 6. Procesar Estado (solo usuarios con permisos edit.users)
     if (Estado !== undefined) {
+      if (!checkPermission(currentUserRole, PERMISSIONS.EDIT_USERS)) {
+        return res.status(403).json({
+          success: false,
+          error: 'ACCESO_DENEGADO',
+          message: 'No tienes permisos para modificar el estado de usuarios'
+        });
+      }
+
       if (typeof Estado !== 'boolean') {
         return res.status(400).json({
           success: false,
@@ -422,15 +315,56 @@ const updateUser = async (req, res) => {
       queryParams.push(Estado);
     }
 
+    // 7. Procesar rol (solo usuarios con permisos edit.users)
+    if (rol !== undefined) {
+      if (!checkPermission(currentUserRole, PERMISSIONS.EDIT_USERS)) {
+        return res.status(403).json({
+          success: false,
+          error: 'ACCESO_DENEGADO',
+          message: 'No tienes permisos para modificar roles de usuarios'
+        });
+      }
+
+      if (typeof rol !== 'string') {
+        return res.status(400).json({
+          success: false,
+          error: 'TIPO_INVALIDO',
+          message: 'El campo rol debe ser string'
+        });
+      }
+      
+      const sanitizedRol = sanitizeInput(rol);
+      if (!sanitizedRol || containsSQLInjection(sanitizedRol) || sanitizedRol.length > 20) {
+        return res.status(400).json({
+          success: false,
+          error: 'ROL_INVALIDO',
+          message: 'El rol contiene caracteres no válidos o excede 20 caracteres'
+        });
+      }
+
+      // Validar que el rol sea uno de los permitidos
+      const validRoles = ['admin', 'gerente', 'vendedor', 'administracion'];
+      if (!validRoles.includes(sanitizedRol)) {
+        return res.status(400).json({
+          success: false,
+          error: 'ROL_NO_VALIDO',
+          message: `El rol debe ser uno de: ${validRoles.join(', ')}`
+        });
+      }
+      
+      updates.rol = sanitizedRol;
+      queryParams.push(sanitizedRol);
+    }
+
     connection = await getConnection();
 
-    // 7. Verificar que el usuario existe
-    const [existingUser] = await connection.execute(
-      'SELECT ID, Correo FROM users WHERE ID = ?',
+    // 8. Verificar que el usuario existe y obtener su rol actual
+    const [existingUserQuery] = await connection.execute(
+      'SELECT ID, Correo, rol FROM users WHERE ID = ?',
       [targetUserId]
     );
 
-    if (existingUser.length === 0) {
+    if (existingUserQuery.length === 0) {
       return res.status(404).json({
         success: false,
         error: 'USUARIO_NO_ENCONTRADO',
@@ -438,8 +372,23 @@ const updateUser = async (req, res) => {
       });
     }
 
-    // 8. Verificar duplicado de correo si se está modificando
-    if (updates.Correo && updates.Correo !== existingUser[0].Correo) {
+    const targetUser = existingUserQuery[0];
+    const targetUserRole = targetUser.rol || 'vendedor';
+
+    console.log(`DEBUG: Usuario actual: ${currentUserRole}, Usuario objetivo: ${targetUserRole}`);
+
+    // 9. PROTECCIÓN ESPECIAL: Solo admin puede editar a otro admin
+    if (targetUserRole === 'admin' && currentUserRole !== 'admin') {
+      console.log('BLOQUEADO: Intento de editar admin por usuario no-admin');
+      return res.status(403).json({
+        success: false,
+        error: 'ACCESO_DENEGADO',
+        message: 'Solo un administrador puede modificar la información de otro administrador'
+      });
+    }
+
+    // 10. Verificar duplicado de correo si se está modificando
+    if (updates.Correo && updates.Correo !== targetUser.Correo) {
       const [duplicateCheck] = await connection.execute(
         'SELECT ID FROM users WHERE Correo = ? AND ID != ?',
         [updates.Correo, targetUserId]
@@ -454,7 +403,7 @@ const updateUser = async (req, res) => {
       }
     }
 
-    // 9. Construir y ejecutar query de actualización
+    // 11. Construir y ejecutar query de actualización
     const updateFields = Object.keys(updates).map(field => `${field} = ?`).join(', ');
     queryParams.push(targetUserId);
     
@@ -463,9 +412,9 @@ const updateUser = async (req, res) => {
       queryParams
     );
 
-    // 10. Obtener datos actualizados (sin contraseña)
+    // 12. Obtener datos actualizados (sin contraseña, sin columna Admin)
     const [updatedUser] = await connection.execute(
-      'SELECT ID, Nombre, Correo, Estado, Admin FROM users WHERE ID = ?',
+      'SELECT ID, Nombre, Correo, Estado, rol FROM users WHERE ID = ?',
       [targetUserId]
     );
 
@@ -489,9 +438,7 @@ const updateUser = async (req, res) => {
   }
 };
 
-
 module.exports = {
   register,
-  login,
   updateUser
 };
