@@ -11,7 +11,7 @@ const bcrypt = require('bcrypt');
 const validator = require('validator');
 const { getConnection } = require('../config/database');
 const { sanitizeInput, containsSQLInjection } = require('../utils/sanitizer');
-const { checkPermission, canEditOwnProfile, getAllowedUserFields, PERMISSIONS } = require('../utils/permissions');
+const { checkPermission, PERMISSIONS } = require('../utils/permissions');
 
 // Registrar nuevo usuario--------------------------------------------------------------------
 const register = async (req, res) => {
@@ -161,7 +161,7 @@ const updateUser = async (req, res) => {
   
   try {
     const targetUserId = req.params.userId;
-    const currentUser = req.user;
+    const currentUser = req.user; // Información del usuario que viene en el token
     const currentUserRole = currentUser.rol || 'vendedor';
     const isOwner = currentUser.userId.toString() === targetUserId;
 
@@ -170,40 +170,33 @@ const updateUser = async (req, res) => {
     console.log(`Usuario objetivo: ID ${targetUserId}`);
     console.log(`Es propietario: ${isOwner}`);
 
-    // 1. Verificar permisos de acceso
+    // =================================================================
+    // 1. NUEVA LÓGICA DE PERMISOS: SIMPLE, DIRECTA Y BASADA EN EL JSON
+    // =================================================================
+    
+    // Se verifica si el usuario tiene permiso para esta acción.
+    // O tiene el permiso general para editar otros usuarios (`edit.users`)...
     const canEditOthers = checkPermission(currentUserRole, PERMISSIONS.EDIT_USERS);
-    const canEditOwn = canEditOwnProfile(currentUserRole);
+    // ...o es el propietario de la cuenta y tiene el permiso para editar su propio perfil (`edit.own.profile`).
+    const canEditOwn = isOwner && checkPermission(currentUserRole, PERMISSIONS.EDIT_OWN_PROFILE);
 
-    // Determinar si tiene acceso
-    let hasAccess = false;
-    if (isOwner && canEditOwn) {
-      hasAccess = true;
-    } else if (!isOwner && canEditOthers) {
-      hasAccess = true;
-    }
-
-    if (!hasAccess) {
+    // Si no cumple ninguna de las dos condiciones, no tiene acceso.
+    if (!canEditOthers && !canEditOwn) {
       return res.status(403).json({
         success: false,
         error: 'ACCESO_DENEGADO',
-        message: 'No tienes permisos para modificar esta información'
+        message: 'No tienes los permisos necesarios para modificar esta información.'
       });
     }
-
-    // 2. Obtener campos permitidos según el rol y si es propietario
-    const allowedFields = getAllowedUserFields(currentUserRole, isOwner);
-    const receivedFields = Object.keys(req.body);
     
-    const extraFields = receivedFields.filter(field => !allowedFields.includes(field));
-    if (extraFields.length > 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'CAMPOS_NO_PERMITIDOS',
-        message: `Los campos ${extraFields.join(', ')} no están permitidos para tu rol`
-      });
-    }
+    // Si llegamos aquí, el usuario tiene permiso para editar ALGO.
+    // Ahora validamos los campos que está intentando modificar.
 
-    if (receivedFields.length === 0) {
+    const { Nombre, Correo, Passwd, Estado, rol } = req.body;
+    const updates = {};
+    const queryParams = [];
+
+    if (Object.keys(req.body).length === 0) {
       return res.status(400).json({
         success: false,
         error: 'SIN_CAMPOS',
@@ -211,228 +204,111 @@ const updateUser = async (req, res) => {
       });
     }
 
-    const { Nombre, Correo, Passwd, Estado, rol } = req.body;
-    const updates = {};
-    const queryParams = [];
-
-    // 3. Procesar Nombre
+    // 2. Procesar campos básicos (Nombre, Correo, Passwd)
+    // El acceso general ya fue validado, así que procedemos con las validaciones de datos.
     if (Nombre !== undefined) {
-      if (typeof Nombre !== 'string') {
-        return res.status(400).json({
-          success: false,
-          error: 'TIPO_INVALIDO',
-          message: 'El campo Nombre debe ser string'
-        });
-      }
-      
+      if (typeof Nombre !== 'string') return res.status(400).json({ success: false, error: 'TIPO_INVALIDO', message: 'El campo Nombre debe ser string' });
       const sanitizedNombre = sanitizeInput(Nombre);
       if (!sanitizedNombre || containsSQLInjection(sanitizedNombre) || sanitizedNombre.length > 100) {
-        return res.status(400).json({
-          success: false,
-          error: 'NOMBRE_INVALIDO',
-          message: 'El nombre contiene caracteres no válidos o excede 100 caracteres'
-        });
+        return res.status(400).json({ success: false, error: 'NOMBRE_INVALIDO', message: 'El nombre contiene caracteres no válidos o excede 100 caracteres' });
       }
-      
       updates.Nombre = sanitizedNombre;
       queryParams.push(sanitizedNombre);
     }
 
-    // 4. Procesar Correo
     if (Correo !== undefined) {
-      if (typeof Correo !== 'string') {
-        return res.status(400).json({
-          success: false,
-          error: 'TIPO_INVALIDO',
-          message: 'El campo Correo debe ser string'
-        });
-      }
-      
+      if (typeof Correo !== 'string') return res.status(400).json({ success: false, error: 'TIPO_INVALIDO', message: 'El campo Correo debe ser string' });
       const sanitizedCorreo = sanitizeInput(Correo);
-      if (!sanitizedCorreo || containsSQLInjection(sanitizedCorreo) || sanitizedCorreo.length > 100) {
-        return res.status(400).json({
-          success: false,
-          error: 'CORREO_INVALIDO',
-          message: 'El correo contiene caracteres no válidos o excede 100 caracteres'
-        });
+      if (!sanitizedCorreo || containsSQLInjection(sanitizedCorreo) || !validator.isEmail(sanitizedCorreo) || sanitizedCorreo.length > 100) {
+        return res.status(400).json({ success: false, error: 'CORREO_INVALIDO', message: 'El formato del correo no es válido, contiene caracteres no válidos o excede 100 caracteres' });
       }
-      
-      if (!validator.isEmail(sanitizedCorreo)) {
-        return res.status(400).json({
-          success: false,
-          error: 'EMAIL_FORMATO_INVALIDO',
-          message: 'El formato del correo no es válido'
-        });
-      }
-      
       updates.Correo = sanitizedCorreo;
       queryParams.push(sanitizedCorreo);
     }
 
-    // 5. Procesar Contraseña
     if (Passwd !== undefined) {
-      if (typeof Passwd !== 'string') {
-        return res.status(400).json({
-          success: false,
-          error: 'TIPO_INVALIDO',
-          message: 'El campo Passwd debe ser string'
-        });
-      }
-      
+      if (typeof Passwd !== 'string') return res.status(400).json({ success: false, error: 'TIPO_INVALIDO', message: 'El campo Passwd debe ser string' });
       const sanitizedPasswd = sanitizeInput(Passwd);
       if (!sanitizedPasswd || containsSQLInjection(sanitizedPasswd) || sanitizedPasswd.length < 6 || sanitizedPasswd.length > 255) {
-        return res.status(400).json({
-          success: false,
-          error: 'CONTRASEÑA_INVALIDA',
-          message: 'La contraseña debe tener entre 6 y 255 caracteres y no contener caracteres especiales'
-        });
+        return res.status(400).json({ success: false, error: 'CONTRASEÑA_INVALIDA', message: 'La contraseña debe tener entre 6 y 255 caracteres y no contener caracteres no permitidos.' });
       }
-      
       const hashedPassword = await bcrypt.hash(sanitizedPasswd, 12);
       updates.Passwd = hashedPassword;
       queryParams.push(hashedPassword);
     }
 
-    // 6. Procesar Estado (solo usuarios con permisos edit.users)
-    if (Estado !== undefined) {
-      if (!checkPermission(currentUserRole, PERMISSIONS.EDIT_USERS)) {
-        return res.status(403).json({
-          success: false,
-          error: 'ACCESO_DENEGADO',
-          message: 'No tienes permisos para modificar el estado de usuarios'
-        });
-      }
+    // =================================================================
+    // 3. VERIFICACIÓN A NIVEL DE CAMPO PARA DATOS SENSIBLES (Estado y Rol)
+    // =================================================================
+    // Solo permitimos modificar 'Estado' y 'rol' si el usuario tiene el permiso general 'edit.users'.
+    const canManageUsers = checkPermission(currentUserRole, PERMISSIONS.EDIT_USERS);
 
-      if (typeof Estado !== 'boolean') {
-        return res.status(400).json({
-          success: false,
-          error: 'TIPO_INVALIDO',
-          message: 'El campo Estado debe ser boolean'
-        });
+    if (Estado !== undefined) {
+      if (!canManageUsers) {
+        return res.status(403).json({ success: false, error: 'CAMPO_NO_PERMITIDO', message: 'No tienes permisos para modificar el estado de un usuario.' });
       }
-      
+      if (typeof Estado !== 'boolean') return res.status(400).json({ success: false, error: 'TIPO_INVALIDO', message: 'El campo Estado debe ser booleano (true/false)' });
       updates.Estado = Estado;
       queryParams.push(Estado);
     }
 
-    // 7. Procesar rol (solo usuarios con permisos edit.users)
     if (rol !== undefined) {
-      if (!checkPermission(currentUserRole, PERMISSIONS.EDIT_USERS)) {
-        return res.status(403).json({
-          success: false,
-          error: 'ACCESO_DENEGADO',
-          message: 'No tienes permisos para modificar roles de usuarios'
-        });
+      if (!canManageUsers) {
+        return res.status(403).json({ success: false, error: 'CAMPO_NO_PERMITIDO', message: 'No tienes permisos para modificar el rol de un usuario.' });
       }
-
-      if (typeof rol !== 'string') {
-        return res.status(400).json({
-          success: false,
-          error: 'TIPO_INVALIDO',
-          message: 'El campo rol debe ser string'
-        });
-      }
-      
+      if (typeof rol !== 'string') return res.status(400).json({ success: false, error: 'TIPO_INVALIDO', message: 'El campo rol debe ser string' });
       const sanitizedRol = sanitizeInput(rol);
-      if (!sanitizedRol || containsSQLInjection(sanitizedRol) || sanitizedRol.length > 20) {
-        return res.status(400).json({
-          success: false,
-          error: 'ROL_INVALIDO',
-          message: 'El rol contiene caracteres no válidos o excede 20 caracteres'
-        });
-      }
-
-      // Validar que el rol sea uno de los permitidos
       const validRoles = ['admin', 'gerente', 'vendedor', 'administracion'];
       if (!validRoles.includes(sanitizedRol)) {
-        return res.status(400).json({
-          success: false,
-          error: 'ROL_NO_VALIDO',
-          message: `El rol debe ser uno de: ${validRoles.join(', ')}`
-        });
+        return res.status(400).json({ success: false, error: 'ROL_NO_VALIDO', message: `El rol debe ser uno de: ${validRoles.join(', ')}` });
       }
-      
       updates.rol = sanitizedRol;
       queryParams.push(sanitizedRol);
     }
 
+    // =================================================================
+    // 4. EL RESTO DE LA LÓGICA DE BASE DE DATOS SE MANTIENE IGUAL
+    // =================================================================
     connection = await getConnection();
 
-    // 8. Verificar que el usuario existe y obtener su rol actual
-    const [existingUserQuery] = await connection.execute(
-      'SELECT ID, Correo, rol FROM users WHERE ID = ?',
-      [targetUserId]
-    );
+    const [existingUserQuery] = await connection.execute('SELECT ID, Correo, rol FROM users WHERE ID = ?', [targetUserId]);
 
     if (existingUserQuery.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'USUARIO_NO_ENCONTRADO',
-        message: 'El usuario especificado no existe'
-      });
+      return res.status(404).json({ success: false, error: 'USUARIO_NO_ENCONTRADO', message: 'El usuario especificado no existe' });
     }
-
+    
     const targetUser = existingUserQuery[0];
-    const targetUserRole = targetUser.rol || 'vendedor';
 
-    console.log(`DEBUG: Usuario actual: ${currentUserRole}, Usuario objetivo: ${targetUserRole}`);
-
-    // 9. PROTECCIÓN ESPECIAL: Solo admin puede editar a otro admin
-    if (targetUserRole === 'admin' && currentUserRole !== 'admin') {
-      console.log('BLOQUEADO: Intento de editar admin por usuario no-admin');
-      return res.status(403).json({
-        success: false,
-        error: 'ACCESO_DENEGADO',
-        message: 'Solo un administrador puede modificar la información de otro administrador'
-      });
+    // Protección especial: Solo un admin puede editar a otro admin. ¡Esto es muy importante!
+    if (targetUser.rol === 'admin' && currentUserRole !== 'admin') {
+      return res.status(403).json({ success: false, error: 'ACCESO_DENEGADO', message: 'Solo un administrador puede modificar a otro administrador.' });
     }
 
-    // 10. Verificar duplicado de correo si se está modificando
+    // Verificar duplicado de correo si se está modificando
     if (updates.Correo && updates.Correo !== targetUser.Correo) {
-      const [duplicateCheck] = await connection.execute(
-        'SELECT ID FROM users WHERE Correo = ? AND ID != ?',
-        [updates.Correo, targetUserId]
-      );
-      
+      const [duplicateCheck] = await connection.execute('SELECT ID FROM users WHERE Correo = ? AND ID != ?', [updates.Correo, targetUserId]);
       if (duplicateCheck.length > 0) {
-        return res.status(409).json({
-          success: false,
-          error: 'CORREO_EN_USO',
-          message: 'Use otro correo'
-        });
+        return res.status(409).json({ success: false, error: 'CORREO_EN_USO', message: 'El correo electrónico ya está en uso por otro usuario.' });
       }
     }
 
-    // 11. Construir y ejecutar query de actualización
+    // Construir y ejecutar query de actualización
     const updateFields = Object.keys(updates).map(field => `${field} = ?`).join(', ');
     queryParams.push(targetUserId);
     
-    await connection.execute(
-      `UPDATE users SET ${updateFields} WHERE ID = ?`,
-      queryParams
-    );
+    await connection.execute(`UPDATE users SET ${updateFields} WHERE ID = ?`, queryParams);
 
-    // 12. Obtener datos actualizados (sin contraseña, sin columna Admin)
-    const [updatedUser] = await connection.execute(
-      'SELECT ID, Nombre, Correo, Estado, rol FROM users WHERE ID = ?',
-      [targetUserId]
-    );
+    const [updatedUser] = await connection.execute('SELECT ID, Nombre, Correo, Estado, rol FROM users WHERE ID = ?', [targetUserId]);
 
     res.status(200).json({
       success: true,
       message: 'Usuario actualizado exitosamente',
-      data: {
-        user: updatedUser[0]
-      }
+      data: { user: updatedUser[0] }
     });
 
   } catch (error) {
     console.error('Error al actualizar usuario:', error);
-    res.status(500).json({
-      success: false,
-      error: 'ERROR_SERVIDOR',
-      message: 'Error interno del servidor'
-    });
+    res.status(500).json({ success: false, error: 'ERROR_SERVIDOR', message: 'Error interno del servidor' });
   } finally {
     if (connection) connection.release();
   }

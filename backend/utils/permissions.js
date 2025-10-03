@@ -32,6 +32,7 @@ const PERMISSIONS = {
   EDIT_USERS: 'edit.users',
   DELETE_USERS: 'delete.users',
   VIEW_USERS: 'view.users',
+  EDIT_OWN_PROFILE: 'edit.own.profile',
   
   // Productos
   ADD_PRODUCTS: 'add.products',
@@ -54,88 +55,24 @@ const PERMISSIONS = {
 };
 
 /**
- * Verifica si un rol tiene un permiso específico
- * Ahora recarga permisos en cada verificación para cambios dinámicos
+ * Verifica si un rol tiene un permiso específico.
+ * Esta es ahora nuestra ÚNICA función para verificar permisos.
  * @param {string} userRole - El rol del usuario
  * @param {string} permission - El permiso a verificar
  * @returns {boolean} - true si tiene el permiso, false si no
  */
 const checkPermission = (userRole, permission) => {
-  if (!userRole || !permission) {
-    return false;
-  }
+  if (!userRole || !permission) return false;
   
-  // Recargar permisos para obtener cambios recientes
   permissions = loadPermissions();
   
-  // Si no existe el rol en el sistema de permisos
-  if (!permissions[userRole]) {
-    return false;
-  }
-  
-  // Si el rol tiene permisos totales (*)
-  if (permissions[userRole] === '*') {
-    return true;
-  }
-  
-  // Si el rol tiene permisos específicos (array)
+  if (!permissions[userRole]) return false;
+  if (permissions[userRole] === '*') return true;
   if (Array.isArray(permissions[userRole])) {
     return permissions[userRole].includes(permission);
   }
   
   return false;
-};
-
-/**
- * Verifica si un usuario puede editar su propia información
- * Solo los vendedores NO pueden editarse a sí mismos
- * @param {string} userRole - El rol del usuario
- * @returns {boolean}
- */
-const canEditOwnProfile = (userRole) => {
-  // Los vendedores NO pueden editar su propia información
-  if (userRole === 'vendedor') {
-    return false;
-  }
-  
-  // Los demás roles sí pueden (con restricciones en los campos)
-  return ['admin', 'gerente', 'administracion'].includes(userRole);
-};
-
-/**
- * Obtiene los campos que un rol puede editar en usuarios
- * @param {string} userRole - El rol del usuario
- * @param {boolean} isOwner - Si está editando su propio perfil
- * @returns {array} - Array de campos permitidos
- */
-const getAllowedUserFields = (userRole, isOwner = false) => {
-  // Admin puede editar todo
-  if (userRole === 'admin') {
-    return ['Nombre', 'Correo', 'Passwd', 'Estado', 'rol'];
-  }
-  
-  // Administración puede gestionar usuarios completamente
-  if (userRole === 'administracion') {
-    return ['Nombre', 'Correo', 'Passwd', 'Estado', 'rol'];
-  }
-  
-  // Gerente
-  if (userRole === 'gerente') {
-    if (isOwner) {
-      // Editando su propio perfil: solo campos básicos
-      return ['Nombre', 'Correo', 'Passwd'];
-    } else {
-      // Editando otro usuario: sin contraseña ni rol
-      return ['Nombre', 'Correo', 'Estado'];
-    }
-  }
-  
-  // Vendedor no puede editar nada
-  if (userRole === 'vendedor') {
-    return [];
-  }
-  
-  return [];
 };
 
 /**
@@ -180,8 +117,6 @@ const requireAdmin = (req, res, next) => {
 module.exports = {
   PERMISSIONS,
   checkPermission,
-  canEditOwnProfile,
-  getAllowedUserFields,
   requirePermission,
   requireAdmin,
   loadPermissions // Exportar función para recargar permisos manualmente

@@ -38,10 +38,13 @@ router.get('/profile', verifyToken, (req, res) => {
 // Ruta para modificar usuario (protegida)
 router.put('/:userId', verifyToken, updateUser);
 
-// Ruta para eliminar usuario (solo admin)
-router.delete('/:userId', verifyToken, requireAdmin, deleteUser);
+// Ruta para eliminar usuario (¡Actualizada!)
+// Quitamos 'requireAdmin'. Ahora el controlador 'deleteUser' decide quién puede eliminar.
+router.delete('/:userId', verifyToken, deleteUser);
+
 
 // ===== RUTAS ADMINISTRATIVAS (Solo Admin) =====
+// Estas rutas sí deben estar protegidas solo para administradores.
 
 // Obtener lista de todos los usuarios
 router.get('/admin/all', verifyToken, requireAdmin, (req, res) => {

@@ -1,36 +1,17 @@
-proyecto/
-├── app.js                    # Archivo principal (solo configuración básica)
-├── routes/
-│   ├── authRoutes.js        # Rutas: /register y /login
-│   └── userRoutes.js        # Otras rutas de usuarios
-├── controllers/
-│   ├── registerController.js # Lógica SOLO de registro
-│   └── loginController.js    # Lógica SOLO de login
-├── middleware/
-│   └── auth.js              # Verificación de tokens
-└── utils/
-    └── sanitizer.js         # Funciones de sanitización
 
+Peticiones API Akima
 
-Peticiones Prueba
-
-# Registro de usuarios 
+#------------------------------------Registro de usuarios--------------------------------------------- 
 curl -X POST http://localhost:3000/api/auth/register -H "Content-Type: application/json" -d '{
   "Nombre": "Juan Flores",
   "Correo": "juan@test.com",
   "Passwd": "test123"
 }'
-Esta configurado para que los parametros de Nombre no sobre pase longitud de 100, Correo logitud maxima 100, Passwd lonjitud maxima 255
+Al crear un cuenta esta esta desactivada por defecto, solo un administrador o un usuario con el permiso edit.user puede activarla
+#------------------------------------Fin Registro de usuarios--------------------------------------------- 
 
-Contiene sanitizadores contra SQLi /utils/sanitizer.js
-La logica de registro esta en /controllers/authController.js
-
-
-#Login 
-curl -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{
-  "Correo": "juan@test.com",
-  "Passwd": "test123"
-}'
+#--------------------------Login -----------------------------------------------------------------------------
+curl -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{ "Correo": "juan@test.com", "Passwd": "test123"}'
 
 Tenemos los estados dentro de la tabla de users Estado bolean si es True permite el acceso , el JWT contine la infromacion si es admin o no  
 JWT con duracion de 12 horas
@@ -42,13 +23,25 @@ JWT con duracion de 12 horas
   "iat": 1670250000,    // Issued at (cuándo se creó)
   "exp": 1670293200     // Expires (cuándo expira)
 }
+#--------------------------FIN Login -----------------------------------------------------------------------------
 
+#MODIFICACION(UPDATE INFO)
 
-Ejemplo de modificacion de datos 
+#--------------Users---------------------------------------------------------
+curl -X PUT http://localhost:3000/api/users/9 -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_AQUI>" -d '{"Estado": true}'
 
-curl -X PUT http://localhost:3000/api/users/ID -H "Content-Type: application/json" -H "Authorization: Bearer Token_Here" -d '{ 
-"Nombre": "Juan Manzano", "Correo": "juan@test.com" 
-}'
+Solo pueden modificar datos los admini y lo que tengan el permiso edit.user, y editar su propia configuracion los que tengan el permiso edit.own.profile
+#--------------Fin Users---------------------------------------------------------
 
-Si es un token de Administrador podra modificar a quien quiera 
-Si es de un usario no
+#DELETE 
+
+Para eliminar datos 
+# Ejemplo: Eliminar al usuario con ID 10
+
+#--------------Users---------------------------------------------------------
+
+curl -X DELETE http://localhost:3000/api/users/ID -H "Content-Type: application/json" -H "Authorization: Bearer TU_TOKEN_AQUI>"
+
+solo pueden eliminar usuarios los admin y los que tengan el permiso de delete.users
+
+#--------------Fin Users---------------------------------------------------------

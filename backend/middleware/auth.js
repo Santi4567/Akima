@@ -9,7 +9,7 @@
  */
 
 const jwt = require('jsonwebtoken');
-const { requirePermission, requireAdmin } = require('../utils/permissions');
+const { requirePermission} = require('../utils/permissions');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'tu_clave_super_secreta_akima_2024';
 
@@ -72,7 +72,6 @@ const verifyToken = (req, res, next) => {
  */
 const requireAdminRole = (req, res, next) => {
   const userRole = req.user?.rol || 'vendedor';
-  
   if (userRole !== 'admin') {
     return res.status(403).json({
       success: false,
@@ -80,45 +79,12 @@ const requireAdminRole = (req, res, next) => {
       message: 'Se requieren permisos de administrador'
     });
   }
-  
   next();
 };
 
-/**
- * Middleware genérico para verificar cualquier permiso específico
- * Ejemplo de uso: requirePermission('edit.users')
- */
-const checkUserPermission = (permission) => {
-  return requirePermission(permission);
-};
-
-/**
- * Middlewares preconfigurados para usuarios
- */
-const userPermissions = {
-  // Permisos para gestión de usuarios
-  canAddUsers: requirePermission('add.users'),
-  canEditUsers: requirePermission('edit.users'),
-  canDeleteUsers: requirePermission('delete.users'),
-  canViewUsers: requirePermission('view.users'),
-  
-  // Permisos para productos (para futuros endpoints)
-  canAddProducts: requirePermission('add.products'),
-  canEditProducts: requirePermission('edit.products'),
-  canDeleteProducts: requirePermission('delete.products'),
-  canViewProducts: requirePermission('view.products'),
-  
-  // Permisos para clientes
-  canAddClients: requirePermission('add.clients'),
-  canEditClients: requirePermission('edit.clients'),
-  canDeleteClients: requirePermission('delete.clients'),
-  canViewClients: requirePermission('view.clients')
-};
 
 module.exports = {
   verifyToken,
   requireAdmin: requireAdminRole, // Mantenemos el nombre original para compatibilidad
-  requirePermission: checkUserPermission,
-  userPermissions,
-  JWT_SECRET
+  requirePermission
 };

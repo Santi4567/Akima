@@ -1,3 +1,4 @@
+
 {
   "admin": "*",
   "gerente": [
@@ -13,13 +14,14 @@
     "view.clients",
     "view.sales",
     "view.inventory",
-    "edit.inventory"
+    "edit.inventory",
+    "edit.own.profile" 
   ],
   "vendedor": [
     "view.products",
     "view.clients", 
-    "view.inventory",
-    "edit.users"
+    "view.inventory"
+   
   ],
   "administracion": [
     "add.users",
@@ -30,6 +32,7 @@
     "edit.clients", 
     "delete.clients",
     "view.clients",
-    "view.sales"
+    "view.sales",
+    "edit.own.profile" 
   ]
 }
