@@ -4,18 +4,10 @@
   "gerente": [
     "add.users",
     "view.users",
-    "add.products",
+    "edit.own.profile",
     "edit.products",
-    "delete.products",
-    "view.products",
-    "add.clients",
-    "edit.clients",
-    "delete.clients",
-    "view.clients",
-    "view.sales",
-    "view.inventory",
-    "edit.inventory",
-    "edit.own.profile" 
+    "view.products"
+    
   ],
   "vendedor": [
     "view.products",
@@ -28,11 +20,10 @@
     "edit.users",
     "delete.users", 
     "view.users",
-    "add.clients",
-    "edit.clients", 
-    "delete.clients",
-    "view.clients",
-    "view.sales",
-    "edit.own.profile" 
+    "edit.own.profile",
+    "add.products",
+    "delete.products",
+    "edit.products",
+    "view.products"
   ]
 }

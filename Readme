@@ -11,7 +11,8 @@ Al crear un cuenta esta esta desactivada por defecto, solo un administrador o un
 #------------------------------------Fin Registro de usuarios--------------------------------------------- 
 
 #--------------------------Login -----------------------------------------------------------------------------
-curl -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{ "Correo": "juan@test.com", "Passwd": "test123"}'
+curl -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{ "Correo": "admin@test.com", "Passwd": "test123"}'
+
 
 Tenemos los estados dentro de la tabla de users Estado bolean si es True permite el acceso , el JWT contine la infromacion si es admin o no  
 JWT con duracion de 12 horas

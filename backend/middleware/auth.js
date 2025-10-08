@@ -86,5 +86,6 @@ const requireAdminRole = (req, res, next) => {
 module.exports = {
   verifyToken,
   requireAdmin: requireAdminRole, // Mantenemos el nombre original para compatibilidad
-  requirePermission
+  requirePermission,
+  JWT_SECRET //<-- SI se ocupa, no lo borres (Dont delete)
 };

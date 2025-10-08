@@ -14,7 +14,7 @@ const express = require('express');
 const { verifyToken, requireAdmin } = require('../middleware/auth');
 const { updateUser } = require('../controllers/authController');
 const { deleteUser } = require('../controllers/deleteUserController');
-const { reloadPermissions, getSystemInfo } = require('../controllers/adminController');
+const { getSystemInfo } = require('../controllers/adminController');
 const router = express.Router();
 
 // ===== RUTAS DE USUARIO =====
@@ -59,7 +59,7 @@ router.get('/admin/all', verifyToken, requireAdmin, (req, res) => {
 });
 
 // Recargar permisos del sistema
-router.post('/admin/reload-permissions', verifyToken, requireAdmin, reloadPermissions);
+router.post('/admin/reload-permissions', verifyToken, requireAdmin);
 
 // Obtener información del sistema
 router.get('/admin/system-info', verifyToken, requireAdmin, getSystemInfo);

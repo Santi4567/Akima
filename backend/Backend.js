@@ -10,6 +10,7 @@ const express = require('express');
 const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -19,8 +20,9 @@ app.use(express.json());
 app.use(cors());
 
 // Rutas
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
+app.use('/api/auth', authRoutes); //Login
+app.use('/api/users', userRoutes); //Usuarios
+app.use('/api/categories', categoryRoutes); //Categorias
 
 // Middleware de manejo de errores
 app.use(errorHandler);
