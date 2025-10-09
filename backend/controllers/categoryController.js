@@ -151,33 +151,61 @@ const getAllCategories = async (req, res) => {
 const updateCategory = async (req, res) => {
     let connection;
     try {
-        const { id } = req.params;
+        // =================================================================
+        // 1. VALIDACIÓN DE CAMPOS PERMITIDOS (AÑADIDA)
+        // =================================================================
+        const allowedFields = ['name', 'description', 'parent_id'];
+        const receivedFields = Object.keys(req.body);
+        const extraFields = receivedFields.filter(field => !allowedFields.includes(field));
+        
+        if (extraFields.length > 0) {
+          return res.status(400).json({
+            success: false,
+            error: 'CAMPOS_NO_PERMITIDOS',
+            message: `Los campos ${extraFields.join(', ')} no están permitidos.`
+          });
+        }
+
+        const categoryId = req.params.id;
         const { name, description, parent_id } = req.body;
 
-        if (Object.keys(req.body).length === 0) {
+        if (receivedFields.length === 0) {
             return res.status(400).json({ success: false, error: 'SIN_DATOS', message: 'Debes proporcionar al menos un campo para actualizar.' });
         }
+        
+        connection = await getConnection();
 
-        // Sanitizar y validar los campos que se envían
-        const updates = {};
+        // =================================================================
+        // 2. VALIDACIÓN DE NOMBRE DUPLICADO (YA EXISTENTE)
+        // =================================================================
         if (name) {
             const sanitizedName = sanitizeInput(name);
-            if (!sanitizedName || containsSQLInjection(sanitizedName)) return res.status(400).json({ success: false, error: 'NOMBRE_INVALIDO' });
-            updates.name = sanitizedName;
-        }
-        if (description) {
-            const sanitizedDescription = sanitizeInput(description);
-            if (containsSQLInjection(sanitizedDescription)) return res.status(400).json({ success: false, error: 'DESCRIPCION_INVALIDA' });
-            updates.description = sanitizedDescription;
-        }
-        if (parent_id !== undefined) {
-            updates.parent_id = parent_id || null;
+            if (!sanitizedName || containsSQLInjection(sanitizedName)) {
+                return res.status(400).json({ success: false, error: 'NOMBRE_INVALIDO' });
+            }
+
+            const [existing] = await connection.execute(
+                'SELECT id FROM categories WHERE LOWER(name) = LOWER(?) AND id != ?',
+                [sanitizedName, categoryId]
+            );
+
+            if (existing.length > 0) {
+                return res.status(409).json({
+                    success: false,
+                    error: 'CATEGORIA_DUPLICADA',
+                    message: `Ya existe otra categoría con el nombre "${sanitizedName}".`
+                });
+            }
         }
         
-        const updateFields = Object.keys(updates).map(field => `${field} = ?`).join(', ');
-        const queryParams = [...Object.values(updates), id];
+        // Lógica para construir y ejecutar la consulta UPDATE
+        const updates = {};
+        if (name) updates.name = sanitizeInput(name);
+        if (description !== undefined) updates.description = sanitizeInput(description) || null;
+        if (parent_id !== undefined) updates.parent_id = parent_id || null;
 
-        connection = await getConnection();
+        const updateFields = Object.keys(updates).map(field => `${field} = ?`).join(', ');
+        const queryParams = [...Object.values(updates), categoryId];
         
         const [result] = await connection.execute(`UPDATE categories SET ${updateFields} WHERE id = ?`, queryParams);
 
