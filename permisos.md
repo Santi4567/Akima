@@ -11,3 +11,10 @@
 "edit.products",
 "delete.products",
 "view.products",
+
+# Para Proveedores 
+
+"add.suppliers",
+"edit.suppliers",
+"delete.suppliers",
+"view.suppliers",

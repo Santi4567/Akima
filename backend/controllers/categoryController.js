@@ -152,7 +152,7 @@ const updateCategory = async (req, res) => {
     let connection;
     try {
         // =================================================================
-        // 1. VALIDACIÓN DE CAMPOS PERMITIDOS (AÑADIDA)
+        // 1. VALIDACIÓN DE CAMPOS PERMITIDOS 
         // =================================================================
         const allowedFields = ['name', 'description', 'parent_id'];
         const receivedFields = Object.keys(req.body);
@@ -176,7 +176,7 @@ const updateCategory = async (req, res) => {
         connection = await getConnection();
 
         // =================================================================
-        // 2. VALIDACIÓN DE NOMBRE DUPLICADO (YA EXISTENTE)
+        // 2. VALIDACIÓN DE NOMBRE DUPLICADO 
         // =================================================================
         if (name) {
             const sanitizedName = sanitizeInput(name);

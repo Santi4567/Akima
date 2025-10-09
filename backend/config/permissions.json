@@ -6,7 +6,10 @@
     "view.users",
     "edit.own.profile",
     "edit.products",
-    "view.products"
+    "view.products",
+    "add.suppliers",
+    "edit.suppliers",
+    "view.suppliers"
     
   ],
   "vendedor": [
@@ -24,6 +27,9 @@
     "add.products",
     "delete.products",
     "edit.products",
-    "view.products"
+    "view.products",
+    "add.suppliers",
+    "edit.suppliers",
+    "view.suppliers"
   ]
 }

@@ -39,6 +39,12 @@ const PERMISSIONS = {
   EDIT_PRODUCTS: 'edit.products',
   DELETE_PRODUCTS: 'delete.products',
   VIEW_PRODUCTS: 'view.products',
+
+  //Proveedores
+   ADD_SUPPLIERS: 'add.suppliers',
+  EDIT_SUPPLIERS: 'edit.suppliers',
+  DELETE_SUPPLIERS: 'delete.suppliers',
+  VIEW_SUPPLIERS: 'view.suppliers',
   
   // Clientes
   ADD_CLIENTS: 'add.clients',
@@ -67,7 +73,7 @@ const checkPermission = (userRole, permission) => {
   permissions = loadPermissions();
   
   if (!permissions[userRole]) return false;
-  if (permissions[userRole] === '*') return true;
+  if (permissions[userRole] === '*') return true;//verificacion de admin 
   if (Array.isArray(permissions[userRole])) {
     return permissions[userRole].includes(permission);
   }
