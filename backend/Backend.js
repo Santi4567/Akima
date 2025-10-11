@@ -8,7 +8,6 @@
 
 const express = require('express');
 const cors = require('cors');
-const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const supplierRoutes = require('./routes/supplierRoutes');
@@ -22,8 +21,7 @@ app.use(express.json());
 app.use(cors());
 
 // Rutas
-app.use('/api/auth', authRoutes); //Login
-app.use('/api/users', userRoutes); //Usuarios
+app.use('/api/users', userRoutes); //Usuarios & Login
 app.use('/api/categories', categoryRoutes); //Categorias
 app.use('/api/suppliers', supplierRoutes);//Proveedores 
 app.use('/api/products', productRoutes); // Productos 

@@ -4,6 +4,7 @@
   "gerente": [
     "add.users",
     "view.users",
+    "delete.users", 
     "edit.own.profile",
     "edit.products",
     "view.products",

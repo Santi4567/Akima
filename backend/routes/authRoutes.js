@@ -8,7 +8,7 @@
  */
 
 const express = require('express');
-const { register } = require('../controllers/authController');
+const { register } = require('../controllers/userController.js');
 const { login } = require('../controllers/loginController');
 
 

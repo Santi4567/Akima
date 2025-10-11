@@ -1,67 +1,50 @@
-/**
- * RUTAS DE USUARIOS (PROTEGIDAS)
- * - GET /profile: Obtener perfil del usuario autenticado
- * - PUT /:userId: Modificar usuario
- * - DELETE /:userId: Eliminar usuario (solo admin)
- * - GET /admin/*: Rutas solo para administradores
- * - POST /admin/reload-permissions: Recargar permisos del sistema
- * - Aplica middlewares de autenticación y autorización
- * - Define endpoints que requieren token válido
- * - Ubicacion  routes/userRoutes.js 
- */
+// Modificar/Reemplazar tu routes/userRoutes.js
 
 const express = require('express');
-const { verifyToken, requireAdmin } = require('../middleware/auth');
-const { updateUser } = require('../controllers/authController');
-const { deleteUser } = require('../controllers/deleteUserController');
-const { getSystemInfo } = require('../controllers/adminController');
 const router = express.Router();
 
-// ===== RUTAS DE USUARIO =====
+// Middlewares
+const { verifyToken } = require('../middleware/auth');
+const { requirePermission, PERMISSIONS } = require('../utils/permissions');
+const { validateRegisterPayload, validateUpdatePayload } = require('../middleware/userValidator');
 
-// Ruta para obtener perfil (protegida)
-router.get('/profile', verifyToken, (req, res) => {
-  res.json({
-    success: true,
-    message: 'Perfil del usuario',
-    data: {
-      user: {
-        id: req.user.userId,
-        nombre: req.user.nombre,
-        correo: req.user.correo,
-        rol: req.user.rol
-      }
-    }
-  });
-});
-
-// Ruta para modificar usuario (protegida)
-router.put('/:userId', verifyToken, updateUser);
-
-// Ruta para eliminar usuario (¡Actualizada!)
-// Quitamos 'requireAdmin'. Ahora el controlador 'deleteUser' decide quién puede eliminar.
-router.delete('/:userId', verifyToken, deleteUser);
+// Controladores
+const { login } = require('../controllers/loginController'); // Login se mantiene separado
+const {
+    register,
+    getAllUsers,
+    getUserById,
+    searchUserByName,
+    updateUser,
+    deleteUser,
+    getProfile
+} = require('../controllers/userController');
 
 
-// ===== RUTAS ADMINISTRATIVAS (Solo Admin) =====
-// Estas rutas sí deben estar protegidas solo para administradores.
+// --- RUTAS PÚBLICAS DE AUTENTICACIÓN ---
+router.post('/register', validateRegisterPayload, register);
+router.post('/login', login);
 
-// Obtener lista de todos los usuarios
-router.get('/admin/all', verifyToken, requireAdmin, (req, res) => {
-  res.json({
-    success: true,
-    message: 'Lista de usuarios (solo admin)',
-    data: {
-      user: req.user,
-      message: 'Aquí irían todos los usuarios'
-    }
-  });
-});
 
-// Recargar permisos del sistema
-router.post('/admin/reload-permissions', verifyToken, requireAdmin);
+// --- RUTAS PROTEGIDAS DE GESTIÓN DE USUARIOS ---
 
-// Obtener información del sistema
-router.get('/admin/system-info', verifyToken, requireAdmin, getSystemInfo);
+// Obtener el perfil del usuario logueado
+router.get('/profile', verifyToken, getProfile);
+
+// Obtener todos los usuarios
+router.get('/', verifyToken, requirePermission(PERMISSIONS.VIEW_USERS), getAllUsers);
+
+// Buscar usuarios por nombre
+router.get('/search', verifyToken, requirePermission(PERMISSIONS.VIEW_USERS), searchUserByName);
+
+// Obtener un usuario por ID
+router.get('/:id', verifyToken, requirePermission(PERMISSIONS.VIEW_USERS), getUserById);
+
+// Actualizar un usuario
+router.put('/:id', verifyToken, validateUpdatePayload, updateUser);
+
+// Eliminar un usuario
+router.delete('/:id', verifyToken, requirePermission(PERMISSIONS.DELETE_USERS), deleteUser);
+
 
 module.exports = router;
