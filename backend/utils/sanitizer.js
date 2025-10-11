@@ -60,7 +60,59 @@ const containsSQLInjection = (input) => {
   return sqlPatterns.some(pattern => pattern.test(input));
 };
 
+/**
+ * Verifica si algún valor de tipo string dentro de un objeto JSON contiene patrones de inyección SQL.
+ * @param {object} jsonObj - El objeto a verificar.
+ * @returns {boolean} - true si se encuentra un patrón, false en caso contrario.
+ */
+const jsonObjectContainsSQLInjection = (jsonObj) => {
+    if (typeof jsonObj !== 'object' || jsonObj === null) {
+        return false;
+    }
+
+    for (const key in jsonObj) {
+        if (Object.hasOwnProperty.call(jsonObj, key)) {
+            const value = jsonObj[key];
+            if (typeof value === 'string' && containsSQLInjection(value)) {
+                // Si CUALQUIER valor de texto contiene una inyección, detenemos y devolvemos true.
+                return true;
+            }
+        }
+    }
+    // Si terminamos de recorrer y no encontramos nada, el objeto está limpio.
+    return false;
+};
+
+/**
+ * Sanitiza los valores de tipo string dentro de un objeto JSON.
+ * Recorre el objeto y aplica sanitizeInput a cada valor de texto.
+ * @param {object} jsonObj - El objeto JSON a sanitizar.
+ * @returns {object} - El objeto con sus valores de texto ya sanitizados.
+ */
+const sanitizeJsonObject = (jsonObj) => {
+    if (typeof jsonObj !== 'object' || jsonObj === null) {
+        return jsonObj; // Devuelve el input si no es un objeto válido
+    }
+
+    const sanitizedObj = {};
+    for (const key in jsonObj) {
+        // Nos aseguramos de que estamos trabajando con propiedades del propio objeto
+        if (Object.hasOwnProperty.call(jsonObj, key)) {
+            const value = jsonObj[key];
+            // Si el valor es un string, lo sanitizamos. Si no, lo dejamos como está.
+            if (typeof value === 'string') {
+                sanitizedObj[key] = sanitizeInput(value);
+            } else {
+                sanitizedObj[key] = value;
+            }
+        }
+    }
+    return sanitizedObj;
+};
+
 module.exports = {
   sanitizeInput,
-  containsSQLInjection
+  containsSQLInjection,
+  sanitizeJsonObject,
+  jsonObjectContainsSQLInjection
 };

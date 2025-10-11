@@ -12,6 +12,7 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const supplierRoutes = require('./routes/supplierRoutes');
+const productRoutes = require('./routes/productRoutes');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -25,6 +26,7 @@ app.use('/api/auth', authRoutes); //Login
 app.use('/api/users', userRoutes); //Usuarios
 app.use('/api/categories', categoryRoutes); //Categorias
 app.use('/api/suppliers', supplierRoutes);//Proveedores 
+app.use('/api/products', productRoutes); // Productos 
 
 // Middleware de manejo de errores
 app.use(errorHandler);

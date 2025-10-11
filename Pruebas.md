@@ -15,22 +15,22 @@
 # Categorias
 
  ## Insertar Una nueva categoria
-    curl -v -X POST http://localhost:3000/api/categories -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"name": "Celulares y Tablets","description": "Dispositivos móviles y accesorios"}'
+    curl -X POST http://localhost:3000/api/categories -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"name": "Celulares y Tablets","description": "Dispositivos móviles y accesorios"}'
 
  ## Insertar Una nueva categoria que depende de otra
-    curl -v -X POST http://localhost:3000/api/categories -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"name": "Celulares y Tablets","description": "Dispositivos móviles y accesorios", "parent_id": 1 }'
+    curl -X POST http://localhost:3000/api/categories -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"name": "Celulares y Tablets","description": "Dispositivos móviles y accesorios", "parent_id": 1 }'
 
  ## Ver categorias 
-    curl -v -X GET http://localhost:3000/api/categories -H "Authorization: Bearer <TU_TOKEN_JWT>"
+    curl -X GET http://localhost:3000/api/categories -H "Authorization: Bearer <TU_TOKEN_JWT>"
 
  ## Buscar categoria por ID
-    curl -v -X GET http://localhost:3000/api/categories/1 -H "Authorization: Bearer <TU_TOKEN_JWT>"
+    curl -X GET http://localhost:3000/api/categories/1 -H "Authorization: Bearer <TU_TOKEN_JWT>"
 
  ## BUscar por nombre
-    curl -v -X GET "http://localhost:3000/api/categories/search?q=cel" -H "Authorization: Bearer <TU_TOKEN_JWT>"
+    curl -X GET "http://localhost:3000/api/categories/search?q=cel" -H "Authorization: Bearer <TU_TOKEN_JWT>"
 
  ## Modificar categorias
-    curl -v -X PUT http://localhost:3000/api/categories/1 -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"name": "Laptops y Computadoras"}'
+    curl -X PUT http://localhost:3000/api/categories/1 -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"name": "Laptops y Computadoras"}'
 
  ## eliminar categoria
     curl -v -X DELETE http://localhost:3000/api/categories/1 -H "Authorization: Bearer <TU_TOKEN_JWT>"
@@ -51,3 +51,53 @@
 
  ## eliminar 
    curl -X DELETE http://localhost:3000/api/suppliers/ID -H "Authorization: Bearer <TU_TOKEN_JWT>"
+
+
+
+# Productos
+
+ ## Insertar 
+   curl -v -X POST http://localhost:3000/api/products \
+   -H "Content-Type: application/json" \
+   -H "Authorization: Bearer <TU_TOKEN_JWT>" \
+   -d '{
+   "name": "Teclado Mecánico RGB TKL",
+   "sku": "TEC-RGB-TKL-001",
+   "barcode": "7501234567890",
+   "description": "Teclado mecánico Tenkeyless con switches azules y retroiluminación RGB personalizable.",
+   "price": 1899.99,
+   "cost_price": 1200.00,
+   "stock_quantity": 50,
+   "product_type": "product",
+   "status": "active",
+   "category_id": 1,
+   "supplier_id": 1,
+   "weight": 0.85,
+   "height": 4.5,
+   "width": 36.0,
+   "depth": 14.0,
+   "custom_fields": {
+      "tipo_switch": "Blue Gateron",
+      "formato": "TKL (Tenkeyless)",
+      "conexion": "USB-C"
+      }
+   }'
+
+ ## Ver productos 
+   curl -v -X GET http://localhost:3000/api/products -H "Authorization: Bearer <TU_TOKEN_JWT>"
+
+ ## Buscar Productod 
+   curl -v -X GET "http://localhost:3000/api/products/search?q=Teclado" -H "Authorization: Bearer <TU_TOKEN_JWT>"
+
+ ## Modificar 
+   curl -v -X PUT http://localhost:3000/api/products/ID \
+   -H "Content-Type: application/json" \
+   -H "Authorization: Bearer <TU_TOKEN_JWT>" \
+   -d '{
+   "price": 1850.00,
+   "stock_quantity": 45,
+   "status": "discontinued"
+   }'
+
+ ## Eliminar 
+   curl -v -X DELETE http://localhost:3000/api/products/ID -H "Authorization: Bearer <TU_TOKEN_JWT>"
