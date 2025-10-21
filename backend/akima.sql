@@ -31,7 +31,7 @@ CREATE TABLE `categories` (
   PRIMARY KEY (`id`),
   KEY `parent_id` (`parent_id`),
   CONSTRAINT `categories_ibfk_1` FOREIGN KEY (`parent_id`) REFERENCES `categories` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -41,7 +41,8 @@ CREATE TABLE `categories` (
 LOCK TABLES `categories` WRITE;
 /*!40000 ALTER TABLE `categories` DISABLE KEYS */;
 INSERT INTO `categories` VALUES
-(3,'Laptops y Computadoras','Dispositivos móviles y accesorios',NULL);
+(3,'Laptops y Computadoras','Dispositivos móviles y accesorios',NULL),
+(4,'Celulares y Tablets','Dispositivos móviles y accesorios',NULL);
 /*!40000 ALTER TABLE `categories` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -109,7 +110,7 @@ CREATE TABLE `products` (
   KEY `supplier_id` (`supplier_id`),
   CONSTRAINT `products_ibfk_1` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE SET NULL,
   CONSTRAINT `products_ibfk_2` FOREIGN KEY (`supplier_id`) REFERENCES `suppliers` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -118,6 +119,8 @@ CREATE TABLE `products` (
 
 LOCK TABLES `products` WRITE;
 /*!40000 ALTER TABLE `products` DISABLE KEYS */;
+INSERT INTO `products` VALUES
+(8,'TEC-RGB-TKL-001','7501234567890','Teclado Mecánico RGB TKL','Teclado mecánico Tenkeyless con switches azules y retroiluminación RGB personalizable.',1899.99,1200.00,50,'product','active',4,1,0.85,4.50,36.00,14.00,'{\"tipo_switch\":\"Blue Gateron\",\"formato\":\"TKL (Tenkeyless)\",\"conexion\":\"USB-C\"}','2025-10-13 20:19:37','2025-10-13 20:19:37');
 /*!40000 ALTER TABLE `products` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -135,8 +138,14 @@ CREATE TABLE `suppliers` (
   `email` varchar(150) DEFAULT NULL,
   `phone` varchar(50) DEFAULT NULL,
   `address` text DEFAULT NULL,
+  `website` varchar(255) DEFAULT NULL,
+  `status` enum('activo','inactivo','potencial') NOT NULL DEFAULT 'activo',
+  `notes` text DEFAULT NULL,
+  `tax_id` varchar(50) DEFAULT NULL,
+  `payment_terms` varchar(100) DEFAULT NULL,
+  `billing_email` varchar(150) DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -145,6 +154,8 @@ CREATE TABLE `suppliers` (
 
 LOCK TABLES `suppliers` WRITE;
 /*!40000 ALTER TABLE `suppliers` DISABLE KEYS */;
+INSERT INTO `suppliers` VALUES
+(1,'Tecnología del Golfo S.A.','Carlos Hernández','contacto@tecnogolfo.com','229-555-0101','Blvd. Manuel Ávila Camacho 789, Boca del Río, VER','https://tecnogolfo.com','activo',NULL,'TGO010203XYZ','Net 30',NULL);
 /*!40000 ALTER TABLE `suppliers` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -167,7 +178,7 @@ CREATE TABLE `users` (
   PRIMARY KEY (`ID`),
   UNIQUE KEY `Correo` (`Correo`),
   UNIQUE KEY `Passwd` (`Passwd`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -177,10 +188,10 @@ CREATE TABLE `users` (
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
 INSERT INTO `users` VALUES
-(3,'Juan Flores','admin@test.com','$2b$12$HtVaqhWW/Z9SuhTNOWnD.ef9gyhIJuGsBAWnUklwMcyZyYvlNr4YK','2025-09-04',1,0,'admin'),
-(4,'Juan Flores','gerente@test.com','$2b$12$vqLL7PIgK1JLYiefQqRMkekP44Je8oOBhnjsdynTQVJchtS0lxAg2','2025-10-08',1,0,'gerente'),
-(5,'vendedor Flores','vendedor@test.com','$2b$12$7c.qFGOUmk2TvrMdVE2fOuCMiKhFZgjxZQv9Bi0N.AihZaAiyy8tu','2025-10-08',1,0,'vendedor'),
-(6,'adm Flores','administracion@test.com','$2b$12$.ITDMMkNyQx/l3YRZtEDre32HoDnbVU02CLxJwM8f5Pp.PKaKPPiy','2025-10-08',1,0,'administracion');
+(8,'Admin F','admin@test.com','$2b$12$QcWa8uA.qf.4J/SQmTX4B.uR7xXLNbrqPacUCqEXYuRhmxqmeaaRO','2025-10-13',1,0,'admin'),
+(9,'Juan Flores','gerente@test.com','$2b$12$wfg2Okp/lwc9OK5de4Tlve6nCg.4KLXmJTCtGgO7d0yGH4ORUKt.O','2025-10-13',1,0,'gerente'),
+(10,'vendedor Flores','vendedor@test.com','$2b$12$Vb0yMDJKKTVocEQzMoSxu.KjgprfNc8.JlCXdRWXZvmxtXbaFy.56','2025-10-13',1,0,'vendedor'),
+(11,'adm Flores','administracion@test.com','$2b$12$IEqHiHs2/DAV2jf3UmKVWOEcxlPcwoazywwASEauOnNq3lzImnBNG','2025-10-13',1,0,'administracion');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -193,4 +204,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-08 17:03:16
+-- Dump completed on 2025-10-14 14:35:43

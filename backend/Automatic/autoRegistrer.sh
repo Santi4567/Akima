@@ -8,7 +8,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # Sin color
 
 # Configuración
-API_URL="http://localhost:3000/api/auth/register"
+API_URL="http://localhost:3000/api/users/register"
 
 # Array de usuarios para registrar
 declare -a USUARIOS=(

@@ -18,3 +18,19 @@
 "edit.suppliers",
 "delete.suppliers",
 "view.suppliers",
+
+# Para clientes 
+
+"add.clients",
+"edit.clients",
+"view.clients",
+"delete.clients"
+
+# Para las visitas (visitar clientes)
+
+"add.visits",
+"edit.visits",
+"delete.visits",
+"view.own.visits",
+"view.all.visits"
+

@@ -10,7 +10,8 @@
     "view.products",
     "add.suppliers",
     "edit.suppliers",
-    "view.suppliers"
+    "view.suppliers",
+    "add.clients"
     
   ],
   "vendedor": [
@@ -31,6 +32,10 @@
     "view.products",
     "add.suppliers",
     "edit.suppliers",
-    "view.suppliers"
+    "view.suppliers",
+    "add.clients",
+    "edit.clients",
+    "view.clients",
+    "delete.clients"
   ]
 }

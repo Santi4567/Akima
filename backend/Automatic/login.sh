@@ -8,7 +8,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # Sin color
 
 # Configuración
-API_URL="http://localhost:3000/api/auth/login"
+API_URL="http://localhost:3000/api/users/login"
 OUTPUT_TXT="tokens.txt"
 OUTPUT_JSON="tokens.json"
 
