@@ -95,3 +95,24 @@
 
  ## Eliminar clientes 
    curl -v -X DELETE http://localhost:3000/api/clients/1 -H "Authorization: Bearer <TU_TOKEN_JWT>"
+
+# Visitas
+
+  ## Asignar visitita (add.visits)
+   curl -v -X POST http://localhost:3000/api/visits -H "Content-Type: application/json" -H "Authorization: Bearer <TOKEN_DE_VENDEDOR>" -d '{ "client_id": 1, "scheduled_for": "2025-10-30T10:00:00", "notes": "Llevar el nuevo catálogo de productos."}'
+   
+  ## Asignar visita (add.visits + assign.visits)
+    
+    curl -v -X POST http://localhost:3000/api/visits -H "Content-Type: application/json" -H "Authorization: Bearer <TOKEN_DE_GERENTE>" -d '{ "client_id": 2, "user_id": 10, "scheduled_for": "2025-10-31T14:30:00", "notes": "Visita asignada a Juan (ID 10) por Gerencia." }'
+
+  ## Ver visitas
+   curl -v -X GET http://localhost:3000/api/visits -H "Authorization: Bearer <TU_TOKEN_JWT>"
+
+  ## Editar visitas (edit.visits)
+   curl -v -X PUT http://localhost:3000/api/visits/1 -H "Content-Type: application/json" -H "Authorization: Bearer <TOKEN_DE_VENDEDOR_DUEÑO>" -d '{"status": "completed","notes": "Visita completada. El cliente está interesado en el producto SKU-123. Enviar cotización."}'
+
+  ## Editar Visita (edit.visits + assign.visits)
+   curl -v -X PUT http://localhost:3000/api/visits/1 -H "Content-Type: application/json" -H "Authorization: Bearer <TOKEN_DE_GERENTE>" -d '{"user_id": 11,"notes": "Reasignada a Ana (ID 11) porque Juan está ocupado."}'
+
+  ## Eliminar visita
+   curl -v -X DELETE http://localhost:3000/api/visits/1 -H "Authorization: Bearer <TU_TOKEN_JWT>"

@@ -52,6 +52,15 @@ const PERMISSIONS = {
   DELETE_CLIENTS: 'delete.clients',
   VIEW_CLIENTS: 'view.clients',
   
+  //Visitas
+  ADD_VISITS: 'add.visits',
+  EDIT_VISITS:  'edit.visits',
+  DELETE_VISITS: 'delete.visits',
+  VIEW_OWN_VISITS: 'view.own.visits',
+  VIEW_ALL_VISITS: 'view.all.visits',
+  ASSIGN_VISITS: 'assign.visit',
+
+
   // Ventas
   VIEW_SALES: 'view.sales',
   

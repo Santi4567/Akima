@@ -32,5 +32,6 @@
 "edit.visits",
 "delete.visits",
 "view.own.visits",
-"view.all.visits"
+"view.all.visits",
+"assign.visit"
 

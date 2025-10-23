@@ -13,6 +13,7 @@ const categoryRoutes = require('./routes/categoryRoutes');
 const supplierRoutes = require('./routes/supplierRoutes');
 const productRoutes = require('./routes/productRoutes');
 const clientRoutes = require('./routes/clientRoutes');
+const visitRoutes = require('./routes/visitRoutes');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -27,6 +28,7 @@ app.use('/api/categories', categoryRoutes); //Categorias
 app.use('/api/suppliers', supplierRoutes);//Proveedores 
 app.use('/api/products', productRoutes); // Productos 
 app.use('/api/clients', clientRoutes); // Clientes
+app.use('/api/visits', visitRoutes); // Visitas 
 
 
 // Middleware de manejo de errores

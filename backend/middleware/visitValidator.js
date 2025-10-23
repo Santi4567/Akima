@@ -11,6 +11,7 @@ const VISIT_SCHEMA = {
     fieldRules: {
         client_id: { type: 'integer', required: true },
         user_id: { type: 'integer', required: true },
+        user_id: { type: 'integer' },
         scheduled_for: { type: 'datetime', required: true }, // Espera formato ISO 8601 (YYYY-MM-DDTHH:MM:SS)
         status: { type: 'string', enum: ['pending', 'completed', 'cancelled'] },
         notes: { type: 'string' } // TEXT

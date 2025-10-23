@@ -47,6 +47,42 @@ INSERT INTO `categories` VALUES
 UNLOCK TABLES;
 
 --
+-- Table structure for table `clients`
+--
+
+DROP TABLE IF EXISTS `clients`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `clients` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `first_name` varchar(100) NOT NULL,
+  `last_name` varchar(100) NOT NULL,
+  `email` varchar(150) NOT NULL,
+  `phone` varchar(50) DEFAULT NULL,
+  `address` text DEFAULT NULL,
+  `company_name` varchar(200) DEFAULT NULL,
+  `status` enum('lead','active','inactive') NOT NULL DEFAULT 'lead',
+  `notes` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `last_contact_date` date DEFAULT NULL,
+  `follow_up_days` int(10) unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `email` (`email`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `clients`
+--
+
+LOCK TABLES `clients` WRITE;
+/*!40000 ALTER TABLE `clients` DISABLE KEYS */;
+INSERT INTO `clients` VALUES
+(3,'Juan','Pérez','juan.perez@dominio.com','222-123-4567',NULL,'Comercializadora Pérez','lead',NULL,'2025-10-21 21:55:25',NULL,NULL);
+/*!40000 ALTER TABLE `clients` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `product_images`
 --
 
@@ -122,6 +158,37 @@ LOCK TABLES `products` WRITE;
 INSERT INTO `products` VALUES
 (8,'TEC-RGB-TKL-001','7501234567890','Teclado Mecánico RGB TKL','Teclado mecánico Tenkeyless con switches azules y retroiluminación RGB personalizable.',1899.99,1200.00,50,'product','active',4,1,0.85,4.50,36.00,14.00,'{\"tipo_switch\":\"Blue Gateron\",\"formato\":\"TKL (Tenkeyless)\",\"conexion\":\"USB-C\"}','2025-10-13 20:19:37','2025-10-13 20:19:37');
 /*!40000 ALTER TABLE `products` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `scheduled_visits`
+--
+
+DROP TABLE IF EXISTS `scheduled_visits`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `scheduled_visits` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `client_id` bigint(20) unsigned NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `scheduled_for` datetime NOT NULL,
+  `status` enum('pending','completed','cancelled') NOT NULL DEFAULT 'pending',
+  `notes` text DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `client_id` (`client_id`),
+  KEY `user_id` (`user_id`),
+  CONSTRAINT `scheduled_visits_ibfk_1` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `scheduled_visits_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`ID`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `scheduled_visits`
+--
+
+LOCK TABLES `scheduled_visits` WRITE;
+/*!40000 ALTER TABLE `scheduled_visits` DISABLE KEYS */;
+/*!40000 ALTER TABLE `scheduled_visits` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -204,4 +271,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-14 14:35:43
+-- Dump completed on 2025-10-21 15:57:23

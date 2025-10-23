@@ -17,7 +17,8 @@
   "vendedor": [
     "view.products",
     "view.clients", 
-    "view.inventory"
+    "view.inventory",
+    "view.own.visits"
    
   ],
   "administracion": [
@@ -36,6 +37,12 @@
     "add.clients",
     "edit.clients",
     "view.clients",
-    "delete.clients"
+    "delete.clients",
+    "add.visits",
+    "edit.visits",
+    "delete.visits",
+    "view.own.visits",
+    "view.all.visits",
+    "assign.visit"
   ]
 }
