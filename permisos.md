@@ -35,3 +35,19 @@
 "view.all.visits",
 "assign.visit"
 
+
+# Tabla orders(para ordenes e historico)
+
+add.order
+view.own.orders
+view.all.orders
+edit.order.content
+edit.order.status
+cancel.order
+
+# Reembolsos 
+
+view.own.returns
+issue.refund
+edit.return.status
+view.all.returns

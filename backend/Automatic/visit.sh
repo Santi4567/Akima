@@ -93,8 +93,8 @@ crear_visita_gerente() {
         -H "Content-Type: application/json" \
         -H "Authorization: Bearer $token" \
         -d '{
-            "client_id": 2,
-            "user_id": 10,
+            "client_id": 3,
+            "user_id": 11,
             "scheduled_for": "2025-10-31T14:30:00",
             "notes": "Visita asignada a Juan (ID 10) por Gerencia."
         }')

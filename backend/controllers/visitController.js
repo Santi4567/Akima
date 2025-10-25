@@ -10,28 +10,21 @@ const createVisit = async (req, res) => {
     let connection;
     try {
         const { client_id, scheduled_for, notes } = req.body;
-        // Obtenemos el ID solicitado del body (si es que viene)
         const requested_user_id = req.body.user_id;
         const currentUser = req.user;
 
         let assigned_user_id;
 
-        // =================================================================
-        // NUEVA LÓGICA DE ASIGNACIÓN
-        // =================================================================
+        // Lógica de Asignación
         if (requested_user_id && requested_user_id !== currentUser.userId) {
-            // El usuario está intentando asignar la visita a otra persona.
-            // ¿Tiene permiso para hacerlo?
             if (!checkPermission(currentUser.rol, PERMISSIONS.ASSIGN_VISITS)) {
                 return res.status(403).json({ success: false, error: 'ACCESO_DENEGADO', message: 'No tienes permiso para asignar visitas a otros usuarios.' });
             }
-            // Tiene permiso, usamos el ID solicitado
             assigned_user_id = requested_user_id;
         } else {
-            // No se solicitó un ID diferente, se asigna al usuario que hace la petición.
             assigned_user_id = currentUser.userId;
         }
-
+        
         const sanitizedNotes = notes ? sanitizeInput(notes) : null;
         if (sanitizedNotes && containsSQLInjection(sanitizedNotes)) {
             return res.status(400).json({ success: false, error: 'INPUT_MALICIOSO', message: 'El campo "notes" contiene patrones no permitidos.' });
@@ -45,15 +38,21 @@ const createVisit = async (req, res) => {
             return res.status(404).json({ success: false, message: 'El cliente especificado no existe.' });
         }
         
-        // Validación de Negocio 2: Verificar que el USUARIO asignado existe
+        // =================================================================
+        // NUEVA VALIDACIÓN: Verificar que el USUARIO asignado existe
+        // =================================================================
         const [user] = await connection.execute('SELECT ID FROM users WHERE ID = ?', [assigned_user_id]);
         if (user.length === 0) {
-            return res.status(404).json({ success: false, message: 'El usuario al que intentas asignar la visita no existe.' });
+            return res.status(404).json({ 
+                success: false, 
+                message: 'El usuario al que intentas asignar la visita no existe.' 
+            });
         }
 
+        // Inserción
         const [result] = await connection.execute(
             'INSERT INTO scheduled_visits (client_id, user_id, scheduled_for, notes, status) VALUES (?, ?, ?, ?, ?)',
-            [client_id, assigned_user_id, scheduled_for, notes ? sanitizeInput(notes) : null, 'pending']
+            [client_id, assigned_user_id, scheduled_for, sanitizedNotes, 'pending']
         );
         
         res.status(201).json({ success: true, message: 'Visita agendada exitosamente.', data: { id: result.insertId } });
@@ -64,7 +63,6 @@ const createVisit = async (req, res) => {
         if (connection) connection.release();
     }
 };
-
 /**
  * [PROTEGIDO] Actualizar una visita (Completar, Reagendar, etc.)
  * - Un vendedor solo puede editar sus visitas (y no puede reasignarlas).
@@ -73,7 +71,6 @@ const createVisit = async (req, res) => {
 const updateVisit = async (req, res) => {
     let connection;
     try {
-        // 1. Sanitizar el ID de la URL (previene XSS reflejado)
         const sanitizedId = sanitizeInput(req.params.id);
         if (isNaN(parseInt(sanitizedId, 10))) {
             return res.status(400).json({ success: false, message: 'El ID de la visita debe ser un número.' });
@@ -86,30 +83,31 @@ const updateVisit = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Debe proporcionar al menos un campo para actualizar.' });
         }
         
-        // 2. Sanitización y Detección de SQLi para el body
+        // Sanitización y Detección de SQLi
         const sanitizedUpdates = {};
         for (const key in updates) {
+            // ... (tu bucle de sanitización) ...
             const value = updates[key];
             if (typeof value === 'string') {
                 const sanitizedValue = sanitizeInput(value);
                 if (containsSQLInjection(sanitizedValue)) {
-                    return res.status(400).json({ success: false, error: 'INPUT_MALICIOSO', message: `El campo '${key}' contiene patrones no permitidos.` });
+                    return res.status(400).json({ success: false, error: 'INPUT_MALICIOSO' });
                 }
                 sanitizedUpdates[key] = sanitizedValue;
             } else {
-                sanitizedUpdates[key] = value; // Copiar valores no-string (como client_id)
+                sanitizedUpdates[key] = value;
             }
         }
         
         connection = await getConnection();
 
-        // 3. Validación de Propiedad y Existencia
+        // Validación de Propiedad y Existencia
         const [visits] = await connection.execute('SELECT user_id FROM scheduled_visits WHERE id = ?', [sanitizedId]);
         if (visits.length === 0) {
             return res.status(404).json({ success: false, message: 'La visita no fue encontrada.' });
         }
         
-        // 4. Lógica de Permisos de Edición
+        // Lógica de Permisos de Edición
         const visitOwnerId = visits[0].user_id;
         const canAssign = checkPermission(currentUser.rol, PERMISSIONS.ASSIGN_VISITS);
         const isOwner = currentUser.userId === visitOwnerId;
@@ -118,21 +116,25 @@ const updateVisit = async (req, res) => {
             return res.status(403).json({ success: false, message: 'No tienes permiso para modificar una visita que no te pertenece.' });
         }
 
-        // 5. Lógica de Permisos de Re-asignación
-        // Si el usuario intenta cambiar el 'user_id'...
+        // Lógica de Permisos de Re-asignación
         if (sanitizedUpdates.user_id && sanitizedUpdates.user_id !== visitOwnerId) {
-            // ...solo puede hacerlo si tiene el permiso de reasignar.
             if (!canAssign) {
                 return res.status(403).json({ success: false, error: 'ACCESO_DENEGADO', message: 'No tienes permiso para re-asignar esta visita a otro usuario.' });
             }
-            // Validar que el nuevo usuario exista
+            
+            // =================================================================
+            // NUEVA VALIDACIÓN: Validar que el nuevo usuario exista
+            // =================================================================
             const [newUser] = await connection.execute('SELECT ID FROM users WHERE ID = ?', [sanitizedUpdates.user_id]);
             if (newUser.length === 0) {
-                return res.status(404).json({ success: false, message: 'El nuevo usuario al que intentas asignar la visita no existe.' });
+                return res.status(404).json({ 
+                    success: false, 
+                    message: 'El nuevo usuario al que intentas asignar la visita no existe.' 
+                });
             }
         }
         
-        // 6. Validación de Negocio: Si cambia el client_id, verificar que el nuevo cliente exista
+        // Validación de Negocio: Si cambia el client_id, verificar que exista
         if (sanitizedUpdates.client_id) {
             const [client] = await connection.execute('SELECT id FROM clients WHERE id = ?', [sanitizedUpdates.client_id]);
             if (client.length === 0) {
@@ -140,7 +142,7 @@ const updateVisit = async (req, res) => {
             }
         }
         
-        // 7. Ejecutar actualización
+        // Ejecutar actualización
         const updateFields = Object.keys(sanitizedUpdates).map(field => `${field} = ?`).join(', ');
         const queryParams = [...Object.values(sanitizedUpdates), sanitizedId];
         
@@ -154,7 +156,6 @@ const updateVisit = async (req, res) => {
         if (connection) connection.release();
     }
 };
-
 /**
  * [PROTEGIDO] Obtener visitas.
  * Esta función unificada devuelve "mis visitas" o "todas las visitas"
