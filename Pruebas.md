@@ -79,40 +79,92 @@
 # Clientes 
 
  ## Crear Clientes
-  curl -v -X POST http://localhost:3000/api/clients -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{ "first_name": "Juan","last_name": "Pérez", "email": "juan.perez@dominio.com", "phone": "222-123-4567", "company_name": "Comercializadora Pérez", "status": "lead"}'
+    ```shell
+    curl -v -X POST http://localhost:3000/api/clients -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{ "first_name": "Juan","last_name": "Pérez", "email": "juan.perez@dominio.com", "phone": "222-123-4567", "company_name": "Comercializadora Pérez", "status": "lead"}'
+    ```
 
  ## Buscar Clientes 
-  
-  curl -v -X GET "http://localhost:3000/api/clients/search?q=Juan" -H "Authorization: Bearer <TU_TOKEN_JWT>"
+    ```shell
+    curl -v -X GET "http://localhost:3000/api/clients/search?q=Juan" -H "Authorization: Bearer <TU_TOKEN_JWT>"
+    ```
 
  ## Ver clientes 
-
-  curl -v -X GET http://localhost:3000/api/clients -H "Authorization: Bearer <TU_TOKEN_JWT>"
+    ```shell
+    curl -v -X GET http://localhost:3000/api/clients -H "Authorization: Bearer <TU_TOKEN_JWT>"
+    ```
 
  ## Editar clientes 
-  
-  curl -v -X PUT http://localhost:3000/api/clients/1 -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{ "phone": "222-987-6543", "status": "active" }'
+    ```shell
+    curl -v -X PUT http://localhost:3000/api/clients/1 -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{ "phone": "222-987-6543", "status": "active" }'
+    ```
 
  ## Eliminar clientes 
+   ```shell
    curl -v -X DELETE http://localhost:3000/api/clients/1 -H "Authorization: Bearer <TU_TOKEN_JWT>"
+   ```
 
 # Visitas
 
   ## Asignar visitita (add.visits)
-   curl -v -X POST http://localhost:3000/api/visits -H "Content-Type: application/json" -H "Authorization: Bearer <TOKEN_DE_VENDEDOR>" -d '{ "client_id": 1, "scheduled_for": "2025-10-30T10:00:00", "notes": "Llevar el nuevo catálogo de productos."}'
+   ```shell
+   curl -X POST http://localhost:3000/api/visits -H "Content-Type: application/json" -H "Authorization: Bearer <TOKEN_DE_VENDEDOR>" -d '{ "client_id": 1, "scheduled_for": "2025-10-30T10:00:00", "notes": "Llevar el nuevo catálogo de productos."}'
+   ```
    
   ## Asignar visita (add.visits + assign.visits)
-    
-    curl -v -X POST http://localhost:3000/api/visits -H "Content-Type: application/json" -H "Authorization: Bearer <TOKEN_DE_GERENTE>" -d '{ "client_id": 2, "user_id": 10, "scheduled_for": "2025-10-31T14:30:00", "notes": "Visita asignada a Juan (ID 10) por Gerencia." }'
+    ```shell
+    curl -X POST http://localhost:3000/api/visits -H "Content-Type: application/json" -H "Authorization: Bearer <TOKEN_DE_GERENTE>" -d '{ "client_id": 2, "user_id": 10, "scheduled_for": "2025-10-31T14:30:00", "notes": "Visita asignada a Juan (ID 10) por Gerencia." }'
+    ```
 
   ## Ver visitas
-   curl -v -X GET http://localhost:3000/api/visits -H "Authorization: Bearer <TU_TOKEN_JWT>"
+  ```shell
+   curl -X GET http://localhost:3000/api/visits -H "Authorization: Bearer <TU_TOKEN_JWT>"
+   ```
 
   ## Editar visitas (edit.visits)
-   curl -v -X PUT http://localhost:3000/api/visits/1 -H "Content-Type: application/json" -H "Authorization: Bearer <TOKEN_DE_VENDEDOR_DUEÑO>" -d '{"status": "completed","notes": "Visita completada. El cliente está interesado en el producto SKU-123. Enviar cotización."}'
+   ```shell
+   curl -X PUT http://localhost:3000/api/visits/1 -H "Content-Type: application/json" -H "Authorization: Bearer <TOKEN_DE_VENDEDOR_DUEÑO>" -d '{"status": "completed","notes": "Visita completada. El cliente está interesado en el producto SKU-123. Enviar cotización."}'
+   ```
 
   ## Editar Visita (edit.visits + assign.visits)
-   curl -v -X PUT http://localhost:3000/api/visits/1 -H "Content-Type: application/json" -H "Authorization: Bearer <TOKEN_DE_GERENTE>" -d '{"user_id": 11,"notes": "Reasignada a Ana (ID 11) porque Juan está ocupado."}'
+   ```shell
+   curl -X PUT http://localhost:3000/api/visits/1 -H "Content-Type: application/json" -H "Authorization: Bearer <TOKEN_DE_GERENTE>" -d '{"user_id": 11,"notes": "Reasignada a Ana (ID 11) porque Juan está ocupado."}'
+   ```
 
   ## Eliminar visita
-   curl -v -X DELETE http://localhost:3000/api/visits/1 -H "Authorization: Bearer <TU_TOKEN_JWT>"
+  ``` shell
+   curl -X DELETE http://localhost:3000/api/visits/1 -H "Authorization: Bearer <TU_TOKEN_JWT>"
+   ```
+
+
+# Oredenes 
+
+  ## Crear un Pedido (add.order)
+    ```shell
+    curl -X POST http://localhost:3000/api/orders -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{ "client_id": 1, "shipping_address": "Av. Siempre Viva 742, Springfield",  "notes": "Entregar solo por las tardes.",  "items": [    { "product_id": 8, "quantity": 2 },{ "product_id": 9, "quantity": 1 }]}'
+    ```
+
+  ## Ver Pedidos (view.own.orders / view.all.orders)
+    ```shell
+    curl -X GET http://localhost:3000/api/orders -H "Authorization: Bearer <TU_TOKEN_JWT>"
+    ```
+
+  ## Actualizar Estado del Pedido (edit.order.status)
+    ```shell
+    curl -X PUT http://localhost:3000/api/orders/1/status -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT_ALMACEN>" -d '{"status": "processing"}'
+    ```
+
+  ## Cancelar un Pedido (cancel.order)
+    ```shell
+    curl -X PUT http://localhost:3000/api/orders/1/cancel -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT_ADMIN>"
+    ```
+
+# Returns 
+ ## Crear return 
+  ## Escenario A: Devolución por Items (Falta de stock)
+  ```shell
+   curl -X POST http://localhost:3000/api/returns -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT_ALMACEN>" -d '{"order_id": 1,"reason": "Ajuste automático por falta de stock en despacho.","status": "completed","items": [{ "order_item_id": 15, "quantity": 1 }]}'
+  ```
+  ## Escenario B: Reembolso Manual (Ajuste de precio)
+  ```shell
+  curl -X POST http://localhost:3000/api/returns -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT_ADMIN>" -d '{"order_id": 2,"reason": "Ajuste de precio por promoción no aplicada.","status": "completed", "total_refunded": 200.50}'
+  ```

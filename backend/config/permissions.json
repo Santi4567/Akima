@@ -18,7 +18,8 @@
     "view.products",
     "view.clients", 
     "view.inventory",
-    "view.own.visits"
+    "view.own.visits",
+    "view.own.orders"
    
   ],
   "administracion": [
@@ -43,6 +44,11 @@
     "delete.visits",
     "view.own.visits",
     "view.all.visits",
-    "assign.visit"
+    "assign.visit",
+    "add.order",
+    "view.all.orders",
+    "edit.order.content",
+    "edit.order.status",
+    "cancel.order"
   ]
 }

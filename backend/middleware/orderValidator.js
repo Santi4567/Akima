@@ -88,9 +88,15 @@ const validateStatusPayload = (req, res, next) => {
     if (!status) {
         return res.status(400).json({ success: false, message: 'El campo "status" es obligatorio.' });
     }
-    const validStatus = ['pending', 'processing', 'shipped', 'completed', 'cancelled'];
+
+    // LISTA RESTRINGIDA: Solo los estados del flujo de despacho son válidos aquí.
+    const validStatus = ['processing', 'shipped', 'completed'];
+
     if (!validStatus.includes(status)) {
-         return res.status(400).json({ success: false, message: 'El valor de "status" no es válido.' });
+         return res.status(400).json({ 
+            success: false, 
+            message: `El estado '${status}' no es válido para esta operación. Para cancelar, usa el endpoint dedicado.` 
+        });
     }
     next();
 };

@@ -14,6 +14,8 @@ const supplierRoutes = require('./routes/supplierRoutes');
 const productRoutes = require('./routes/productRoutes');
 const clientRoutes = require('./routes/clientRoutes');
 const visitRoutes = require('./routes/visitRoutes');
+const orderRoutes = require('./routes/orderRoutes');
+const returnRoutes = require('./routes/returnRoutes');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -29,6 +31,9 @@ app.use('/api/suppliers', supplierRoutes);//Proveedores
 app.use('/api/products', productRoutes); // Productos 
 app.use('/api/clients', clientRoutes); // Clientes
 app.use('/api/visits', visitRoutes); // Visitas 
+app.use('/api/orders', orderRoutes); // Orders 
+app.use('/api/returns', returnRoutes); // Visitas 
+
 
 
 // Middleware de manejo de errores

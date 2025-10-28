@@ -97,10 +97,11 @@ const getOrders = async (req, res) => {
 
         if (checkPermission(currentUser.rol, PERMISSIONS.VIEW_ALL_ORDERS)) {
             query = 'SELECT * FROM orders ORDER BY created_at DESC';
-        } else {
+        } else if (checkPermission(currentUser.rol, PERMISSIONS.VIEW_OWN_ORDERS)){
             query = 'SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC';
             queryParams.push(currentUser.userId);
         }
+
 
         connection = await getConnection();
         const [orders] = await connection.execute(query, queryParams);
@@ -147,7 +148,7 @@ const cancelOrder = async (req, res) => {
     try {
         const { id } = req.params;
         connection = await getConnection();
-        // Lógica de negocio: Quizás solo se pueden cancelar pedidos en 'pending' o 'processing'
+        
         const [result] = await connection.execute(
             "UPDATE orders SET status = 'cancelled' WHERE id = ? AND status IN ('pending', 'processing')",
             [id]

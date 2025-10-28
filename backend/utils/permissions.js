@@ -61,8 +61,12 @@ const PERMISSIONS = {
   ASSIGN_VISITS: 'assign.visit',
 
 
-  // Ventas
-  VIEW_SALES: 'view.sales',
+  //  Oredenes/Pedidos
+  ADD_ORDER: 'add.order',
+  VIEW_ALL_ORDERS : 'view.all.orders',
+  VIEW_OWN_ORDERS: 'view.own.orders',
+  EDIT_ORDER_STATUS: 'edit.order.status',
+  CANCEL_ORDER: 'cancel.order',
   
   // Inventario
   VIEW_INVENTORY: 'view.inventory',
