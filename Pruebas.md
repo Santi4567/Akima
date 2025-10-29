@@ -168,3 +168,7 @@
   ```shell
   curl -X POST http://localhost:3000/api/returns -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT_ADMIN>" -d '{"order_id": 2,"reason": "Ajuste de precio por promoción no aplicada.","status": "completed", "total_refunded": 200.50}'
   ```
+  ## Ajustar estado del reembolso 
+    ```shell
+    curl -v -X PUT http://localhost:3000/api/returns/1/status -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"status": "completed"}'
+    ```

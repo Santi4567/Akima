@@ -49,6 +49,8 @@
     "view.all.orders",
     "edit.order.content",
     "edit.order.status",
-    "cancel.order"
+    "cancel.order",
+    "issue.returns",
+    "edit.staus.returns"
   ]
 }

@@ -101,7 +101,7 @@ CREATE TABLE `order_items` (
   KEY `product_id` (`product_id`),
   CONSTRAINT `order_items_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
   CONSTRAINT `order_items_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -110,6 +110,9 @@ CREATE TABLE `order_items` (
 
 LOCK TABLES `order_items` WRITE;
 /*!40000 ALTER TABLE `order_items` DISABLE KEYS */;
+INSERT INTO `order_items` VALUES
+(4,4,8,'Teclado Mecánico RGB TKL',80,1899.99),
+(5,5,8,'Teclado Mecánico RGB TKL',50,1899.99);
 /*!40000 ALTER TABLE `order_items` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -134,7 +137,7 @@ CREATE TABLE `orders` (
   KEY `user_id` (`user_id`),
   CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`),
   CONSTRAINT `orders_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`ID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -143,6 +146,9 @@ CREATE TABLE `orders` (
 
 LOCK TABLES `orders` WRITE;
 /*!40000 ALTER TABLE `orders` DISABLE KEYS */;
+INSERT INTO `orders` VALUES
+(4,3,8,'shipped',151999.20,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-10-28 21:26:25'),
+(5,3,8,'cancelled',94999.50,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-10-28 21:26:44');
 /*!40000 ALTER TABLE `orders` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -234,16 +240,17 @@ DROP TABLE IF EXISTS `return_items`;
 CREATE TABLE `return_items` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `return_id` bigint(20) unsigned NOT NULL,
+  `order_item_id` bigint(20) unsigned NOT NULL,
   `product_id` bigint(20) unsigned DEFAULT NULL,
   `product_name` varchar(255) NOT NULL,
   `quantity` int(10) unsigned NOT NULL,
   `unit_price_refunded` decimal(10,2) NOT NULL,
   PRIMARY KEY (`id`),
   KEY `return_id` (`return_id`),
-  KEY `product_id` (`product_id`),
+  KEY `order_item_id` (`order_item_id`),
   CONSTRAINT `return_items_ibfk_1` FOREIGN KEY (`return_id`) REFERENCES `returns` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `return_items_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  CONSTRAINT `return_items_ibfk_2` FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -252,6 +259,12 @@ CREATE TABLE `return_items` (
 
 LOCK TABLES `return_items` WRITE;
 /*!40000 ALTER TABLE `return_items` DISABLE KEYS */;
+INSERT INTO `return_items` VALUES
+(1,5,4,NULL,'Teclado Mecánico RGB TKL',80,1899.99),
+(2,6,4,8,'Teclado Mecánico RGB TKL',80,1899.99),
+(3,7,4,8,'Teclado Mecánico RGB TKL',80,1899.99),
+(4,8,4,8,'Teclado Mecánico RGB TKL',80,1899.99),
+(5,9,4,8,'Teclado Mecánico RGB TKL',80,1899.99);
 /*!40000 ALTER TABLE `return_items` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -278,7 +291,7 @@ CREATE TABLE `returns` (
   CONSTRAINT `returns_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`),
   CONSTRAINT `returns_ibfk_2` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`),
   CONSTRAINT `returns_ibfk_3` FOREIGN KEY (`user_id`) REFERENCES `users` (`ID`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -287,6 +300,13 @@ CREATE TABLE `returns` (
 
 LOCK TABLES `returns` WRITE;
 /*!40000 ALTER TABLE `returns` DISABLE KEYS */;
+INSERT INTO `returns` VALUES
+(5,4,3,8,'Ajuste automático por falta de stock en despacho.',151999.20,'2025-10-29 17:50:32','cancelled'),
+(6,4,3,8,'Ajuste automático por falta de stock en despacho.',151999.20,'2025-10-29 17:59:49','cancelled'),
+(7,4,3,8,'Ajuste automático por falta de stock en despacho.',151999.20,'2025-10-29 18:00:21','cancelled'),
+(8,4,3,11,'Ajuste automático por falta de stock en despacho.',151999.20,'2025-10-29 18:02:52','cancelled'),
+(9,4,3,11,'Ajuste automático por falta de stock en despacho.',151999.20,'2025-10-29 18:36:53','cancelled'),
+(10,4,3,8,'Ajuste de precio por promoción no aplicada.',200.50,'2025-10-29 18:38:13','completed');
 /*!40000 ALTER TABLE `returns` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -404,4 +424,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-25 16:40:02
+-- Dump completed on 2025-10-29 12:40:24

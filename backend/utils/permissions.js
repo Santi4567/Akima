@@ -68,6 +68,10 @@ const PERMISSIONS = {
   EDIT_ORDER_STATUS: 'edit.order.status',
   CANCEL_ORDER: 'cancel.order',
   
+  // Returns
+  ISSUE_REFUND: 'issue.returns',
+  EDIT_RETURN_STATUS: 'edit.staus.returns',
+
   // Inventario
   VIEW_INVENTORY: 'view.inventory',
   EDIT_INVENTORY: 'edit.inventory'

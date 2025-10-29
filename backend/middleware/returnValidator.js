@@ -1,4 +1,5 @@
 
+const { sanitizeInput } = require('../utils/sanitizer');
 /**
  * Middleware para validar el payload de la creación de una nueva devolución (return).
  * Valida la estructura y se asegura de que se provean 'items' (para productos)
@@ -90,7 +91,35 @@ const validateReturnPayload = (req, res, next) => {
 
     next();
 };
+const validateReturnStatusPayload = (req, res, next) => {
+    const { status } = req.body;
+
+    // 1. Validar campos extra
+    const allowedFields = ['status'];
+    const receivedFields = Object.keys(req.body);
+    const extraFields = receivedFields.filter(field => !allowedFields.includes(field));
+
+    if (extraFields.length > 0) {
+        return res.status(400).json({ success: false, error: 'CAMPOS_NO_PERMITIDOS', message: `Solo se permite el campo 'status'.` });
+    }
+
+    // 2. Validar campo requerido
+    if (!status) {
+        return res.status(400).json({ success: false, message: 'El campo "status" es obligatorio.' });
+    }
+
+    // 3. Validar valores permitidos
+    const validStatus = ['pending', 'approved', 'completed', 'cancelled'];
+    if (!validStatus.includes(status)) {
+         return res.status(400).json({ 
+            success: false, 
+            message: `El estado '${status}' no es válido. Valores permitidos: ${validStatus.join(', ')}` 
+        });
+    }
+    next();
+};
 
 module.exports = {
-    validateReturnPayload
+    validateReturnPayload,
+    validateReturnStatusPayload
 };
