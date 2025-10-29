@@ -1,6 +1,3 @@
-const { getConnection } = require('../config/database');
-const { sanitizeInput, containsSQLInjection } = require('../utils/sanitizer');
-
 /**
  * [PROTEGIDO] Crear una nueva Devolución/Reembolso
  * Maneja tanto la devolución de productos (con 'items') 
@@ -12,19 +9,28 @@ const { sanitizeInput, containsSQLInjection } = require('../utils/sanitizer');
  * 3. La 'quantity' a devolver + la suma de devoluciones *válidas* (no canceladas)
  * anteriores no puede exceder la cantidad pedida original.
  */
+// En controllers/returnController.js
+
+const { getConnection } = require('../config/database');
+const { sanitizeInput, containsSQLInjection } = require('../utils/sanitizer');
+
+/**
+ * [PROTEGIDO] Crear una nueva Devolución/Reembolso
+ * Maneja tanto la devolución de productos (con 'items')
+ * como los reembolsos manuales (con 'total_refunded').
+ * Incluye validaciones robustas de cantidad y monto.
+ */
 const createReturn = async (req, res) => {
-    // El middleware 'validateReturnPayload' ya verificó la forma,
-    // que 'order_id' y 'reason' existen, y que solo 'items' O 'total_refunded' está presente.
-    
+    // El middleware 'validateReturnPayload' ya validó la forma básica.
     const { order_id, reason, items, total_refunded, status } = req.body;
     const user_id_from_token = req.user.userId;
 
     let connection;
     let final_total_refunded = 0;
-    // Usaremos este array para guardar los items validados antes de insertarlos
-    let validatedItemsToInsert = []; 
+    // Guardaremos los items validados aquí
+    let validatedItemsToInsert = [];
 
-    // 1. Sanitizar la razón (único campo de texto libre)
+    // 1. Sanitizar la razón
     const sanitizedReason = sanitizeInput(reason);
     if (containsSQLInjection(sanitizedReason)) {
         return res.status(400).json({ success: false, error: 'INPUT_MALICIOSO', message: 'El campo "reason" contiene patrones no permitidos.' });
@@ -35,94 +41,125 @@ const createReturn = async (req, res) => {
         connection = await getConnection();
         await connection.beginTransaction();
 
-        // 3. Validar que el Pedido exista y obtener el client_id
-        const [orders] = await connection.execute('SELECT client_id FROM orders WHERE id = ?', [order_id]);
+        // 3. Validar Pedido Original y Obtener Total
+        const [orders] = await connection.execute(
+            'SELECT client_id, total_amount FROM orders WHERE id = ?',
+            [order_id]
+        );
         if (orders.length === 0) {
-            // No es necesario hacer rollback si la transacción aún no ha escrito nada
             return res.status(404).json({ success: false, message: 'El pedido original no existe.' });
         }
         const client_id = orders[0].client_id;
+        // ¡Ojo! Convertir a número para comparaciones seguras
+        const original_order_total = parseFloat(orders[0].total_amount);
 
-        // 4. Determinar el tipo de Reembolso
-        if (total_refunded) {
-            // ==========================================================
-            // CASO A: Reembolso manual (Ajuste de precio)
-            // ==========================================================
-            final_total_refunded = total_refunded;
-        
+        // 4. Determinar Tipo de Reembolso y Validar Montos/Cantidades
+        if (total_refunded !== undefined) {
+            // ============================================
+            // CASO A: Reembolso Manual (Ajuste)
+            // ============================================
+            final_total_refunded = parseFloat(total_refunded); // Asegurarse que es número
+
+            // VALIDACIÓN 1: Monto solicitado > Total original
+            if (final_total_refunded > original_order_total) {
+                throw new Error(`El reembolso solicitado (${final_total_refunded.toFixed(2)}) excede el total original del pedido (${original_order_total.toFixed(2)}).`);
+            }
+
+            // VALIDACIÓN 2: Calcular reembolsos previos válidos (no cancelados)
+            const [prevRefunds] = await connection.execute(
+                `SELECT SUM(total_refunded) as totalPreviouslyRefunded
+                 FROM returns
+                 WHERE order_id = ? AND status != 'cancelled'`,
+                [order_id]
+            );
+            const totalPreviouslyRefunded = parseFloat(prevRefunds[0].totalPreviouslyRefunded || 0);
+
+            // VALIDACIÓN 3: (Previos + Actual) > Total Original
+            // Usamos una pequeña tolerancia (epsilon) para evitar errores de punto flotante
+            const epsilon = 0.001;
+            if ((totalPreviouslyRefunded + final_total_refunded) > (original_order_total + epsilon)) {
+                const maxAllowedRefund = original_order_total - totalPreviouslyRefunded;
+                throw new Error(`El monto máximo que se puede reembolsar para este pedido es ${maxAllowedRefund.toFixed(2)} (ya se han reembolsado ${totalPreviouslyRefunded.toFixed(2)} válidos).`);
+            }
+
         } else if (items) {
-            // ==========================================================
-            // CASO B: Devolución de productos (Faltantes de stock, etc.)
-            // ==========================================================
-            
-            // Loop 1: Validar todos los items y calcular el total
+            // ============================================
+            // CASO B: Devolución de Productos
+            // ============================================
             for (const item of items) {
                 const { order_item_id, quantity } = item;
-                
-                // VALIDACIÓN 1 (Caso 2 Erróneo):
-                // Verificar que el item existe Y pertenece al pedido
+
+                // VALIDACIÓN B.1: Item existe y pertenece al pedido
                 const [orderItems] = await connection.execute(
                     'SELECT product_id, product_name, unit_price, quantity AS ordered_quantity FROM order_items WHERE id = ? AND order_id = ?',
                     [order_item_id, order_id]
                 );
-                
                 if (orderItems.length === 0) {
                     throw new Error(`El item de pedido (ID: ${order_item_id}) no existe o no pertenece al pedido ${order_id}.`);
                 }
                 const originalItem = orderItems[0];
                 const ordered_quantity = originalItem.ordered_quantity;
 
-                // VALIDACIÓN 2 (LA LÓGICA CORREGIDA):
-                // Calcular devoluciones previas que NO estén canceladas
-                const [prevReturns] = await connection.execute(
-                    `SELECT SUM(ri.quantity) as totalReturned 
+                // VALIDACIÓN B.2: Calcular devoluciones previas válidas para ESTE item
+                const [prevItemReturns] = await connection.execute(
+                    `SELECT SUM(ri.quantity) as totalReturned
                      FROM return_items ri
                      JOIN returns r ON ri.return_id = r.id
-                     WHERE ri.order_item_id = ? AND r.status != 'cancelled'`, // <<< ¡LA LÓGICA CLAVE!
+                     WHERE ri.order_item_id = ? AND r.status != 'cancelled'`,
                     [order_item_id]
                 );
-                const totalReturned = prevReturns[0].totalReturned || 0;
+                const totalReturnedForItem = prevItemReturns[0].totalReturned || 0;
 
-                // VALIDACIÓN 3 (Caso 3 Erróneo):
-                // Verificar que la nueva cantidad no exceda lo que queda disponible
-                if ((Number(totalReturned) + Number(quantity)) > ordered_quantity) {
-                    const remaining = ordered_quantity - totalReturned;
-                    throw new Error(`Error en producto '${originalItem.product_name}': Se pidieron ${ordered_quantity}, ya se han devuelto ${totalReturned} (válidos). Solo puedes devolver ${remaining} más.`);
+                // VALIDACIÓN B.3: (Devuelto + Actual) > Pedido Original del Item
+                if ((Number(totalReturnedForItem) + Number(quantity)) > ordered_quantity) {
+                    const remaining = ordered_quantity - totalReturnedForItem;
+                    throw new Error(`Error en producto '${originalItem.product_name}': Se pidieron ${ordered_quantity}, ya se han devuelto ${totalReturnedForItem} (válidos). Solo puedes devolver ${remaining} más.`);
                 }
 
-                // Si todo es válido, preparamos el item para insertarlo después
+                // Si todo bien, preparamos el item para insertar
                 validatedItemsToInsert.push({
-                    order_item_id: order_item_id, 
+                    order_item_id: order_item_id,
                     product_id: originalItem.product_id,
                     product_name: originalItem.product_name,
                     quantity: quantity,
-                    unit_price_refunded: originalItem.unit_price
+                    unit_price_refunded: parseFloat(originalItem.unit_price) // Asegurar número
                 });
 
-                // Sumar al total que se reembolsará
-                final_total_refunded += (originalItem.unit_price * quantity);
+                // Sumar al total final del reembolso
+                final_total_refunded += (parseFloat(originalItem.unit_price) * quantity);
             }
+             // VALIDACIÓN B.4: (Opcional pero buena idea) El total calculado de items no debe exceder el total del pedido
+             // (Considerando reembolsos manuales previos)
+             const [prevManualRefunds] = await connection.execute(
+                `SELECT SUM(total_refunded) as totalPreviouslyRefundedManual
+                 FROM returns
+                 WHERE order_id = ? AND status != 'cancelled' AND id NOT IN (SELECT DISTINCT return_id FROM return_items WHERE order_id = ?)`,
+                 [order_id, order_id] // Consulta compleja, podría simplificarse si el modelo cambia
+             );
+             const totalPreviouslyRefundedManual = parseFloat(prevManualRefunds[0].totalPreviouslyRefundedManual || 0);
+             if ((totalPreviouslyRefundedManual + final_total_refunded) > (original_order_total + epsilon)) {
+                 throw new Error(`El reembolso total calculado (${final_total_refunded.toFixed(2)}) sumado a reembolsos manuales previos (${totalPreviouslyRefundedManual.toFixed(2)}) excede el total original del pedido (${original_order_total.toFixed(2)}).`);
+             }
         }
 
-        // 5. Insertar el Encabezado de la Devolución (tabla 'returns')
+        // 5. Insertar el Encabezado de la Devolución ('returns')
         const [returnResult] = await connection.execute(
             'INSERT INTO returns (order_id, client_id, user_id, reason, total_refunded, status) VALUES (?, ?, ?, ?, ?, ?)',
             [order_id, client_id, user_id_from_token, sanitizedReason, final_total_refunded, status || 'completed']
         );
         const newReturnId = returnResult.insertId;
 
-        // 6. Insertar los Items de la Devolución (tabla 'return_items'), si aplica
+        // 6. Insertar los Items de la Devolución ('return_items'), si aplica
         if (items) {
-            // Loop 2: Insertar los items que ya validamos
             for (const itemToInsert of validatedItemsToInsert) {
                 await connection.execute(
                     'INSERT INTO return_items (return_id, order_item_id, product_id, product_name, quantity, unit_price_refunded) VALUES (?, ?, ?, ?, ?, ?)',
                     [
-                        newReturnId, 
-                        itemToInsert.order_item_id, 
-                        itemToInsert.product_id, 
-                        itemToInsert.product_name, 
-                        itemToInsert.quantity, 
+                        newReturnId,
+                        itemToInsert.order_item_id,
+                        itemToInsert.product_id,
+                        itemToInsert.product_name,
+                        itemToInsert.quantity,
                         itemToInsert.unit_price_refunded
                     ]
                 );
@@ -131,19 +168,19 @@ const createReturn = async (req, res) => {
 
         // 7. Confirmar la transacción
         await connection.commit();
-        
-        res.status(201).json({ 
-            success: true, 
-            message: 'Devolución/Reembolso creado exitosamente.', 
-            data: { return_id: newReturnId, total_refunded: final_total_refunded } 
+
+        res.status(201).json({
+            success: true,
+            message: 'Devolución/Reembolso creado exitosamente.',
+            data: { return_id: newReturnId, total_refunded: final_total_refunded }
         });
 
     } catch (error) {
-        // Si algo falla (Validación 1, 2 o 3), deshacemos todo
+        // Si algo falla, deshacemos todo
         if (connection) await connection.rollback();
         console.error('Error al crear devolución:', error);
-        
-        // Enviamos el mensaje de error específico (ej. "Solo puedes devolver 6 más...")
+
+        // Enviamos el mensaje de error específico
         res.status(400).json({ success: false, error: 'VALIDACION_NEGOCIO', message: error.message });
     } finally {
         if (connection) connection.release();
