@@ -36,8 +36,8 @@ const verifyToken = (req, res, next) => {
       userId: decoded.userId,
       nombre: decoded.nombre,
       correo: decoded.correo,
-      rol: decoded.rol || 'vendedor', // Rol por defecto si no está en el token
-      isAdmin: decoded.rol === 'admin' // Compatibilidad hacia atrás
+      rol: decoded.rol || 'vendedor' // Rol por defecto si no está en el token
+
     };
     
     next();

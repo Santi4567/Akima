@@ -1,10 +1,9 @@
-
 {
   "admin": "*",
   "gerente": [
     "add.users",
     "view.users",
-    "delete.users", 
+    "delete.users",
     "edit.own.profile",
     "edit.products",
     "view.products",
@@ -12,20 +11,18 @@
     "edit.suppliers",
     "view.suppliers",
     "add.clients"
-    
   ],
   "vendedor": [
     "view.products",
-    "view.clients", 
+    "view.clients",
     "view.inventory",
     "view.own.visits",
-    "view.own.orders"
-   
+    "view.own.order"
   ],
   "administracion": [
     "add.users",
     "edit.users",
-    "delete.users", 
+    "delete.users",
     "view.users",
     "edit.own.profile",
     "add.products",
@@ -44,13 +41,14 @@
     "delete.visits",
     "view.own.visits",
     "view.all.visits",
-    "assign.visit",
+    "assign.visits",
     "add.order",
-    "view.all.orders",
+    "view.all.order",
+    "view.own.order",
     "edit.order.content",
     "edit.order.status",
     "cancel.order",
-    "issue.returns",
-    "edit.staus.returns"
+    "issue.refund",
+    "edit.return.status"
   ]
 }

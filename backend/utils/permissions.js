@@ -40,8 +40,8 @@ const PERMISSIONS = {
   DELETE_PRODUCTS: 'delete.products',
   VIEW_PRODUCTS: 'view.products',
 
-  //Proveedores
-   ADD_SUPPLIERS: 'add.suppliers',
+  // Proveedores
+  ADD_SUPPLIERS: 'add.suppliers',
   EDIT_SUPPLIERS: 'edit.suppliers',
   DELETE_SUPPLIERS: 'delete.suppliers',
   VIEW_SUPPLIERS: 'view.suppliers',
@@ -52,29 +52,25 @@ const PERMISSIONS = {
   DELETE_CLIENTS: 'delete.clients',
   VIEW_CLIENTS: 'view.clients',
   
-  //Visitas
+  // Visitas (Todo plural)
   ADD_VISITS: 'add.visits',
-  EDIT_VISITS:  'edit.visits',
+  EDIT_VISITS: 'edit.visits',
   DELETE_VISITS: 'delete.visits',
   VIEW_OWN_VISITS: 'view.own.visits',
   VIEW_ALL_VISITS: 'view.all.visits',
-  ASSIGN_VISITS: 'assign.visit',
+  ASSIGN_VISITS: 'assign.visits', 
 
-
-  //  Oredenes/Pedidos
+  // Oredenes/Pedidos 
   ADD_ORDER: 'add.order',
-  VIEW_ALL_ORDERS : 'view.all.orders',
-  VIEW_OWN_ORDERS: 'view.own.orders',
+  VIEW_ALL_ORDERS : 'view.all.order', 
+  VIEW_OWN_ORDERS: 'view.own.order', 
+  EDIT_ORDER_CONTENT: 'edit.order.content', 
   EDIT_ORDER_STATUS: 'edit.order.status',
   CANCEL_ORDER: 'cancel.order',
   
-  // Returns
-  ISSUE_REFUND: 'issue.returns',
-  EDIT_RETURN_STATUS: 'edit.staus.returns',
-
-  // Inventario
-  VIEW_INVENTORY: 'view.inventory',
-  EDIT_INVENTORY: 'edit.inventory'
+  // Returns 
+  ISSUE_REFUND: 'issue.refund',       
+  EDIT_RETURN_STATUS: 'edit.return.status' 
 };
 
 /**

@@ -115,11 +115,10 @@ const login = async (req, res) => {
     const userRole = user.rol || 'vendedor'; // Rol por defecto si es null
     
     const payload = {
-      userId: user.ID,
-      nombre: user.Nombre,
-      correo: user.Correo,
-      rol: userRole,
-      isAdmin: userRole === 'admin', // Compatibilidad hacia atrás
+     // userId: user.ID,
+     // nombre: user.Nombre,
+     // correo: user.Correo,
+     // rol: userRole,
       iat: Math.floor(Date.now() / 1000),
       type: 'access_token'
     };
@@ -136,12 +135,12 @@ const login = async (req, res) => {
       message: 'Inicio de sesión exitoso',
       data: {
         token: token,
-        user: {
-          id: user.ID,
-          nombre: user.Nombre,
-          correo: user.Correo,
-          rol: userRole
-        },
+        // user: {
+        //  id: user.ID,
+        //  nombre: user.Nombre,
+        //  correo: user.Correo,
+        //  rol: userRole
+        //},
         tokenInfo: {
           type: 'Bearer',
           expiresIn: '12h',

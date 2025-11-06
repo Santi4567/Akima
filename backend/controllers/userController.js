@@ -5,6 +5,7 @@ const validator = require('validator');
 const { getConnection } = require('../config/database');
 const { sanitizeInput, containsSQLInjection } = require('../utils/sanitizer');
 const { checkPermission, PERMISSIONS } = require('../utils/permissions');
+const { loadPermissions } = require('../utils/permissions');
 
 /**
  * [PÚBLICO] Registrar un nuevo usuario.
@@ -50,11 +51,43 @@ const register = async (req, res) => {
 };
 
 /**
- * [PROTEGIDO] Obtener el perfil del usuario actualmente autenticado.
+ * [PROTEGIDO] Obtener el perfil del usuario actualmente autenticado
+ * (ACTUALIZADO: Ahora también incluye la lista de permisos del usuario)
  */
 const getProfile = (req, res) => {
-    // La información del usuario ya viene decodificada del token por el middleware verifyToken
-    res.status(200).json({ success: true, data: req.user });
+    try {
+        // 1. req.user es la información del token (userId, nombre, correo, rol)
+        const currentUser = req.user; 
+
+        // 2. Cargamos la estructura completa de permisos desde el archivo
+        const allPermissions = loadPermissions();
+        
+        // 3. Buscamos los permisos específicos para el rol de este usuario
+        let userPermissions = allPermissions[currentUser.rol];
+
+        // 4. Manejamos el caso especial del Admin
+        if (userPermissions === '*') {
+            // Si es admin, le enviamos un array con el comodín.
+            // El frontend puede interpretar "*" como "acceso total".
+            userPermissions = ['*'];
+        }
+
+        // 5. Preparamos la respuesta
+        const profileData = {
+            id: currentUser.userId,
+            nombre: currentUser.nombre,
+            correo: currentUser.correo,
+            rol: currentUser.rol,
+            permissions: userPermissions || [] // Enviamos la lista de permisos
+        };
+
+        // 6. Enviamos el perfil completo
+        res.status(200).json({ success: true, data: profileData });
+
+    } catch (error) {
+        console.error('Error al obtener el perfil:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR', message: 'No se pudo obtener la información del perfil.' });
+    }
 };
 
 /**

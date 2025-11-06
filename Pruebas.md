@@ -1,16 +1,16 @@
 # Login
-    curl -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{ "Correo": "admin@test.com", "Passwd": "test123"}'
-    curl -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{ "Correo": "gerente@test.com", "Passwd": "test123"}'
-    curl -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{ "Correo": "vendedor@test.com"", "Passwd": "test123"}'
-    curl -X POST http://localhost:3000/api/auth/login -H "Content-Type: application/json" -d '{ "Correo": "administracion@test.com", "Passwd": "test123"}'
+    curl -X POST http://localhost:3000/api/users/login -H "Content-Type: application/json" -d '{ "Correo": "admin@test.com", "Passwd": "test123"}'
+    curl -X POST http://localhost:3000/api/users/login -H "Content-Type: application/json" -d '{ "Correo": "gerente@test.com", "Passwd": "test123"}'
+    curl -X POST http://localhost:3000/api/users/login -H "Content-Type: application/json" -d '{ "Correo": "vendedor@test.com"", "Passwd": "test123"}'
+    curl -X POST http://localhost:3000/api/users/login -H "Content-Type: application/json" -d '{ "Correo": "administracion@test.com", "Passwd": "test123"}'
 
 # Registrer
-    curl -X POST http://localhost:3000/api/auth/register -H "Content-Type: application/json" -d '{"Nombre": "Admin F", "Correo": "admin@test.com", "Passwd": "test123"}'
+    curl -X POST http://localhost:3000/api/users/register -H "Content-Type: application/json" -d '{"Nombre": "Admin F", "Correo": "admin@test.com", "Passwd": "test123"}'
 
-    curl -X POST http://localhost:3000/api/auth/register -H "Content-Type: application/json" -d '{"Nombre": "Juan Flores", "Correo": "gerente@test.com"","Passwd":"test123"}'
-    curl -X POST http://localhost:3000/api/auth/register -H "Content-Type: application/json" -d '{"Nombre": "vendedor Flores","Correo": "vendedor@test.com"","Passwd": "test123"}'
+    curl -X POST http://localhost:3000/api/users/register -H "Content-Type: application/json" -d '{"Nombre": "Juan Flores", "Correo": "gerente@test.com"","Passwd":"test123"}'
+    curl -X POST http://localhost:3000/api/users/register -H "Content-Type: application/json" -d '{"Nombre": "vendedor Flores","Correo": "vendedor@test.com"","Passwd": "test123"}'
 
-    curl -X POST http://localhost:3000/api/auth/register -H "Content-Type: application/json" -d '{"Nombre": "adm Flores","Correo": "administracion@test.com","Passwd": "test123"}'
+    curl -X POST http://localhost:3000/api/users/register -H "Content-Type: application/json" -d '{"Nombre": "adm Flores","Correo": "administracion@test.com","Passwd": "test123"}'
 
 # Categorias
 
