@@ -15,6 +15,12 @@ export const PERMISSIONS = {
     'delete.products',
     'view.products'
   ],
+  CATEGORY: [
+    'add.category',
+    'view.category',
+    'edit.category',
+    'delete.category',
+  ],
   SUPPLIERS: [
     'add.suppliers',
     'edit.suppliers',

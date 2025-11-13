@@ -1,7 +1,11 @@
 # Login
+
     curl -X POST http://localhost:3000/api/users/login -H "Content-Type: application/json" -d '{ "Correo": "admin@test.com", "Passwd": "test123"}'
+
     curl -X POST http://localhost:3000/api/users/login -H "Content-Type: application/json" -d '{ "Correo": "gerente@test.com", "Passwd": "test123"}'
+
     curl -X POST http://localhost:3000/api/users/login -H "Content-Type: application/json" -d '{ "Correo": "vendedor@test.com"", "Passwd": "test123"}'
+    
     curl -X POST http://localhost:3000/api/users/login -H "Content-Type: application/json" -d '{ "Correo": "administracion@test.com", "Passwd": "test123"}'
 
 # Registrer
@@ -35,7 +39,7 @@
  ## Buscar categoria por ID
     curl -X GET http://localhost:3000/api/categories/1 -H "Authorization: Bearer <TU_TOKEN_JWT>"
 
- ## BUscar por nombre
+ ## Buscar por nombre
     curl -X GET "http://localhost:3000/api/categories/search?q=cel" -H "Authorization: Bearer <TU_TOKEN_JWT>"
 
  ## Modificar categorias
@@ -48,41 +52,55 @@
 # Proveedores 
 
  ## Insertar 
+  ```shell
    curl -X POST http://localhost:3000/api/suppliers -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"name": "Tecnología del Golfo S.A.","contact_person": "Carlos Hernández","email": "contacto@tecnogolfo.com","phone": "229-555-0101", "address": "Blvd. Manuel Ávila Camacho 789, Boca del Río, VER","website": "https://tecnogolfo.com","status": "activo","tax_id": "TGO010203XYZ","payment_terms": "Net 30"}'
+  ```
 
  ## ver 
+  ```shell
    curl -X GET http://localhost:3000/api/suppliers -H "Authorization: Bearer <TU_TOKEN_JWT>"
+  ```
 
- ## BUscar 
+ ## Buscar 
+ ```shell
    curl -X GET "http://localhost:3000/api/suppliers/search?q=Golfo" -H "Authorization: Bearer <TU_TOKEN_JWT>"
+  ```
 
  ## editar 
+ ```shell
    curl -X PUT http://localhost:3000/api/suppliers/ID -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"phone": "229-555-0202","status": "inactivo"}'
+  ```
 
  ## eliminar 
+ ```shell
    curl -X DELETE http://localhost:3000/api/suppliers/ID -H "Authorization: Bearer <TU_TOKEN_JWT>"
-
+  ```
 
 
 # Productos
 
  ## Insertar 
+  ```shell
    curl -v -X POST http://localhost:3000/api/products -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"name": "Teclado Mecánico RGB TKL", "sku": "TEC-RGB-TKL-001", "barcode": "7501234567890", "description": "Teclado mecánico Tenkeyless con switches azules y retroiluminación RGB personalizable.","price": 1899.99, "cost_price": 1200.00, "stock_quantity": 50, "product_type": "product", "status": "active", "category_id": 1, "supplier_id": 1, "weight": 0.85,"height": 4.5, "width": 36.0, "depth": 14.0, "custom_fields": { "tipo_switch": "Blue Gateron", "formato": "TKL (Tenkeyless)", "conexion": "USB-C" } }'
+  ```
 
  ## Ver productos 
+ ```shell
    curl -v -X GET http://localhost:3000/api/products -H "Authorization: Bearer <TU_TOKEN_JWT>"
-
+  ```
  ## Buscar Productod 
-
+  ```shell
    curl -v -X GET "http://localhost:3000/api/products/search?q=Teclado" -H "Authorization: Bearer <TU_TOKEN_JWT>"
-
+  ```
  ## Modificar 
-
+  ```shell
    curl -v -X PUT http://localhost:3000/api/products/ID -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{ "price": 1850.00,"stock_quantity": 45, "status": "discontinued" }'
+  ```
 
  ## Eliminar 
+  ```shell
    curl -v -X DELETE http://localhost:3000/api/products/ID -H "Authorization: Bearer <TU_TOKEN_JWT>"
-
+  ```
 
 
 # Clientes 
@@ -178,6 +196,6 @@
   curl -X POST http://localhost:3000/api/returns -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT_ADMIN>" -d '{"order_id": 2,"reason": "Ajuste de precio por promoción no aplicada.","status": "completed", "total_refunded": 200.50}'
   ```
   ## Ajustar estado del reembolso 
-    ```shell
+    
     curl -v -X PUT http://localhost:3000/api/returns/1/status -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"status": "completed"}'
-    ```
+    

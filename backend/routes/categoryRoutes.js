@@ -38,7 +38,7 @@ router.get(
 router.get(
   '/',
   verifyToken,
-  requirePermission(PERMISSIONS.VIEW_PRODUCTS), // Permiso para ver
+  requirePermission(PERMISSIONS.VIEW_CATEGORY), // Permiso para ver
   getAllCategories
 );
 
@@ -46,7 +46,7 @@ router.get(
 router.put(
   '/:id',
   verifyToken,
-  requirePermission(PERMISSIONS.EDIT_PRODUCTS), // Permiso para editar
+  requirePermission(PERMISSIONS.EDIT_CATEGORY), // Permiso para editar
   updateCategory
 );
 
@@ -54,7 +54,7 @@ router.put(
 router.delete(
   '/:id',
   verifyToken,
-  requirePermission(PERMISSIONS.DELETE_PRODUCTS), // Permiso para eliminar
+  requirePermission(PERMISSIONS.DELETE_CATEGORY), // Permiso para eliminar
   deleteCategory
 );
 

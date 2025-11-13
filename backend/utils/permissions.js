@@ -40,6 +40,12 @@ const PERMISSIONS = {
   DELETE_PRODUCTS: 'delete.products',
   VIEW_PRODUCTS: 'view.products',
 
+  // Categorias
+  ADD_CATEGORY: 'add.category',
+  VIEW_CATEGORY: 'view.category',
+  EDIT_CATEGORY: 'edit.category',
+  DELETE_CATEGORY: 'delete.category',
+
   // Proveedores
   ADD_SUPPLIERS: 'add.suppliers',
   EDIT_SUPPLIERS: 'edit.suppliers',

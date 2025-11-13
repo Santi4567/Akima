@@ -7,6 +7,7 @@
     "edit.own.profile",
     "edit.products",
     "view.products",
+    "view.category",
     "add.suppliers",
     "edit.suppliers",
     "view.suppliers",
@@ -49,6 +50,10 @@
     "edit.order.status",
     "cancel.order",
     "issue.refund",
-    "edit.return.status"
+    "edit.return.status",
+    "add.category",
+    "view.category",
+    "edit.category",
+    "delete.category"
   ]
 }

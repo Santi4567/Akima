@@ -28,7 +28,7 @@ const Logo = () => (
 // --- Definimos los links de navegación CON PERMISOS ---
 const navLinks = [
   { name: 'Home', href: '/home', permissions: [] }, // Home es para todos los logueados
-  { name: 'Productos', href: '/productos', permissions: [...PERMISSIONS.PRODUCTS, ...PERMISSIONS.SUPPLIERS] },
+  { name: 'Productos', href: '/productos', permissions: [...PERMISSIONS.PRODUCTS, ...PERMISSIONS.CATEGORY] },
   { name: 'Clientes', href: '/clientes', permissions: PERMISSIONS.CLIENTS },
   { name: 'Proveedores', href: '/proveedores', permissions: PERMISSIONS.SUPPLIERS },
   { name: 'Órdenes', href: '/ordenes', permissions: PERMISSIONS.ORDERS },
@@ -68,7 +68,8 @@ export const Header = () => {
           {/* Centro: Links (Desktop) - Oculto en móvil */}
           <div className="hidden lg:ml-6 lg:flex lg:items-center lg:space-x-4">
             {navLinks.map((item) => (
-              // El 'HasPermission' envuelve cada link
+              // Aquí está la magia:
+              // HasPermission revisa los permisos antes de renderizar el NavLink
               <HasPermission key={item.name} any={item.permissions}>
                 <NavLink
                   to={item.href}
@@ -119,19 +120,20 @@ export const Header = () => {
         <div className="lg:hidden" id="mobile-menu">
           
           {/* Links del Menú */}
-          <div className="space-y-1 px-2 pt-2 pb-3">
-            {navLinks.map((item) => (
-              <HasPermission key={item.name} any={item.permissions}>
-                <NavLink
-                  to={item.href}
-                  className={getMobileNavLinkClass}
-                  onClick={() => setMobileMenuOpen(false)} // Cierra el menú al hacer clic
-                >
-                  {item.name}
-                </NavLink>
-              </HasPermission>
-            ))}
-          </div>
+            <div className="space-y-1 px-2 pt-2 pb-3">
+              {navLinks.map((item) => (
+                // Se aplica la misma lógica de HasPermission aquí
+                <HasPermission key={item.name} any={item.permissions}>
+                  <NavLink
+                    to={item.href}
+                    className={getMobileNavLinkClass}
+                    onClick={() => setMobileMenuOpen(false)} // Cierra el menú al hacer clic
+                  >
+                    {item.name}
+                  </NavLink>
+                </HasPermission>
+              ))}
+            </div>
 
           {/* --- Menú Móvil - Perfil y Logout --- */}
           <div className="border-t border-gray-200 pt-4 pb-3">
