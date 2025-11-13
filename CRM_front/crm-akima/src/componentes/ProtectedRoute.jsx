@@ -1,23 +1,32 @@
 import { Navigate, Outlet } from 'react-router-dom';
-// Voy a asumir que tu AuthContext.jsx está en una carpeta 'context'
-// al mismo nivel que 'componentes', dentro de 'src'.
-// Si está en otro lugar (como dentro de 'componentes'), esta ruta necesitará ajuste.
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext'; // Ajusta la ruta a tu AuthContext
+
+// Componente simple de carga (puedes mejorarlo después)
+const LoadingScreen = () => (
+  <div className="flex h-screen items-center justify-center bg-gray-50">
+    <p className="animate-pulse text-2xl font-medium text-gray-700">
+      Verificando sesión...
+    </p>
+    {/* Aquí puedes poner un spinner SVG si lo deseas */}
+  </div>
+);
 
 export const ProtectedRoute = () => {
-  // 1. Obtenemos el estado de autenticación de nuestro contexto
-  // Asumimos que tu hook useAuth() devuelve { isAuthenticated }
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
-  // 2. Comprobamos if el usuario está autenticado
+  // 1. Si estamos cargando (verificando el /profile), muestra "Cargando..."
+  // Este es el paso MÁS importante del nuevo flujo.
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
+  // 2. Si terminó de cargar y NO está autenticado, patea a /login
   if (!isAuthenticated) {
-    // 3. Si no lo está, lo redirigimos a /login
-    // 'replace' evita que la ruta a la que intentaba acceder se guarde en el historial
+    // 'replace' evita que el usuario pueda volver con el botón de atrás
     return <Navigate to="/login" replace />;
   }
 
-  // 4. Si SÍ está autenticado, le dejamos pasar
-  // <Outlet /> es el componente que React Router renderiza
-  // (en tu caso, sería <Home />)
+  // 3. Si terminó de cargar y SÍ está autenticado, deja pasar
+  // Outlet renderizará lo que esté anidado (en tu caso, DashboardLayout)
   return <Outlet />;
 };

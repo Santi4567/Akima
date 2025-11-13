@@ -9,6 +9,9 @@
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const dotenv = require('dotenv');
+
+dotenv.config();
 
 const userRoutes = require('./routes/userRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
@@ -24,7 +27,10 @@ const app = express();
 
 // Middlewares globales
 app.use(express.json());
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL, // <-- 'process.env.FRONTEND_URL' es el mismo
+  credentials: true 
+}));
 app.use(cookieParser());
 
 // Rutas

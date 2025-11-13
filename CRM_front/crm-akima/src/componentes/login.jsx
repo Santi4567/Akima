@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom'; // Para redirigir
-import { useAuth } from '../context/AuthContext'; // Nuestro hook de autenticación
+import { useNavigate } from 'react-router-dom';
+// Asegúrate que la ruta a tu AuthContext sea correcta
+import { useAuth } from '../context/AuthContext'; 
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
 export const LoginPage = () => {
@@ -8,23 +9,22 @@ export const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   
-  // Nuevos estados para manejo de UI
+  // Estados para manejo de UI
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const { login } = useAuth(); // Función de nuestro contexto
-  const navigate = useNavigate(); // Hook para redirigir
+  const { login } = useAuth(); // Función 'login' del nuevo AuthContext
+  const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true); // Empezamos a cargar
-    setError(null);     // Limpiamos errores previos
+    setIsLoading(true);
+    setError(null);
 
-    // Leemos la URL de la API desde las variables de entorno
-    const baseURL = import.meta.env.VITE_API_URL;
-    const loginURL = `${baseURL}/api/users/login`; // Endpoint correcto
+    const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const loginURL = `${baseURL}/api/users/login`;
 
-    // Creamos el payload con las claves correctas (Correo, Passwd)
+    // El payload con las claves que tu API espera
     const payload = {
       Correo: email,
       Passwd: password,
@@ -36,6 +36,8 @@ export const LoginPage = () => {
         headers: {
           'Content-Type': 'application/json',
         },
+        // ¡CRUCIAL! Envía/Recibe cookies del backend
+        credentials: 'include', 
         body: JSON.stringify(payload),
       });
 
@@ -43,17 +45,17 @@ export const LoginPage = () => {
 
       // Si la API dice que no fue exitoso, lanzamos un error
       if (!data.success) {
-        // Usamos el mensaje de error de la API
+        // Usamos el mensaje de error de la API (ej: "Correo o contraseña incorrectos")
         throw new Error(data.message || 'Error al iniciar sesión');
       }
 
       // ¡ÉXITO!
-      // Llamamos a nuestra función 'login' del contexto con los datos
-      login(data.data.user, data.data.token);
-
-      // Redirigimos al usuario al dashboard (próximo paso)
-      // Por ahora, redirijamos a la raíz
-      navigate('/Home'); 
+      // 1. Llama al 'login' del contexto (que llamará a /profile)
+      //    Ya no le pasamos datos, solo le notificamos.
+      await login(); 
+      
+      // 2. Navega a Home (donde ProtectedRoute ya verá al usuario)
+      navigate('/home');
 
     } catch (err) {
       // Capturamos cualquier error (de red o de la API)
@@ -73,28 +75,44 @@ export const LoginPage = () => {
         </h2>
         
         <form className="space-y-6" onSubmit={handleSubmit}>
-          {/* ... (Tu campo de Email no cambia) ... */}
+          {/* Campo de Email */}
           <div>
-            <label htmlFor="email" className="...">Email</label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="ejemplo@tuempresa.com"
-              className="w-full rounded-md border border-gray-300 px-4 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500 transition duration-150"
-              disabled={isLoading} // Desactivar durante la carga
-            />
+            <label 
+              htmlFor="email" 
+              className="block text-sm font-semibold text-gray-700"
+            >
+              Email
+            </label>
+            <div className="mt-1">
+              <input
+                id="email"
+                name="email"
+                type="email"
+                autoComplete="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="ejemplo@tuempresa.com"
+                className="w-full rounded-md border border-gray-300 px-4 py-2 shadow-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-500 transition duration-150"
+                disabled={isLoading} // Desactivar durante la carga
+              />
+            </div>
           </div>
-          
-          {/* ... (Tu campo de Contraseña no cambia) ... */}
+
+          {/* Campo de Contraseña */}
           <div>
-            <label htmlFor="password" className="...">Contraseña</label>
+            <label 
+              htmlFor="password" 
+              className="block text-sm font-semibold text-gray-700"
+            >
+              Contraseña
+            </label>
             <div className="relative mt-1">
               <input
                 id="password"
-                type={showPassword ? 'text' : 'password'}
+                name="password"
+                type={showPassword ? 'text' : 'password'} 
+                autoComplete="current-password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -108,7 +126,11 @@ export const LoginPage = () => {
                 className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 focus:outline-none"
                 disabled={isLoading}
               >
-                {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+                {showPassword ? (
+                  <EyeSlashIcon className="h-5 w-5" aria-hidden="true" />
+                ) : (
+                  <EyeIcon className="h-5 w-5" aria-hidden="true" />
+                )}
               </button>
             </div>
           </div>
@@ -124,12 +146,10 @@ export const LoginPage = () => {
           <div>
             <button
               type="submit"
-              // Desactivamos el botón y cambiamos el estilo/texto mientras carga
               disabled={isLoading}
               className="flex w-full justify-center rounded-md border border-transparent bg-green-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition duration-150 disabled:cursor-not-allowed disabled:bg-green-300"
             >
               {isLoading ? 'Accediendo...' : 'Acceder'}
-
             </button>
           </div>
         </form>

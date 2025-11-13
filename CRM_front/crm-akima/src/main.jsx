@@ -12,8 +12,19 @@ import { ProtectedRoute } from './componentes/ProtectedRoute';
 // Páginas y Plantillas
 import { LoginPage } from './componentes/login';
 import { Home } from './componentes/Home';
-// ¡Esta es la importación clave que faltaba!
 import { DashboardLayout } from './componentes/DashboardLayout'; 
+
+// --- 1. IMPORTA TUS NUEVOS COMPONENTES ---
+// (Asumo que exportas 'Clientes' desde 'clientes.jsx', 'Finanzas' desde 'finanzas.jsx', etc.)
+import { Clientes } from './componentes/clientes';
+import { Finanzas } from './componentes/finanzas';
+import { Ordenes } from './componentes/ordenes';
+import { Productos } from './componentes/productos';
+import { Proveedores } from './componentes/proveedores';
+import { Usuarios } from './componentes/usuarios';
+import { Visitas } from './componentes/visitas';
+import { Configuraciones } from './componentes/configuraciones';
+
 
 const router = createBrowserRouter([
   {
@@ -27,20 +38,24 @@ const router = createBrowserRouter([
   },
   {
     // --- RUTAS PRIVADAS ---
-    // 1. Pasa por el guardia de seguridad
-    element: <ProtectedRoute />,
+    element: <ProtectedRoute />, // 1. El guardia principal
     children: [
-      // 2. Carga el "Marco" (Header + hueco)
       {
-        element: <DashboardLayout />, // <--- APLICA EL MARCO
+        element: <DashboardLayout />, // 2. El "marco" con el Header
         children: [
-          // 3. Pone el "Contenido" (Home) DENTRO del hueco
-          {
-            path: '/home',
-            element: <Home />, // <--- ESTA ES TU PÁGINA
-          },
-          // ... aquí puedes añadir /clientes, /productos, etc.
-          // { path: '/clientes', element: <ClientesPage /> }
+          // 3. Todas las páginas que van DENTRO del marco
+          
+          { path: '/home', element: <Home /> },
+
+          // --- 2. AÑADE TUS NUEVAS RUTAS AQUÍ ---
+          { path: '/clientes', element: <Clientes /> },
+          { path: '/finanzas', element: <Finanzas /> },
+          { path: '/ordenes', element: <Ordenes /> },
+          { path: '/productos', element: <Productos /> },
+          { path: '/proveedores', element: <Proveedores /> },
+          { path: '/usuarios', element: <Usuarios /> },
+          { path: '/visitas', element: <Visitas /> },
+          { path: '/configuraciones', element: <Configuraciones /> },,
         ]
       }
     ]
