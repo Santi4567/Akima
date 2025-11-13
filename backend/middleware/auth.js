@@ -9,19 +9,33 @@
  */
 
 const jwt = require('jsonwebtoken');
-const { requirePermission} = require('../utils/permissions');
+const { requirePermission } = require('../utils/permissions');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'tu_clave_super_secreta_akima_2024';
 
 /**
  * Middleware para verificar JWT
- * Ahora incluye el rol del usuario en req.user
+ * (ACTUALIZADO para lógica HÍBRIDA: lee cookie Y encabezado)
  */
 const verifyToken = (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // =================================================================
+    // CAMBIO: LÓGICA HÍBRIDA (BUSCAR EN COOKIE Y LUEGO EN ENCABEZADO)
+    // =================================================================
+    let token = null;
+
+    // 1. ¿Viene en una cookie? (Para la aplicación web)
+    if (req.cookies && req.cookies.accessToken) {
+        token = req.cookies.accessToken;
+    }
+    // 2. Si no, ¿Viene en el encabezado? (Para la aplicación móvil)
+    else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+        token = req.headers.authorization.substring(7); // "Bearer ".length
+    }
+    // =================================================================
+
+    if (!token) {
       return res.status(401).json({
         success: false,
         error: 'TOKEN_REQUERIDO',
@@ -29,7 +43,7 @@ const verifyToken = (req, res, next) => {
       });
     }
 
-    const token = authHeader.substring(7);
+    // --- El resto de tu lógica está perfecta y no cambia ---
     const decoded = jwt.verify(token, JWT_SECRET);
     
     req.user = {
@@ -37,7 +51,6 @@ const verifyToken = (req, res, next) => {
       nombre: decoded.nombre,
       correo: decoded.correo,
       rol: decoded.rol || 'vendedor' // Rol por defecto si no está en el token
-
     };
     
     next();
@@ -68,7 +81,7 @@ const verifyToken = (req, res, next) => {
 
 /**
  * Middleware específico para requerir permisos de administrador
- * Ahora usa el rol en lugar de isAdmin
+ * (Sin cambios, tu lógica es correcta)
  */
 const requireAdminRole = (req, res, next) => {
   const userRole = req.user?.rol || 'vendedor';

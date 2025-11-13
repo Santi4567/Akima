@@ -115,12 +115,12 @@ const login = async (req, res) => {
     const userRole = user.rol || 'vendedor'; // Rol por defecto si es null
     
     const payload = {
-     // userId: user.ID,
-     // nombre: user.Nombre,
-     // correo: user.Correo,
-     // rol: userRole,
-      iat: Math.floor(Date.now() / 1000),
-      type: 'access_token'
+       userId: user.ID,
+       nombre: user.Nombre,
+       correo: user.Correo,
+       rol: userRole,
+      // iat: Math.floor(Date.now() / 1000), // 'iat' (issued at) se añade automáticamente por jwt.sign
+       type: 'access_token'
     };
 
     const token = jwt.sign(payload, JWT_SECRET, {
@@ -129,18 +129,36 @@ const login = async (req, res) => {
       subject: user.ID.toString()
     });
 
+    // =================================================================
+    // CAMBIO 3: AÑADIR LA LÓGICA DE LA COOKIE HTTPONLY (PARA LA WEB)
+    // =================================================================
+    const cookieOptions = {
+        httpOnly: true, // Inaccesible para JavaScript
+        secure: process.env.NODE_ENV === 'production', // Solo HTTPS en producción
+        sameSite: 'strict', // Máxima protección CSRF
+        maxAge: 12 * 60 * 60 * 1000, // 12 horas (en milisegundos), igual que tu token
+        path: '/' // Disponible en todo el sitio
+    };
+
+    // Enviar la cookie en el encabezado de respuesta
+    res.cookie('accessToken', token, cookieOptions);
+
+
     // 11. Respuesta exitosa
     res.status(200).json({
       success: true,
       message: 'Inicio de sesión exitoso',
       data: {
-        token: token,
-        // user: {
-        //  id: user.ID,
-        //  nombre: user.Nombre,
-        //  correo: user.Correo,
-        //  rol: userRole
-        //},
+        token: token, // Se mantiene para la app móvil
+        // =================================================================
+        // CAMBIO 4: DESCOMENTAR LOS DATOS DEL USUARIO (PARA EL FRONTEND)
+        // =================================================================
+         user: {
+           id: user.ID,
+           nombre: user.Nombre,
+           correo: user.Correo,
+           rol: userRole
+         },
         tokenInfo: {
           type: 'Bearer',
           expiresIn: '12h',

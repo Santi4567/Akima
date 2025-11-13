@@ -8,6 +8,8 @@
 
 const express = require('express');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
+
 const userRoutes = require('./routes/userRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const supplierRoutes = require('./routes/supplierRoutes');
@@ -23,6 +25,7 @@ const app = express();
 // Middlewares globales
 app.use(express.json());
 app.use(cors());
+app.use(cookieParser());
 
 // Rutas
 app.use('/api/users', userRoutes); //Usuarios & Login

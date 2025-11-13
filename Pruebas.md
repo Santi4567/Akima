@@ -12,6 +12,15 @@
 
     curl -X POST http://localhost:3000/api/users/register -H "Content-Type: application/json" -d '{"Nombre": "adm Flores","Correo": "administracion@test.com","Passwd": "test123"}'
 
+
+# Users
+  ## Consultar informacion de permisos 
+    curl -X GET http://localhost:3000/api/users/profile -H "Authorization: Bearer <TU_TOKEN_JWT>"
+    
+  ## Consultar informacion 
+    curl -v -X GET http://localhost:3000/api/users/profile
+
+
 # Categorias
 
  ## Insertar Una nueva categoria
