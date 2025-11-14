@@ -4,7 +4,7 @@ import { Header } from './Header'; // Importamos el Header
 
 export const DashboardLayout = () => {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-300">
       {/* 1. El Header siempre estará en la parte superior */}
       <Header />
 

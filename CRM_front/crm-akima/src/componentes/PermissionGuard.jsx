@@ -1,32 +1,41 @@
-import { Navigate, Outlet } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext'; // Ajusta la ruta a tu AuthContext
+// src/componentes/PermissionGuard.jsx
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext'; // Asegúrate que la ruta sea correcta
+
+// Componente de carga
+const LoadingPermissions = () => (
+  <div className="flex h-screen items-center justify-center bg-gray-50">
+    <p className="animate-pulse text-2xl font-medium text-gray-700">
+      Verificando permisos...
+    </p>
+  </div>
+);
 
 /**
  * Este guardián protege una ruta completa (ej. /clientes).
- * Requiere un array de permisos (ej. ['view.clients', 'edit.clients'])
- * Si el usuario no tiene NINGUNO de esos permisos, lo redirige.
+ * Recibe los permisos en el prop 'any'.
+ * Recibe el componente a renderizar (ej. <Clientes />) como 'children'.
  */
-export const PermissionGuard = ({ requiredPermissions }) => {
-  // Obtenemos la función 'hasAnyPermission' y el estado 'isLoading' del contexto
+export const PermissionGuard = ({ children, any }) => {
+  // Obtenemos la función y el estado de carga
   const { hasAnyPermission, isLoading } = useAuth();
 
-  // 1. No podemos tomar una decisión si los permisos del usuario aún están cargando
-  // (isLoading se vuelve 'false' cuando el fetch a /profile termina)
+  // 1. No podemos tomar una decisión si los permisos aún están cargando
   if (isLoading) {
-    // Puedes poner un spinner de carga aquí
-    return <div className="flex h-screen items-center justify-center">Verificando permisos...</div>; 
+    return <LoadingPermissions />;
   }
 
   // 2. Comprueba si el usuario tiene AL MENOS UNO de los permisos necesarios
-  const isAuthorized = hasAnyPermission(requiredPermissions);
+  //    (Usamos el prop 'any', que es el que pasaste en main.jsx)
+  //    Si 'any' está vacío (como en Home), isAuthorized es true.
+  const isAuthorized = !any || any.length === 0 || hasAnyPermission(any);
 
   if (!isAuthorized) {
     // 3. Si no está autorizado, lo mandamos a la página de "No Autorizado"
-    // 'replace' evita que pueda volver con el botón de atrás
     return <Navigate to="/unauthorized" replace />;
   }
 
-  // 4. Si está autorizado, renderiza la página solicitada (Clientes, Usuarios, etc.)
-  // Outlet es el marcador de React Router para el componente hijo
-  return <Outlet />;
+  // 4. Si está autorizado, renderiza el 'children' que le pasaste
+  //    (Es decir, <Clientes />, <Productos />, etc.)
+  return children;
 };

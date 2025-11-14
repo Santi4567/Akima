@@ -1,36 +1,47 @@
-import { useAuth } from '../context/AuthContext.jsx'; // Sube un nivel para encontrar 'context'
+// Voy a intentar añadir la extensión .jsx a la importación, 
+// a veces eso soluciona problemas de resolución de rutas.
+import { useAuth } from '../context/AuthContext'; // Ajusta la ruta a tu AuthContext
 
 /**
- * Componente Guardián para la UI.
- * Oculta o muestra sus 'children' (ej. un botón) basado en los permisos.
+ * Componente "Envoltorio" (Wrapper) para UI.
+ * Oculta o muestra sus 'children' (botones, links, etc.)
+ * basado en los permisos del usuario.
  *
- * @param {React.ReactNode} children - El componente a renderizar (ej. <button />).
- * @param {string} [required] - Un solo permiso requerido (ej. "add.users").
- * @param {string[]} [any] - Un array de permisos; el usuario debe tener AL MENOS UNO (ej. ["view.users", "add.users"]).
+ * Uso para un permiso específico:
+ * <HasPermission required="add.clients">
+ * <button>Nuevo Cliente</button>
+ * </HasPermission>
+ *
+ * Uso para un grupo de permisos (si tiene CUALQUIERA):
+ * <HasPermission any={PERMISSIONS.CLIENTS}>
+ * <NavLink to="/clientes">Sección Clientes</NavLink>
+ * </HasPermission>
  */
 export const HasPermission = ({ children, required, any }) => {
-  // Obtenemos la función de comprobación del contexto
+  // Obtenemos las funciones de nuestro contexto
   const { hasPermission, hasAnyPermission } = useAuth();
 
   let isAuthorized = false;
 
+  // --- Lógica de Autorización ---
+
   if (required) {
-    // Caso 1: Se requiere un permiso específico
+    // 1. Caso: Se requiere un permiso específico
+    // Ej: required="add.clients"
     isAuthorized = hasPermission(required);
   } else if (any) {
-    // Caso 2: Se requiere CUALQUIERA de una lista de permisos
+    // 2. Caso: Se requiere CUALQUIER permiso de un grupo (array)
+    // Ej: any={['view.clients', 'edit.clients', ...]}
     isAuthorized = hasAnyPermission(any);
   } else {
-    // Caso 3 (Por defecto): Si no se especifican permisos, se muestra.
-    // O puedes cambiar esto a 'false' si quieres que sea estricto.
-    isAuthorized = true;
+    // 3. Caso: (Error) No se especificó 'required' ni 'any'.
+    // Por seguridad, no mostramos nada.
+    // Podrías poner un console.warn aquí si quisieras.
+    isAuthorized = false;
   }
 
-  // Si no está autorizado, no renderiza nada (null)
-  if (!isAuthorized) {
-    return null;
-  }
-
-  // Si está autorizado, renderiza el componente hijo (el botón, enlace, etc.)
-  return children;
+  // --- Renderizado ---
+  // Si está autorizado, muestra el contenido (children).
+  // Si no, no muestra nada (null).
+  return isAuthorized ? <>{children}</> : null;
 };
