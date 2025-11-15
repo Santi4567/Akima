@@ -18,7 +18,8 @@
     "view.clients",
     "view.inventory",
     "view.own.visits",
-    "view.own.order"
+    "view.own.order",
+    "edit.visits"
   ],
   "administracion": [
     "add.users",

@@ -11,7 +11,8 @@ const {
     createVisit,
     updateVisit,
     getVisits, 
-    deleteVisit
+    deleteVisit,
+    searchVisits
 } = require('../controllers/visitController');
 
 
@@ -42,6 +43,16 @@ router.put(
     validateVisitPayload,
     requirePermission(PERMISSIONS.EDIT_VISITS),
     updateVisit
+);
+
+// =================================================================
+// RUTA DE BÚSQUEDA
+// =================================================================
+router.get(
+    '/search',
+    verifyToken,
+    requirePermission(PERMISSIONS.VIEW_OWN_VISITS), // Usamos el permiso base
+    searchVisits // <-- 2. Usa la nueva función
 );
 
 // Eliminar (cancelar) una visita

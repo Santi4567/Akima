@@ -158,8 +158,7 @@ const updateVisit = async (req, res) => {
 };
 /**
  * [PROTEGIDO] Obtener visitas.
- * Esta función unificada devuelve "mis visitas" o "todas las visitas"
- * basándose en los permisos del usuario.
+ * (ACTUALIZADO: Ahora usa JOIN para incluir los nombres del cliente y usuario)
  */
 const getVisits = async (req, res) => {
     let connection;
@@ -168,16 +167,29 @@ const getVisits = async (req, res) => {
         let query;
         let queryParams = [];
 
-        // =================================================================
-        // LÓGICA DE PERMISOS
-        // Revisamos si el usuario tiene permiso para ver TODAS las visitas.
-        // =================================================================
+        // Esta es la consulta base que une las 3 tablas
+        const baseQuery = `
+            SELECT 
+                v.id, 
+                v.scheduled_for, 
+                v.status, 
+                v.notes,
+                c.id AS client_id, 
+                CONCAT(c.first_name, ' ', c.last_name) AS client_name,
+                u.ID AS user_id, 
+                u.Nombre AS user_name
+            FROM scheduled_visits v
+            INNER JOIN clients c ON v.client_id = c.id
+            INNER JOIN users u ON v.user_id = u.ID
+        `;
+        
+        // El controlador sigue siendo "inteligente" y decide si añade un WHERE
         if (checkPermission(currentUser.rol, PERMISSIONS.VIEW_ALL_VISITS)) {
-            // Es Gerente/Admin: Trae todas las visitas
-            query = 'SELECT * FROM scheduled_visits ORDER BY scheduled_for DESC';
+            // Gerente/Admin: Trae todas las visitas
+            query = `${baseQuery} ORDER BY v.scheduled_for DESC`;
         } else {
-            // Es Vendedor: Trae solo sus propias visitas
-            query = 'SELECT * FROM scheduled_visits WHERE user_id = ? ORDER BY scheduled_for DESC';
+            // Vendedor: Trae solo las propias
+            query = `${baseQuery} WHERE v.user_id = ? ORDER BY v.scheduled_for DESC`;
             queryParams.push(currentUser.userId);
         }
 
@@ -187,6 +199,65 @@ const getVisits = async (req, res) => {
 
     } catch (error) {
         console.error('Error al obtener visitas:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
+/**
+ * [PROTEGIDO] Buscar Visitas
+ * Busca por nombre de cliente, nombre de usuario o notas.
+ * (ACTUALIZADO: Ahora limitado a 10 resultados)
+ */
+const searchVisits = async (req, res) => {
+    let connection;
+    try {
+        const { q } = req.query;
+        const currentUser = req.user;
+
+        // 1. Validar y Sanitizar la entrada
+        if (!q) {
+            return res.status(400).json({ success: false, message: 'Debe proporcionar un término de búsqueda "q".' });
+        }
+        const sanitizedQuery = sanitizeInput(q);
+        if (containsSQLInjection(sanitizedQuery)) {
+            return res.status(400).json({ success: false, error: 'INPUT_MALICIOSO', message: 'El término de búsqueda contiene patrones no permitidos.' });
+        }
+
+        // 2. La consulta base (con JOINs)
+        const baseQuery = `
+            SELECT 
+                v.id, v.scheduled_for, v.status, v.notes,
+                c.id AS client_id, CONCAT(c.first_name, ' ', c.last_name) AS client_name,
+                u.ID AS user_id, u.Nombre AS user_name
+            FROM scheduled_visits v
+            INNER JOIN clients c ON v.client_id = c.id
+            INNER JOIN users u ON v.user_id = u.ID
+        `;
+        
+        // 3. Definir los campos de búsqueda
+        const likeQuery = `(CONCAT(c.first_name, ' ', c.last_name) LIKE ? OR u.Nombre LIKE ? OR v.notes LIKE ?)`;
+        const queryParams = [`%${sanitizedQuery}%`, `%${sanitizedQuery}%`, `%${sanitizedQuery}%`];
+
+        let finalQuery;
+
+        // 4. Lógica de Permisos (con LIMIT 10 añadido)
+        if (checkPermission(currentUser.rol, PERMISSIONS.VIEW_ALL_VISITS)) {
+            // Gerente/Admin: Busca en todas las visitas
+            finalQuery = `${baseQuery} WHERE ${likeQuery} ORDER BY v.scheduled_for DESC LIMIT 10`; // <-- AQUÍ
+        } else {
+            // Vendedor: Busca SOLO en sus propias visitas
+            finalQuery = `${baseQuery} WHERE v.user_id = ? AND ${likeQuery} ORDER BY v.scheduled_for DESC LIMIT 10`; // <-- Y AQUÍ
+            queryParams.unshift(currentUser.userId);
+        }
+
+        connection = await getConnection();
+        const [visits] = await connection.execute(finalQuery, queryParams);
+        res.status(200).json({ success: true, data: visits });
+
+    } catch (error) {
+        console.error('Error al buscar visitas:', error);
         res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
     } finally {
         if (connection) connection.release();
@@ -229,5 +300,6 @@ module.exports = {
     createVisit,
     updateVisit,
     getVisits,
-    deleteVisit
+    deleteVisit,
+    searchVisits
 };
