@@ -136,17 +136,64 @@ const updateProduct = async (req, res) => {
     }
 };
 
+// --- FUNCIÓN DE AYUDA (HELPER) ---
+// Convierte el JSON de BD en el formato Array { title, description } que tú quieres
+const formatProductAttributes = (product) => {
+    let attributes = [];
+    
+    // 1. Verificar si hay custom_fields y si es un string (en MariaDB suele venir como string)
+    if (product.custom_fields) {
+        let parsedFields = product.custom_fields;
+        
+        // Si viene como string JSON, lo parseamos a Objeto
+        if (typeof parsedFields === 'string') {
+            try {
+                parsedFields = JSON.parse(parsedFields);
+            } catch (e) {
+                parsedFields = {}; // Si falla, devolvemos vacío
+            }
+        }
+
+        // 2. Transformar Objeto a Array de { title, description }
+        // Ejemplo entrada: { "tipo_switch": "Blue", "conexion": "USB-C" }
+        // Ejemplo salida: [ { title: "tipo_switch", description: "Blue" }, ... ]
+        attributes = Object.entries(parsedFields).map(([key, value]) => ({
+            title: key,       // El "Elemento 1" que querías
+            description: value // El "Elemento 2" que querías
+        }));
+    }
+    
+    // Retornamos el producto con un nuevo campo 'attributes_list'
+    return {
+        ...product,
+        attributes_list: attributes, // <--- AQUÍ ESTÁ LA LISTA FORMATEADA
+        // custom_fields: parsedFields // Puedes dejar el original o quitarlo si prefieres
+    };
+};
+
 /**
  * Obtener todos los productos
+ * (Incluye nombres de categoría y proveedor)
  */
 const getAllProducts = async (req, res) => {
     let connection;
     try {
         connection = await getConnection();
-        const [products] = await connection.execute('SELECT * FROM products ORDER BY name ASC');
-        res.status(200).json({ success: true, data: products });
+        const sql = `
+            SELECT p.*, c.name AS category_name, s.name AS supplier_name
+            FROM products p
+            LEFT JOIN categories c ON p.category_id = c.id
+            LEFT JOIN suppliers s ON p.supplier_id = s.id
+            ORDER BY p.name ASC
+        `;
+        const [products] = await connection.execute(sql);
+
+        // Formatear cada producto de la lista
+        const formattedProducts = products.map(prod => formatProductAttributes(prod));
+
+        res.status(200).json({ success: true, data: formattedProducts });
     } catch (error) {
-        console.error('Error al obtener los productos:', error);
+        console.error('Error al obtener productos:', error);
         res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
     } finally {
         if (connection) connection.release();
@@ -154,7 +201,8 @@ const getAllProducts = async (req, res) => {
 };
 
 /**
- * Buscar productos por nombre
+ * Buscar productos por nombre, SKU o código de barras
+ * (Incluye nombres de categoría y proveedor)
  */
 const searchProducts = async (req, res) => {
     let connection;
@@ -167,7 +215,7 @@ const searchProducts = async (req, res) => {
         // 1. Sanitizar la entrada
         const sanitizedQuery = sanitizeInput(q);
 
-        // 2. NUEVO: Detectar patrones maliciosos en el término de búsqueda
+        // 2. Detectar patrones maliciosos
         if (containsSQLInjection(sanitizedQuery)) {
             return res.status(400).json({
                 success: false,
@@ -178,9 +226,31 @@ const searchProducts = async (req, res) => {
         
         connection = await getConnection();
         
-        // 3. Ejecutar la búsqueda segura
-        const [products] = await connection.execute('SELECT * FROM products WHERE name LIKE ? OR sku LIKE ? OR barcode LIKE ? LIMIT 7', [`%${sanitizedQuery}%`]);
-        res.status(200).json({ success: true, data: products });
+        // 3. Ejecutar la búsqueda con JOINs
+        const sql = `
+            SELECT 
+                p.*, 
+                c.name AS category_name, 
+                s.name AS supplier_name
+            FROM products p
+            LEFT JOIN categories c ON p.category_id = c.id
+            LEFT JOIN suppliers s ON p.supplier_id = s.id
+            WHERE p.name LIKE ? OR p.sku LIKE ? OR p.barcode LIKE ? 
+            LIMIT 7
+        `;
+
+        const params = [`%${sanitizedQuery}%`, `%${sanitizedQuery}%`, `%${sanitizedQuery}%`];
+
+        const [products] = await connection.execute(sql, params);
+
+        // =================================================================
+        // 4. APLICAR EL FORMATO DE ATRIBUTOS (Igual que en getAllProducts)
+        // =================================================================
+        // Usamos la función helper 'formatProductAttributes' que definimos antes
+        const formattedProducts = products.map(prod => formatProductAttributes(prod));
+
+        res.status(200).json({ success: true, data: formattedProducts });
+
     } catch (error) {
         console.error('Error al buscar productos:', error);
         res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
@@ -188,7 +258,6 @@ const searchProducts = async (req, res) => {
         if (connection) connection.release();
     }
 };
-
 /**
  * Eliminar un producto
  */
