@@ -3,6 +3,9 @@
 const { getConnection } = require('../config/database');
 const { sanitizeInput, containsSQLInjection, sanitizeJsonObject, jsonObjectContainsSQLInjection } = require('../utils/sanitizer');
 
+//Imagenes exportaciones
+const path = require('path');
+
 /**
  * Crear un nuevo producto
  */
@@ -279,4 +282,188 @@ const deleteProduct = async (req, res) => {
     }
 };
 
-module.exports = { createProduct, updateProduct, getAllProducts, searchProducts, deleteProduct };
+
+//===========================================
+// Imagenes 
+//===========================================
+
+/**
+ * [PROTEGIDO] Subir una imagen para un producto
+ */
+const uploadProductImage = async (req, res) => {
+    let connection;
+    
+    if (!req.file) {
+        return res.status(400).json({ success: false, message: 'No se subió ningún archivo.' });
+    }
+
+    try {
+        const { id } = req.params;
+        const { filename } = req.file;
+        const imagePath = `/uploads/products/${filename}`;
+
+        // 1. Leer el orden del body (o asignar 0 por defecto si no lo envían)
+        const displayOrder = req.body.display_order ? parseInt(req.body.display_order) : 0;
+        
+        // 1. Leer la intención del usuario desde el body
+        // Multer procesa los campos de texto y los pone en req.body
+        // Nota: En FormData, los booleanos viajan como strings "true" o "1"
+        let isPrimaryRequested = req.body.is_primary === 'true' || req.body.is_primary === '1';
+
+        connection = await getConnection();
+
+        // 2. Verificar que el producto exista
+        const [product] = await connection.execute('SELECT id FROM products WHERE id = ?', [id]);
+        if (product.length === 0) {
+            require('fs').unlinkSync(req.file.path); // Borrar foto si no hay producto
+            return res.status(404).json({ success: false, message: 'El producto no existe.' });
+        }
+
+        // 3. Lógica Inteligente de "Imagen Principal"
+        // Paso A: Verificamos cuántas imágenes tiene
+        const [existingImages] = await connection.execute('SELECT COUNT(id) as count FROM product_images WHERE product_id = ?', [id]);
+        const count = existingImages[0].count;
+
+        // Paso B: Decidir si será principal
+        let finalIsPrimary = 0;
+
+        if (count === 0) {
+            // Si es la PRIMERA imagen que sube, SIEMPRE es principal (aunque diga que no)
+            finalIsPrimary = 1;
+        } else if (isPrimaryRequested) {
+            // Si ya tiene fotos, pero el usuario PIDIÓ que esta sea principal:
+            finalIsPrimary = 1;
+            
+            // ¡IMPORTANTE! "Destronar" a la principal anterior
+            // Ponemos is_primary = 0 a todas las otras fotos de este producto
+            await connection.execute(
+                'UPDATE product_images SET is_primary = 0 WHERE product_id = ?',
+                [id]
+            );
+        } 
+        // (Else: Si no es la primera y no lo pidió, se queda en 0)
+
+        // 4. Insertar
+        const [result] = await connection.execute(
+            'INSERT INTO product_images (product_id, image_path, is_primary, display_order) VALUES (?, ?, ?, ?)',
+            [id, imagePath, finalIsPrimary, displayOrder] // <--- Aquí agregamos el dato
+        );
+
+        res.status(201).json({ 
+            success: true, 
+            message: 'Imagen subida exitosamente.', 
+            data: { 
+                id: result.insertId, 
+                image_path: imagePath, 
+                is_primary: Boolean(finalIsPrimary), // Devolvemos true/false para el frontend
+                display_order: displayOrder
+            } 
+        });
+
+    } catch (error) {
+        if (req.file && require('fs').existsSync(req.file.path)) {
+            require('fs').unlinkSync(req.file.path);
+        }
+        console.error('Error al subir imagen:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
+/**
+ * [PROTEGIDO] Eliminar una imagen de producto
+ */
+const deleteProductImage = async (req, res) => {
+    let connection;
+    try {
+        const imageId = req.params.id;
+        
+        connection = await getConnection();
+
+        // 1. Obtener la ruta de la imagen ANTES de borrar el registro
+        const [images] = await connection.execute('SELECT image_path FROM product_images WHERE id = ?', [imageId]);
+        
+        if (images.length === 0) {
+            return res.status(404).json({ success: false, message: 'La imagen no existe.' });
+        }
+        
+        const imagePathRelative = images[0].image_path; // Ej: /uploads/products/foto.jpg
+
+        // 2. Borrar el registro de la Base de Datos
+        await connection.execute('DELETE FROM product_images WHERE id = ?', [imageId]);
+
+        // 3. Borrar el archivo físico del servidor
+        // Construimos la ruta absoluta del sistema
+        // Nota: Asumimos que 'public' está en la raíz de tu proyecto, un nivel arriba de 'controllers'
+        const fullPath = path.join(__dirname, '../public', imagePathRelative);
+
+        if (require('fs').existsSync(fullPath)) {
+            require('fs').unlinkSync(fullPath); // Borrado físico
+        }
+
+        res.status(200).json({ success: true, message: 'Imagen eliminada exitosamente.' });
+
+    } catch (error) {
+        console.error('Error al eliminar imagen:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
+/**
+ * [PROTEGIDO] Obtener todas las imágenes de un producto
+ */
+const getProductImages = async (req, res) => {
+    let connection;
+    try {
+        const productId = req.params.id;
+        
+        // Validar que el ID sea un número
+        if (isNaN(parseInt(productId, 10))) {
+            return res.status(400).json({ success: false, message: 'El ID del producto debe ser un número.' });
+        }
+
+        connection = await getConnection();
+
+        // 1. Verificar que el producto exista (opcional, pero buena práctica)
+        const [product] = await connection.execute('SELECT id FROM products WHERE id = ?', [productId]);
+        if (product.length === 0) {
+            return res.status(404).json({ success: false, message: 'El producto no existe.' });
+        }
+
+        // 2. Obtener las imágenes
+        // Ordenamos por:
+        // - is_primary DESC (Para que la principal (1) salga primero)
+        // - display_order ASC (Para respetar el orden manual)
+        // - created_at DESC (Para que las nuevas salgan antes si no hay orden)
+        const sql = `
+            SELECT id, image_path, alt_text, display_order, is_primary 
+            FROM product_images 
+            WHERE product_id = ? 
+            ORDER BY is_primary DESC, display_order ASC, created_at DESC
+        `;
+
+        const [images] = await connection.execute(sql, [productId]);
+
+        res.status(200).json({ success: true, data: images });
+
+    } catch (error) {
+        console.error('Error al obtener imágenes del producto:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
+module.exports = { 
+    createProduct, 
+    updateProduct, 
+    getAllProducts, 
+    searchProducts, 
+    deleteProduct,
+    uploadProductImage,
+    deleteProductImage,
+    getProductImages
+};

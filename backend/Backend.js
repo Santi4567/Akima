@@ -10,6 +10,7 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const dotenv = require('dotenv');
+const path = require('path');
 
 dotenv.config();
 
@@ -43,6 +44,9 @@ app.use('/api/visits', visitRoutes); // Visitas
 app.use('/api/orders', orderRoutes); // Orders 
 app.use('/api/returns', returnRoutes); // Visitas 
 
+// HACER PÚBLICA LA CARPETA DE UPLOADS
+// Esto permite acceder a http://localhost:3000/uploads/products/foto.jpg
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 
 
 // Middleware de manejo de errores

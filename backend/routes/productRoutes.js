@@ -6,6 +6,14 @@ const router = express.Router();
 const { verifyToken } = require('../middleware/auth');
 const { requirePermission, PERMISSIONS } = require('../utils/permissions');
 const { validateProductPayload } = require('../middleware/productValidator');
+//  Imagenes
+const upload = require('../middleware/upload'); // <-- Importar Multer
+const { uploadProductImage,
+        deleteProductImage,
+        getProductImages
+ } = require('../controllers/productController');
+
+ //Productos 
 const {
     createProduct,
     updateProduct,
@@ -54,6 +62,37 @@ router.delete(
     verifyToken,
     requirePermission(PERMISSIONS.DELETE_PRODUCTS),
     deleteProduct
+);
+
+//===========================================
+// Imagenes 
+//===========================================
+/**
+ * Subir imagen de producto
+ * Permiso: edit.products (o add.products, según tu lógica)
+ */
+router.post(
+    '/:id/images',
+    verifyToken,
+    requirePermission(PERMISSIONS.EDIT_PRODUCTS), // Solo quien puede editar productos sube fotos
+    upload.single('image'), // 'image' es el nombre del campo en el Form-Data
+    uploadProductImage
+);
+router.delete(
+    '/images/:id', // El :id es el ID de la IMAGEN (de la tabla product_images), no del producto
+    verifyToken,
+    requirePermission(PERMISSIONS.EDIT_PRODUCTS),
+    deleteProductImage
+);
+/**
+ * Obtener imágenes de un producto
+ * URL: GET /api/products/:id/images
+ */
+router.get(
+    '/:id/images',
+    verifyToken,
+    requirePermission(PERMISSIONS.VIEW_PRODUCTS),
+    getProductImages
 );
 
 module.exports = router;

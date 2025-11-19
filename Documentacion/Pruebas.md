@@ -199,3 +199,24 @@
     
     curl -v -X PUT http://localhost:3000/api/returns/1/status -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"status": "completed"}'
     
+
+# Imagenes 
+## Subir imagen primaria
+curl -X POST http://localhost:3000/api/products/10/images -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjgsIm5vbWJyZSI6IkFkbWluIEYiLCJjb3JyZW8iOiJhZG1pbkB0ZXN0LmNvbSIsInJvbCI6ImFkbWluIiwidHlwZSI6ImFjY2Vzc190b2tlbiIsImlhdCI6MTc2MzUyODAwMSwiZXhwIjoxNzYzNTcxMjAxLCJpc3MiOiJha2ltYS1hcGkiLCJzdWIiOiI4In0.sLIld8xBHtMb6_Z_LeYZH2X--Ms7BuKWZ7fblM7yLlk" -F "image=@images.jpeg" -F "is_primary=true"
+
+### Respuesta
+{"success":true,"message":"Imagen subida exitosamente.","data":{"id":6,"image_path":"/uploads/products/1763533798900-344045963.jpeg","is_primary":true,"display_order":0}}%            
+
+## Subir imagen con orden 
+curl -X POST http://localhost:3000/api/products/10/images -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjgsIm5vbWJyZSI6IkFkbWluIEYiLCJjb3JyZW8iOiJhZG1pbkB0ZXN0LmNvbSIsInJvbCI6ImFkbWluIiwidHlwZSI6ImFjY2Vzc190b2tlbiIsImlhdCI6MTc2MzUyODAwMSwiZXhwIjoxNzYzNTcxMjAxLCJpc3MiOiJha2ltYS1hcGkiLCJzdWIiOiI4In0.sLIld8xBHtMb6_Z_LeYZH2X--Ms7BuKWZ7fblM7yLlk" -F "image=@images.jpeg" -F "display_order=2"
+### Respuesta
+{"success":true,"message":"Imagen subida exitosamente.","data":{"id":7,"image_path":"/uploads/products/1763533805787-754000999.jpeg","is_primary":false,"display_order":2}}
+
+## Ver por ID de produto
+ curl -X GET http://localhost:3000/api/products/10/images -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjgsIm5vbWJyZSI6IkFkbWluIEYiLCJjb3JyZW8iOiJhZG1pbkB0ZXN0LmNvbSIsInJvbCI6ImFkbWluIiwidHlwZSI6ImFjY2Vzc190b2tlbiIsImlhdCI6MTc2MzUyODAwMSwiZXhwIjoxNzYzNTcxMjAxLCJpc3MiOiJha2ltYS1hcGkiLCJzdWIiOiI4In0.sLIld8xBHtMb6_Z_LeYZH2X--Ms7BuKWZ7fblM7yLlk"
+{"success":true,"data":[{"id":6,"image_path":"/uploads/products/1763533798900-344045963.jpeg","alt_text":null,"display_order":0,"is_primary":1},{"id":7,"image_path":"/uploads/products/1763533805787-754000999.jpeg","alt_text":null,"display_order":2,"is_primary":0}]}
+
+## Eliminar 
+curl -X DELETE http://localhost:3000/api/products/images/7 -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjgsIm5vbWJyZSI6IkFkbWluIEYiLCJjb3JyZW8iOiJhZG1pbkB0ZXN0LmNvbSIsInJvbCI6ImFkbWluIiwidHlwZSI6ImFjY2Vzc190b2tlbiIsImlhdCI6MTc2MzUyODAwMSwiZXhwIjoxNzYzNTcxMjAxLCJpc3MiOiJha2ltYS1hcGkiLCJzdWIiOiI4In0.sLIld8xBHtMb6_Z_LeYZH2X--Ms7BuKWZ7fblM7yLlk"
+### Respuesta
+{"success":true,"message":"Imagen eliminada exitosamente."}

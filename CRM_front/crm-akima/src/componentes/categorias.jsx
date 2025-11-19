@@ -1,9 +1,16 @@
+// src/componentes/categorias.jsx
+
 import { useState, useEffect, useCallback } from 'react';
-import { ArrowLeftIcon } from '@heroicons/react/24/solid';
+import { Link } from 'react-router-dom'; // Importamos Link para navegar
+import { 
+  ArrowLeftIcon, 
+  CubeIcon, // Icono de Productos (Inventario)
+  TagIcon   // Icono de Categorías
+} from '@heroicons/react/24/solid';
 import { useAuth } from '../context/AuthContext.jsx';
 import { HasPermission } from './HasPermission.jsx';
 import { Notification } from './Notification.jsx';
-import { PERMISSIONS } from '../config/permissions.js';
+import { ProductHubNav } from './productos/ProductHubNav';
 
 // Define la URL de la API (¡sácala de .env!)
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -15,8 +22,8 @@ export const Categorias = () => {
   const [notification, setNotification] = useState({ type: '', message: '' });
 
   // Estado de los Datos
-  const [allCategories, setAllCategories] = useState([]); // Lista completa para el dropdown
-  const [displayedCategories, setDisplayedCategories] = useState([]); // Lista para la tabla (filtrada)
+  const [allCategories, setAllCategories] = useState([]); 
+  const [displayedCategories, setDisplayedCategories] = useState([]); 
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -28,19 +35,18 @@ export const Categorias = () => {
   
   // --- FUNCIONES DE API ---
 
-  // Función para cargar todas las categorías (para la tabla y el dropdown)
   const fetchCategories = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/categories`, {
-        credentials: 'include', // ¡HttpOnly!
+        credentials: 'include', 
       });
       if (!response.ok) throw new Error('Error al cargar categorías');
       const data = await response.json();
       
       if (data.success) {
         setAllCategories(data.data);
-        setDisplayedCategories(data.data); // Al inicio, muestra todas
+        setDisplayedCategories(data.data); 
       }
     } catch (error) {
       setNotification({ type: 'error', message: error.message });
@@ -49,19 +55,18 @@ export const Categorias = () => {
     }
   }, []);
 
-  // Cargar categorías al montar el componente
   useEffect(() => {
     if (hasPermission('view.category')) {
       fetchCategories();
     } else {
-      setIsLoading(false); // No tiene permiso para ver
+      setIsLoading(false);
     }
   }, [fetchCategories, hasPermission]);
 
   // Función de Búsqueda
   const handleSearch = async () => {
     if (!searchTerm) {
-      setDisplayedCategories(allCategories); // Si está vacío, muestra todo
+      setDisplayedCategories(allCategories); 
       return;
     }
     
@@ -87,7 +92,6 @@ export const Categorias = () => {
   const handleDelete = async () => {
     if (!selectedCategory) return;
     
-    // Mostramos un 'confirm' nativo (puedes cambiarlo por un modal)
     if (window.confirm(`¿Estás seguro de que quieres eliminar "${selectedCategory.name}"?`)) {
       try {
         const response = await fetch(`${API_URL}/api/categories/${selectedCategory.id}`, {
@@ -98,8 +102,8 @@ export const Categorias = () => {
 
         if (data.success) {
           setNotification({ type: 'success', message: data.message });
-          setSelectedCategory(null); // Deselecciona
-          fetchCategories(); // Recarga la lista
+          setSelectedCategory(null); 
+          fetchCategories(); 
         } else {
           throw new Error(data.message || 'Error al eliminar');
         }
@@ -113,8 +117,8 @@ export const Categorias = () => {
 
   const showListView = () => {
     setView('list');
-    setEditingCategory(null); // Limpia el formulario
-    setNotification({ type: '', message: '' }); // Limpia alertas
+    setEditingCategory(null); 
+    setNotification({ type: '', message: '' }); 
   };
 
   const showFormView = (categoryToEdit = null) => {
@@ -146,15 +150,24 @@ export const Categorias = () => {
 
   // Vista de Lista (Default)
   return (
-    <div className="space-y-4">
+    <div className="space-y-6"> {/* Aumenté el espacio vertical un poco */}
       <Notification
         type={notification.type}
         message={notification.message}
         onClose={() => setNotification({ type: '', message: '' })}
       />
+
+      {/* --- MENU DE TABS (NUEVO) --- */}
+      <div className="border-b border-gray-200">
+        <ProductHubNav 
+        activeTab="categories" // Le decimos que "Categorías" es la activa
+        // NO pasamos onTabChange, así que los otros botones serán Links
+      />
+      </div>
+      {/* --- FIN MENU TABS --- */}
       
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Categorías</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Gestión de Categorías</h1>
         <HasPermission required="add.category">
           <button
             onClick={() => showFormView(null)} // null = "Nuevo"
@@ -208,7 +221,7 @@ export const Categorias = () => {
       <HasPermission required="view.category">
         <div className="bg-white shadow rounded-lg">
           {/* Contenedor de la tabla con scroll */}
-          <div className="overflow-y-auto h-[500px]"> {/* Altura fija y scroll */}
+          <div className="overflow-y-auto h-[500px]"> 
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50 sticky top-0">
                 <tr>
@@ -244,18 +257,16 @@ export const Categorias = () => {
   );
 };
 
-// --- Sub-componente del Formulario (dentro del mismo archivo) ---
+// --- Sub-componente del Formulario ---
 const CategoryForm = ({ categories, initialData, onClose, onSuccess, onError }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [parentId, setParentId] = useState(''); // '' para "ninguno"
+  const [parentId, setParentId] = useState(''); 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Determina si estamos editando o creando
   const isEditing = !!initialData;
   const formTitle = isEditing ? 'Editar Categoría' : 'Agregar Categoría';
 
-  // Carga los datos iniciales si estamos en modo "Editar"
   useEffect(() => {
     if (isEditing) {
       setName(initialData.name);
@@ -271,7 +282,7 @@ const CategoryForm = ({ categories, initialData, onClose, onSuccess, onError }) 
     const payload = {
       name,
       description,
-      parent_id: parentId ? Number(parentId) : null, // Asegúrate que sea número o null
+      parent_id: parentId ? Number(parentId) : null,
     };
 
     const url = isEditing
@@ -284,19 +295,19 @@ const CategoryForm = ({ categories, initialData, onClose, onSuccess, onError }) 
       const response = await fetch(url, {
         method: method,
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', // ¡HttpOnly!
+        credentials: 'include', 
         body: JSON.stringify(payload),
       });
 
       const data = await response.json();
 
       if (data.success) {
-        onSuccess(data.message); // Llama al callback de éxito
+        onSuccess(data.message); 
       } else {
         throw new Error(data.message || 'Error al guardar');
       }
     } catch (error) {
-      onError(error.message); // Muestra el error en la notificación
+      onError(error.message); 
     } finally {
       setIsSubmitting(false);
     }
@@ -312,7 +323,7 @@ const CategoryForm = ({ categories, initialData, onClose, onSuccess, onError }) 
       
       <div className="flex items-center gap-4">
         <button
-          onClick={onClose} // Botón de regresar
+          onClick={onClose} 
           className="p-2 text-gray-600 hover:bg-gray-100 rounded-full"
         >
           <ArrowLeftIcon className="h-6 w-6" />
@@ -360,7 +371,7 @@ const CategoryForm = ({ categories, initialData, onClose, onSuccess, onError }) 
           >
             <option value="">-- Ninguna (Categoría Principal) --</option>
             {categories
-              .filter(cat => !isEditing || cat.id !== initialData.id) // No puede ser padre de sí misma
+              .filter(cat => !isEditing || cat.id !== initialData.id) 
               .map(cat => (
                 <option key={cat.id} value={cat.id}>
                   {cat.name}
@@ -369,7 +380,16 @@ const CategoryForm = ({ categories, initialData, onClose, onSuccess, onError }) 
           </select>
         </div>
 
-        <div className="text-right">
+        {/* --- BOTONES DE ACCIÓN (ACTUALIZADO) --- */}
+        <div className="flex justify-end gap-4 pt-4 border-t border-gray-100">
+          <button
+            type="button" // Importante: type="button" para no enviar el form
+            onClick={onClose}
+            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 bg-white shadow-sm"
+          >
+            Cancelar
+          </button>
+          
           <button
             type="submit"
             disabled={isSubmitting}
