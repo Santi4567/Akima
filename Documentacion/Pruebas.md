@@ -185,6 +185,16 @@
     curl -X PUT http://localhost:3000/api/orders/1/cancel -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT_ADMIN>"
     ```
 
+  # Ver items de la orden por ID (VIEW_OWN_ORDERS)
+
+curl -v -X GET http://localhost:3000/api/orders/101/items -H "Authorization: Bearer <TU_TOKEN_JWT_ADMIN>"
+
+  ## Agregar itemas a una orden (EDIT_ORDER_CONTENT)
+  curl -v -X POST http://localhost:3000/api/orders/500/items -H "Authorization: Bearer <TU_TOKEN_JWT_ADMIN>" -H "Content-Type: application/json" -d '{"product_id": 10,"quantity": 2}'
+
+  ## Eliminar un item de una orden (EDIT_ORDER_CONTENT)
+    curl -v -X DELETE http://localhost:3000/api/orders/500/items/55 -H "Authorization: Bearer <TU_TOKEN_JWT_ADMIN>"
+
 # Returns 
  ## Crear return 
   ## Escenario A: Devolución por Items (Falta de stock)
@@ -199,6 +209,8 @@
     
     curl -v -X PUT http://localhost:3000/api/returns/1/status -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"status": "completed"}'
     
+
+
 
 # Imagenes 
 ## Subir imagen primaria

@@ -1,15 +1,65 @@
-export const Ordenes = () => {
-  
-  // --- LÓGICA ---
-  // (Aquí irían los useState, useEffect, etc. si los necesitaras)
-  const mensaje = "Hola mundo";
+import { useState } from 'react';
 
-  // --- RENDERIZADO (El JSX que se devuelve) ---
-  // Todo debe estar envuelto en UN solo elemento (como un <div>)
+import { OrderHub } from './ordenes/OrderHub';
+import { OrderList } from './ordenes/OrderList';
+import { OrderForm } from './ordenes/OrderForm';
+import { OrderItems } from './ordenes/OrderItem';
+import { ReturnsList } from './ordenes/ReturnsList';
+import { ReturnsForm } from './ordenes/ReturnsForm';
+
+export const Ordenes = () => {
+  // Estado del HUB: 'list', 'form', 'details', 'returns', 'return-form'
+  const [view, setView] = useState('list'); 
+  const [selectedOrder, setSelectedOrder] = useState(null); // Para ver detalles
+
+  // Navegación del Tab
+  const handleTabChange = (tab) => {
+    if (tab === 'list') setView('list');
+    if (tab === 'form') setView('form');
+    if (tab === 'returns') setView('returns');
+  };
+
   return (
     <div>
-      <h1>{mensaje}</h1>
-      <p>Este es el componente más básico.</p>
+      {/* NAVEGACIÓN (Solo si no estamos viendo detalles profundos para no saturar) */}
+      {view !== 'details' && (
+        <OrderHub activeTab={view} onTabChange={handleTabChange} />
+      )}
+
+      {/* VISTA: LISTA DE ÓRDENES */}
+      {view === 'list' && (
+        <OrderList 
+          onViewDetails={(order) => { setSelectedOrder(order); setView('details'); }}
+          onCreateNew={() => setView('form')}
+        />
+      )}
+
+      {/* VISTA: CREAR ORDEN */}
+      {view === 'form' && (
+        <OrderForm 
+          onSuccess={() => setView('list')} 
+        />
+      )}
+
+      {/* VISTA: DETALLES DE ORDEN */}
+      {view === 'details' && selectedOrder && (
+        <OrderItems 
+          order={selectedOrder}
+          onClose={() => { setSelectedOrder(null); setView('list'); }}
+        />
+      )}
+
+      {/* VISTA: DEVOLUCIONES (Placeholder) */}
+      {view === 'returns' && (
+         <ReturnsList 
+            onCreate={() => setView('return-form')}
+         />
+      )}
+      
+      {view === 'return-form' && (
+        <ReturnsForm onClose={() => setView('returns')} />
+      )}
+
     </div>
   );
 };

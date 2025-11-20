@@ -22,14 +22,14 @@ const {
 router.post(
   '/',
   verifyToken,
-  requirePermission(PERMISSIONS.ADD_PRODUCTS), // Permiso para añadir
+  requirePermission(PERMISSIONS.ADD_CATEGORY), // Permiso para añadir
   createCategory
 );
 
 router.get(
   '/search',
   verifyToken,
-  requirePermission(PERMISSIONS.VIEW_PRODUCTS),
+  requirePermission(PERMISSIONS.VIEW_CATEGORY),
   searchCategoriesByName 
 );
 

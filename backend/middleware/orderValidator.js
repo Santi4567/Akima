@@ -100,8 +100,26 @@ const validateStatusPayload = (req, res, next) => {
     }
     next();
 };
+/**
+ * Middleware para validar cuando se agrega UN solo item a una orden existente.
+ */
+const validateAddOrderItemPayload = (req, res, next) => {
+    const { product_id, quantity } = req.body;
+
+    if (product_id === undefined || quantity === undefined) {
+        return res.status(400).json({ success: false, error: 'CAMPOS_REQUERIDOS', message: 'Se requieren "product_id" y "quantity".' });
+    }
+    if (!Number.isInteger(product_id) || !Number.isInteger(quantity)) {
+        return res.status(400).json({ success: false, error: 'TIPO_INVALIDO', message: 'IDs y cantidades deben ser enteros.' });
+    }
+    if (quantity <= 0) {
+        return res.status(400).json({ success: false, error: 'CANTIDAD_INVALIDA', message: 'La cantidad debe ser mayor a 0.' });
+    }
+    next();
+};
 
 module.exports = {
     validateOrderPayload,
-    validateStatusPayload
+    validateStatusPayload,
+    validateAddOrderItemPayload
 };
