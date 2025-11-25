@@ -71,7 +71,7 @@ export const LoginPage = () => {
       <div className="w-full max-w-lg rounded-lg bg-white p-8 shadow-2xl">
         
         <h2 className="mb-8 text-center text-4xl font-extrabold tracking-tight text-gray-900">
-          Bienvenido a Akima CRM
+          Bienvenido a Alkima CRM
         </h2>
         
         <form className="space-y-6" onSubmit={handleSubmit}>

@@ -61,7 +61,7 @@ export const Header = () => {
           <div className="flex items-center">
             <Link to="/home" className="flex-shrink-0 flex items-center gap-2">
               <Logo />
-              <span className="hidden sm:block font-bold text-xl text-gray-800">Akima CRM</span>
+              <span className="hidden sm:block font-bold text-xl text-gray-800">Alkima CRM</span>
             </Link>
           </div>
 

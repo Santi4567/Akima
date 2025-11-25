@@ -1,39 +1,30 @@
-// src/componentes/Productos.jsx
-
-import { useState, useEffect } from 'react'; // <-- AGREGADO: useEffect
-import { useLocation } from 'react-router-dom'; // <-- AGREGADO: useLocation, QUITADO: Link (ya no se usa aquí)
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 
 // Importamos los componentes hijos
 import { ProductList } from './productos/ProductList';
 import { ProductForm } from './productos/ProductForm';
 import { ProductImages } from './productos/ProductImages';
 import { ProductHubNav } from './productos/ProductHubNav';
+import { ProductInventory } from './productos/ProductInventory'; // <--- IMPORTAR EL NUEVO COMPONENTE
 
 export const Productos = () => {
-  // Hook para leer el estado que viene del Link (desde Categorías)
   const location = useLocation();
   
-  // Estado del HUB
-  const [view, setView] = useState('list'); // 'list', 'form', 'images'
+  // Estado del HUB: ahora puede ser 'inventory' también
+  const [view, setView] = useState('list'); 
   const [editingProduct, setEditingProduct] = useState(null);
   const [imagesProduct, setImagesProduct] = useState(null);
-  
-  // Notificación global para pasar entre vistas
   const [hubNotification, setHubNotification] = useState(null);
    
-  // --- EFECTO PARA DETECTAR NAVEGACIÓN EXTERNA ---
   useEffect(() => {
-    // Si viene un estado en la navegación diciendo "initialTab: images"
-    if (location.state?.initialTab === 'images') {
-      setView('images');
-      
-      // Limpiamos el estado para que si recarga no se quede "pegado" forzando la vista
+    if (location.state?.initialTab) {
+      setView(location.state.initialTab);
       window.history.replaceState({}, document.title); 
     }
   }, [location]);
 
   // --- Handlers de Navegación ---
-   
   const handleCreate = () => {
     setEditingProduct(null);
     setView('form');
@@ -60,19 +51,17 @@ export const Productos = () => {
 
   // --- RENDERIZADO ---
 
-  // Si estamos en Formulario
   if (view === 'form') {
     return (
       <ProductForm
         initialData={editingProduct}
         onClose={() => handleBackToList()}
         onSuccess={() => handleBackToList({ type: 'success', message: 'Producto guardado exitosamente.' })}
-        onError={(msg) => alert(msg)} // O manejar error localmente con un estado
+        onError={(msg) => alert(msg)} 
       />
     );
   }
 
-  // Si estamos en Imágenes
   if (view === 'images') {
     return (
       <ProductImages 
@@ -82,23 +71,29 @@ export const Productos = () => {
     );
   }
 
-  // Si estamos en Lista (Default)
+  // Nueva lógica de renderizado para las pestañas principales
   return (
     <div>
       {/* MENU TABS (HUB) */}
-      {/* Quitamos el div wrapper con borde porque ProductHubNav ya lo tiene */}
       <ProductHubNav 
-        activeTab={view}       // Pasamos la vista actual ('list' o 'images')
-        onTabChange={setView}  // Pasamos la función para cambiarla
+        activeTab={view}       
+        onTabChange={setView}  
       />
 
-      {/* Renderizamos la Lista */}
-      <ProductList 
-        onCreate={handleCreate}
-        onEdit={handleEdit}
-        onManageImages={handleManageImages}
-        externalNotification={hubNotification}
-      />
+      {/* Vista: Lista de Productos (Datos Generales) */}
+      {view === 'list' && (
+        <ProductList 
+          onCreate={handleCreate}
+          onEdit={handleEdit}
+          onManageImages={handleManageImages}
+          externalNotification={hubNotification}
+        />
+      )}
+
+      {/* Vista: Inventario (Stock Rápido) */}
+      {view === 'inventory' && (
+        <ProductInventory />
+      )}
     </div>
   );
 };

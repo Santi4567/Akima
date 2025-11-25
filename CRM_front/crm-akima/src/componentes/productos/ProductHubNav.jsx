@@ -1,7 +1,10 @@
-// src/componentes/productos/ProductHubNav.jsx
-
 import { Link } from 'react-router-dom';
-import { CubeIcon, TagIcon, PhotoIcon } from '@heroicons/react/24/solid';
+import { 
+  CubeIcon, 
+  TagIcon, 
+  PhotoIcon, 
+  ClipboardDocumentListIcon // Nuevo icono para la lista
+} from '@heroicons/react/24/solid';
 
 export const ProductHubNav = ({ activeTab, onTabChange }) => {
   
@@ -16,40 +19,48 @@ export const ProductHubNav = ({ activeTab, onTabChange }) => {
 
   return (
     <div className="border-b border-gray-200 mb-6">
-      <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+      <nav className="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
         
-        {/* TAB 1: INVENTARIO */}
+        {/* TAB 1: LISTA DE PRODUCTOS (Antes Inventario) */}
         {onTabChange ? (
           <button onClick={() => onTabChange('list')} className={getTabClass('list')}>
-            <CubeIcon className="h-5 w-5" />
-            Inventario
+            <ClipboardDocumentListIcon className="h-5 w-5" />
+            Lista de Productos
           </button>
         ) : (
-          <Link to="/productos" className={getTabClass('list')}>
-            <CubeIcon className="h-5 w-5" />
-            Inventario
+          <Link to="/productos" state={{ initialTab: 'list' }} className={getTabClass('list')}>
+            <ClipboardDocumentListIcon className="h-5 w-5" />
+            Lista de Productos
           </Link>
         )}
 
-        {/* TAB 2: IMÁGENES (AQUÍ ESTÁ EL CAMBIO CLAVE) */}
+        {/* TAB 2: INVENTARIO (NUEVA PESTAÑA DE STOCK) */}
+        {onTabChange ? (
+          <button onClick={() => onTabChange('inventory')} className={getTabClass('inventory')}>
+            <CubeIcon className="h-5 w-5" />
+            Inventario (Stock)
+          </button>
+        ) : (
+          <Link to="/productos" state={{ initialTab: 'inventory' }} className={getTabClass('inventory')}>
+            <CubeIcon className="h-5 w-5" />
+            Inventario (Stock)
+          </Link>
+        )}
+
+        {/* TAB 3: IMÁGENES */}
         {onTabChange ? (
           <button onClick={() => onTabChange('images')} className={getTabClass('images')}>
             <PhotoIcon className="h-5 w-5" />
             Imágenes
           </button>
         ) : (
-          // Usamos 'state' para pasar el dato de qué tab abrir
-          <Link 
-            to="/productos" 
-            state={{ initialTab: 'images' }} 
-            className={getTabClass('images')}
-          >
+          <Link to="/productos" state={{ initialTab: 'images' }} className={getTabClass('images')}>
             <PhotoIcon className="h-5 w-5" />
             Imágenes
           </Link>
         )}
 
-        {/* TAB 3: CATEGORÍAS */}
+        {/* TAB 4: CATEGORÍAS */}
         <Link to="/productos/categorias" className={getTabClass('categories')}>
           <TagIcon className="h-5 w-5" />
           Categorías

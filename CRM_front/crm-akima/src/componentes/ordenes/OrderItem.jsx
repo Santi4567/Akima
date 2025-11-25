@@ -8,7 +8,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export const OrderItems = ({ order, onClose }) => {
   const [items, setItems] = useState([]);
-  const [orderStatus, setOrderStatus] = useState(order.status); // Estado local para actualizar UI rápido
+  const [orderStatus, setOrderStatus] = useState(order.status);
   
   // Estado para agregar item
   const [productSearch, setProductSearch] = useState('');
@@ -88,7 +88,6 @@ export const OrderItems = ({ order, onClose }) => {
   };
 
   // --- Agregar Item ---
-  // 1. Buscar Producto
   useEffect(() => {
     if(productSearch.length > 1) {
       fetch(`${API_URL}/api/products/search?q=${productSearch}`, { credentials: 'include' })
@@ -97,7 +96,6 @@ export const OrderItems = ({ order, onClose }) => {
     }
   }, [productSearch]);
 
-  // 2. Enviar
   const handleAddItem = async () => {
     if(!selectedProduct) return;
     try {
@@ -105,7 +103,8 @@ export const OrderItems = ({ order, onClose }) => {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         credentials: 'include',
-        body: JSON.stringify({ product_id: selectedProduct.id, quantity: newItemQty })
+        // Corrección de tipos (Number/parseInt)
+        body: JSON.stringify({ product_id: Number(selectedProduct.id), quantity: Number(newItemQty) })
       });
       const data = await res.json();
       if(data.success) {
@@ -135,25 +134,55 @@ export const OrderItems = ({ order, onClose }) => {
         </div>
         
         <div className="flex items-center gap-3">
+          {/* ETIQUETAS DE ESTADO ACTUALIZADAS */}
           <span className={`px-3 py-1 rounded-full text-sm font-bold uppercase ${
               orderStatus === 'completed' ? 'bg-green-100 text-green-800' :
               orderStatus === 'shipped' ? 'bg-blue-100 text-blue-800' :
-              orderStatus === 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+              orderStatus === 'processing' ? 'bg-orange-100 text-orange-800' : // <-- Color para Processing
+              orderStatus === 'cancelled' ? 'bg-red-100 text-red-800' : 
+              'bg-yellow-100 text-yellow-800' // Pending
           }`}>{orderStatus}</span>
           
-          {/* Botones de Acción de Estado (Solo si no está cancelado/completado) */}
+          {/* BOTONES DE ACCIÓN DE ESTADO (FLUJO COMPLETO) */}
           <HasPermission required="edit.order.status">
-             {(orderStatus === 'pending' || orderStatus === 'processing') && (
-                 <button onClick={() => changeStatus('shipped')} className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">Marcar Enviado</button>
+             
+             {/* 1. Pending -> Processing */}
+             {orderStatus === 'pending' && (
+                 <button 
+                   onClick={() => changeStatus('processing')} 
+                   className="bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600 shadow"
+                 >
+                   Procesar Pedido
+                 </button>
              )}
+
+             {/* 2. Processing -> Shipped */}
+             {orderStatus === 'processing' && (
+                 <button 
+                   onClick={() => changeStatus('shipped')} 
+                   className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 shadow"
+                 >
+                   Marcar Enviado
+                 </button>
+             )}
+
+             {/* 3. Shipped -> Completed */}
              {orderStatus === 'shipped' && (
-                 <button onClick={() => changeStatus('completed')} className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">Marcar Completado</button>
+                 <button 
+                   onClick={() => changeStatus('completed')} 
+                   className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 shadow"
+                 >
+                   Marcar Completado
+                 </button>
              )}
+
           </HasPermission>
           
           <HasPermission required="cancel.order">
             {(orderStatus === 'pending' || orderStatus === 'processing') && (
-                <button onClick={cancelOrder} className="bg-red-100 text-red-700 px-3 py-1 rounded text-sm hover:bg-red-200">Cancelar Pedido</button>
+                <button onClick={cancelOrder} className="bg-red-100 text-red-700 px-3 py-1 rounded text-sm hover:bg-red-200 ml-2">
+                  Cancelar Pedido
+                </button>
             )}
           </HasPermission>
         </div>
@@ -227,7 +256,9 @@ export const OrderItems = ({ order, onClose }) => {
                         )}
                     </div>
                     <input 
-                        type="number" min="1" value={newItemQty} onChange={e => setNewItemQty(e.target.value)}
+                        type="number" min="1" 
+                        value={newItemQty} 
+                        onChange={e => setNewItemQty(parseInt(e.target.value) || 1)}
                         className="w-20 p-2 border rounded text-sm" placeholder="Cant."
                     />
                     <button 
