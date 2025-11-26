@@ -256,9 +256,147 @@ const updateReturnStatus = async (req, res) => {
         if (connection) connection.release();
     }
 };
+
+/**
+ * [PROTEGIDO] Obtener LISTA de devoluciones
+ * URL: GET /api/returns
+ * Lógica: Admin/Gerente ven TODAS. Vendedores ven solo las SUYAS.
+ */
+const getReturns = async (req, res) => {
+    let connection;
+    try {
+        const currentUser = req.user;
+        let query;
+        let queryParams = [];
+
+        // Consulta base con JOINs para mostrar nombres en lugar de IDs
+        const baseQuery = `
+            SELECT 
+                r.id, 
+                r.order_id, 
+                r.total_refunded, 
+                r.reason, 
+                r.status, 
+                r.created_at,
+                CONCAT(c.first_name, ' ', c.last_name) AS client_name,
+                u.Nombre AS user_name
+            FROM returns r
+            INNER JOIN clients c ON r.client_id = c.id
+            INNER JOIN users u ON r.user_id = u.ID
+        `;
+
+        // Definimos qué roles tienen acceso total ("Modo Dios")
+        const rolesWithFullAccess = ['admin', 'gerente', 'administracion'];
+
+        if (rolesWithFullAccess.includes(currentUser.rol)) {
+            // Caso A: Ver Todo (Ordenado por fecha reciente)
+            query = `${baseQuery} ORDER BY r.created_at DESC`;
+        } else {
+            // Caso B: Ver Solo lo Suyo (Vendedores)
+            query = `${baseQuery} WHERE r.user_id = ? ORDER BY r.created_at DESC`;
+            queryParams.push(currentUser.userId);
+        }
+
+        connection = await getConnection();
+        const [returns] = await connection.execute(query, queryParams);
+        
+        res.status(200).json({ success: true, data: returns });
+
+    } catch (error) {
+        console.error('Error al obtener devoluciones:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
+/**
+ * [PROTEGIDO] Obtener DETALLE de una devolución por ID
+ * URL: GET /api/returns/:id
+ * Incluye: Info general + Lista de productos devueltos (return_items)
+ */
+const getReturnById = async (req, res) => {
+    let connection;
+    try {
+        const returnId = req.params.id;
+        const currentUser = req.user;
+
+        // Validar que el ID sea un número
+        if (isNaN(parseInt(returnId, 10))) {
+            return res.status(400).json({ success: false, message: 'ID inválido.' });
+        }
+
+        connection = await getConnection();
+
+        // 1. Obtener el Encabezado (Info General) con JOINs
+        const headerQuery = `
+            SELECT 
+                r.*,
+                CONCAT(c.first_name, ' ', c.last_name) AS client_name,
+                c.email AS client_email,
+                u.Nombre AS user_name
+            FROM returns r
+            INNER JOIN clients c ON r.client_id = c.id
+            INNER JOIN users u ON r.user_id = u.ID
+            WHERE r.id = ?
+        `;
+        
+        const [returns] = await connection.execute(headerQuery, [returnId]);
+
+        if (returns.length === 0) {
+            return res.status(404).json({ success: false, message: 'Devolución no encontrada.' });
+        }
+
+        const returnHeader = returns[0];
+
+        // 2. SEGURIDAD: Verificar si el usuario tiene permiso de ver ESTA devolución
+        const rolesWithFullAccess = ['admin', 'gerente', 'administracion'];
+        
+        const canViewAll = rolesWithFullAccess.includes(currentUser.rol);
+        const isOwner = currentUser.userId === returnHeader.user_id;
+
+        if (!canViewAll && !isOwner) {
+            return res.status(403).json({ success: false, message: 'No tienes permiso para ver los detalles de esta devolución.' });
+        }
+
+        // 3. Obtener los Items (Productos devueltos)
+        // Usamos LEFT JOIN con products para traer el SKU actual (informativo)
+        const itemsQuery = `
+            SELECT 
+                ri.id,
+                ri.product_name,
+                ri.quantity,
+                ri.unit_price_refunded,
+                (ri.quantity * ri.unit_price_refunded) as subtotal_refunded,
+                p.sku
+            FROM return_items ri
+            LEFT JOIN products p ON ri.product_id = p.id
+            WHERE ri.return_id = ?
+        `;
+
+        const [returnItems] = await connection.execute(itemsQuery, [returnId]);
+
+        // 4. Armar la respuesta completa
+        res.status(200).json({ 
+            success: true, 
+            data: {
+                ...returnHeader, // Info general
+                items: returnItems // Array de productos
+            }
+        });
+
+    } catch (error) {
+        console.error('Error al obtener detalle de devolución:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
 module.exports = {
     createReturn,
-    updateReturnStatus
-    // getReturns,
+    updateReturnStatus,
+    getReturns,    // <--- Lista
+    getReturnById  // <--- Detalle Individual
+
     
 };

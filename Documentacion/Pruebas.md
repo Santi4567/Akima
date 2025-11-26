@@ -53,6 +53,9 @@ curl -v -X POST http://localhost:3000/api/users -H "Authorization: Bearer <TU_TO
   ## Obtner todos los roles y los usuario que dependen de el 
   curl -v -X GET http://localhost:3000/api/users/admin/roles/stats -H "Authorization: Bearer <TU_TOKEN_JWT>"
 
+  ## ver los permisos de un rol en espesifico
+   curl -v -X GET http://localhost:3000/api/users/roles/gerente/permissions -H "Authorization: Bearer <TU_TOKEN_JWT>"
+
 
 # Categorias
 
@@ -237,7 +240,12 @@ curl -v -X GET http://localhost:3000/api/orders/101/items -H "Authorization: Bea
   ## Ajustar estado del reembolso 
     
     curl -v -X PUT http://localhost:3000/api/returns/1/status -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"status": "completed"}'
-    
+
+  ## ver resturn 
+  curl -v -X GET http://localhost:3000/api/returns -b cookies.txt -H "Authorization: Bearer <TU_TOKEN_JWT>"
+
+  ## ver detalles de un return
+    curl -v -X GET http://localhost:3000/api/returns/1 -H "Authorization: Bearer <TU_TOKEN_JWT>"
 
 
 

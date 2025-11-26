@@ -23,7 +23,8 @@ const {
     createSystemRole,
     deleteSystemRole,
     getRolesWithUserCount,
-    getRolesList
+    getRolesList,
+    getRolePermissions
 } = require('../controllers/userController');
 
 
@@ -62,6 +63,15 @@ router.get(
     getRolesList
 );
 
+// [NUEVO] Ver permisos de un rol específico
+// GET /api/users/roles/:roleName/permissions
+// Ejemplo: /api/users/roles/vendedor/permissions
+router.get(
+    '/roles/:roleName/permissions',
+    verifyToken,
+    // Opcional: requirePermission(PERMISSIONS.VIEW_USERS), o solo Admin
+    getRolePermissions
+);
 
 // Obtener un usuario por ID
 router.get('/:id', verifyToken, requirePermission(PERMISSIONS.VIEW_USERS), getUserById);

@@ -53,6 +53,9 @@ export const Ordenes = () => {
       {view === 'returns' && (
          <ReturnsList 
             onCreate={() => setView('return-form')}
+            
+            // --- AGREGA ESTA LÍNEA QUE FALTA ---
+            onViewDetails={(rma) => { setSelectedReturn(rma); setView('return-details'); }}
          />
       )}
       

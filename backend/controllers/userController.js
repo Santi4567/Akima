@@ -399,51 +399,37 @@ const updateSystemPermissions = async (req, res) => {
             return res.status(400).json({ success: false, message: 'El cuerpo debe ser un objeto JSON.' });
         }
 
-        // 2. Cargar actuales y preparar fusión
         const currentPermissions = loadPermissions();
         const newPermissions = { ...currentPermissions };
 
-        // 3. Procesar y Validar
+        // 3. PROCESAR Y VALIDAR
         for (const [rawRole, perms] of Object.entries(updates)) {
             
-            // A. Sanitizar nombre del rol
+            // A. El Rol SÍ lo sanitizamos (es una clave dinámica y podría usarse mal)
+            // Pero relajamos la validación SQLi aquí también si confías en tus inputs, 
+            // aunque mantenerla para el nombre del rol es buena práctica.
             const role = sanitizeInput(rawRole);
-            if (containsSQLInjection(role) || role.trim() === '') {
-                return res.status(400).json({ success: false, error: 'ROL_MALICIOSO', message: `El rol '${rawRole}' no es válido.` });
-            }
-
-            // B. Validar estructura
+            
+            // B. Estructura
             if (perms !== '*' && !Array.isArray(perms)) {
                 return res.status(400).json({ success: false, message: `Los permisos para '${role}' deben ser un array o '*'.` });
             }
 
-            // C. PROCESAR PERMISOS (SI ES UN ARRAY)
+            // C. VALIDAR PERMISOS
             if (Array.isArray(perms)) {
-                
-                // =================================================================
-                // NUEVO: ELIMINAR DUPLICADOS AUTOMÁTICAMENTE
-                // =================================================================
-                // Convertimos a Set (elimina repetidos) y luego de vuelta a Array
+                // Eliminamos duplicados
                 const uniquePerms = [...new Set(perms)];
 
-                // Si quieres ser ESTRICTO y lanzar error si hay duplicados, descomenta esto:
-                /*
-                if (uniquePerms.length !== perms.length) {
-                    return res.status(400).json({ 
-                        success: false, 
-                        error: 'PERMISOS_DUPLICADOS', 
-                        message: `El rol '${role}' contiene permisos repetidos.` 
-                    });
-                }
-                */
-
-                // Validamos sobre la lista limpia (uniquePerms)
                 for (const p of uniquePerms) {
                     if (typeof p !== 'string') return res.status(400).json({ success: false, message: `Permiso inválido en '${role}'.` });
                     
-                    if (containsSQLInjection(p)) return res.status(400).json({ success: false, error: 'INPUT_MALICIOSO', message: `Permiso malicioso: ${p}` });
-
-                    // Validar contra la Lista Maestra
+                    // =================================================================
+                    // CAMBIO: ELIMINADA LA VALIDACIÓN DE SQL INJECTION AQUÍ
+                    // =================================================================
+                    // Ya no usamos containsSQLInjection(p).
+                    // Confiamos 100% en la Lista Maestra.
+                    
+                    // Validación contra Whitelist (La única que importa)
                     if (!isValidSystemPermission(p)) {
                         return res.status(400).json({ 
                             success: false, 
@@ -452,27 +438,22 @@ const updateSystemPermissions = async (req, res) => {
                         });
                     }
                 }
-
-                // Asignar la lista LIMPIA (sin duplicados)
                 newPermissions[role] = uniquePerms;
-
             } else {
-                // Si es '*', se asigna directo
                 newPermissions[role] = perms;
             }
         }
 
-        // 4. Proteger al Admin
+        // 4. Proteger Admin
         if (!newPermissions['admin'] || newPermissions['admin'] !== '*') {
             return res.status(400).json({ success: false, error: 'PROTECCION_ADMIN', message: 'No se puede modificar el rol de admin.' });
         }
 
-        // 5. Guardar
         updatePermissionsFile(newPermissions);
 
         res.status(200).json({ 
             success: true, 
-            message: 'Permisos actualizados y verificados correctamente.',
+            message: 'Permisos actualizados correctamente.',
             data: newPermissions 
         });
 
@@ -481,7 +462,6 @@ const updateSystemPermissions = async (req, res) => {
         res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
     }
 };
-
 /**
  * [SOLO ADMIN] Obtener la lista maestra de todos los permisos disponibles
  * Útil para mostrar opciones en el Frontend al editar roles.
@@ -679,6 +659,38 @@ const getRolesList = (req, res) => {
     }
 };
 
+/**
+ * [PROTEGIDO] Obtener los permisos de un rol específico
+ * URL: GET /api/users/roles/:roleName/permissions
+ */
+const getRolePermissions = (req, res) => {
+    try {
+        const { roleName } = req.params;
+
+        // 1. Cargar la configuración
+        const allPermissions = loadPermissions();
+
+        // 2. Verificar si el rol existe
+        // Usamos hasOwnProperty para seguridad
+        if (!Object.prototype.hasOwnProperty.call(allPermissions, roleName)) {
+            return res.status(404).json({ success: false, message: `El rol '${roleName}' no existe en el sistema.` });
+        }
+
+        // 3. Devolver los permisos
+        const permissions = allPermissions[roleName];
+
+        res.status(200).json({ 
+            success: true, 
+            message: `Permisos del rol '${roleName}' obtenidos.`,
+            data: permissions 
+        });
+
+    } catch (error) {
+        console.error('Error al obtener permisos del rol:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    }
+};
+
 module.exports = {
     register,
     getProfile,
@@ -692,5 +704,6 @@ module.exports = {
     createSystemRole,
     deleteSystemRole,
     getRolesWithUserCount,
-    getRolesList
+    getRolesList,
+    getRolePermissions
 };

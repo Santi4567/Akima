@@ -54,11 +54,11 @@ const PERMISSIONS = {
   CANCEL_ORDER: 'cancel.order',
   VIEW_OWN_ORDERS: 'view.own.order',
   VIEW_ALL_ORDER: 'view.all.order',
-
   
   // Devoluciones (Returns)
   ISSUE_REFUND: 'issue.refund',
-  EDIT_RETURN_STATUS: 'edit.return.status'
+  EDIT_RETURN_STATUS: 'edit.return.status',
+  VIEW_RETURNS: 'view.returns'
 };
 
 // Array plano para validación rápida
