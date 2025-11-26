@@ -5,7 +5,12 @@ const validator = require('validator');
 const { getConnection } = require('../config/database');
 const { sanitizeInput, containsSQLInjection } = require('../utils/sanitizer');
 const { checkPermission, PERMISSIONS } = require('../utils/permissions');
-const { loadPermissions } = require('../utils/permissions');
+const { 
+    updatePermissionsFile, 
+    loadPermissions, 
+    isValidSystemPermission,
+    VALID_PERMISSIONS_LIST 
+} = require('../utils/permissions');
 
 /**
  * [PÚBLICO] Registrar un nuevo usuario.
@@ -292,6 +297,134 @@ const deleteUser = async (req, res) => {
         if (connection) connection.release();
     }
 };
+//==================================================seccion de permisos=================================================
+
+/**
+ * [SUPER ADMIN] Actualizar permisos del sistema
+ * - Fusiona cambios (no borra roles que no envíes).
+ * - Valida que los permisos existan en la Lista Maestra.
+ * - Sanitiza entradas.
+ */
+const updateSystemPermissions = async (req, res) => {
+    try {
+        const currentUser = req.user;
+        const updates = req.body;
+
+        // 1. SEGURIDAD: Solo admin
+        if (currentUser.rol !== 'admin') {
+            return res.status(403).json({ success: false, error: 'ACCESO_PROHIBIDO', message: 'Solo el Super Admin puede modificar permisos.' });
+        }
+
+        if (typeof updates !== 'object' || updates === null) {
+            return res.status(400).json({ success: false, message: 'El cuerpo debe ser un objeto JSON.' });
+        }
+
+        // 2. Cargar actuales y preparar fusión
+        const currentPermissions = loadPermissions();
+        const newPermissions = { ...currentPermissions };
+
+        // 3. Procesar y Validar
+        for (const [rawRole, perms] of Object.entries(updates)) {
+            
+            // A. Sanitizar nombre del rol
+            const role = sanitizeInput(rawRole);
+            if (containsSQLInjection(role) || role.trim() === '') {
+                return res.status(400).json({ success: false, error: 'ROL_MALICIOSO', message: `El rol '${rawRole}' no es válido.` });
+            }
+
+            // B. Validar estructura
+            if (perms !== '*' && !Array.isArray(perms)) {
+                return res.status(400).json({ success: false, message: `Los permisos para '${role}' deben ser un array o '*'.` });
+            }
+
+            // C. PROCESAR PERMISOS (SI ES UN ARRAY)
+            if (Array.isArray(perms)) {
+                
+                // =================================================================
+                // NUEVO: ELIMINAR DUPLICADOS AUTOMÁTICAMENTE
+                // =================================================================
+                // Convertimos a Set (elimina repetidos) y luego de vuelta a Array
+                const uniquePerms = [...new Set(perms)];
+
+                // Si quieres ser ESTRICTO y lanzar error si hay duplicados, descomenta esto:
+                /*
+                if (uniquePerms.length !== perms.length) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        error: 'PERMISOS_DUPLICADOS', 
+                        message: `El rol '${role}' contiene permisos repetidos.` 
+                    });
+                }
+                */
+
+                // Validamos sobre la lista limpia (uniquePerms)
+                for (const p of uniquePerms) {
+                    if (typeof p !== 'string') return res.status(400).json({ success: false, message: `Permiso inválido en '${role}'.` });
+                    
+                    if (containsSQLInjection(p)) return res.status(400).json({ success: false, error: 'INPUT_MALICIOSO', message: `Permiso malicioso: ${p}` });
+
+                    // Validar contra la Lista Maestra
+                    if (!isValidSystemPermission(p)) {
+                        return res.status(400).json({ 
+                            success: false, 
+                            error: 'PERMISO_INEXISTENTE', 
+                            message: `El permiso '${p}' no existe en el sistema.` 
+                        });
+                    }
+                }
+
+                // Asignar la lista LIMPIA (sin duplicados)
+                newPermissions[role] = uniquePerms;
+
+            } else {
+                // Si es '*', se asigna directo
+                newPermissions[role] = perms;
+            }
+        }
+
+        // 4. Proteger al Admin
+        if (!newPermissions['admin'] || newPermissions['admin'] !== '*') {
+            return res.status(400).json({ success: false, error: 'PROTECCION_ADMIN', message: 'No se puede modificar el rol de admin.' });
+        }
+
+        // 5. Guardar
+        updatePermissionsFile(newPermissions);
+
+        res.status(200).json({ 
+            success: true, 
+            message: 'Permisos actualizados y verificados correctamente.',
+            data: newPermissions 
+        });
+
+    } catch (error) {
+        console.error('Error al actualizar permisos:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    }
+};
+
+/**
+ * [SOLO ADMIN] Obtener la lista maestra de todos los permisos disponibles
+ * Útil para mostrar opciones en el Frontend al editar roles.
+ */
+const getAvailablePermissions = (req, res) => {
+    try {
+        // Seguridad extra: Solo admin
+        if (req.user.rol !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Acceso denegado.' });
+        }
+
+        res.status(200).json({ 
+            success: true, 
+            message: 'Lista de permisos del sistema obtenida.',
+            // Esto devuelve: ['add.users', 'edit.users', 'view.products', ...]
+            data: VALID_PERMISSIONS_LIST 
+        });
+
+    } catch (error) {
+        console.error('Error al obtener lista de permisos:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    }
+};
 
 module.exports = {
     register,
@@ -300,5 +433,7 @@ module.exports = {
     getUserById,
     searchUserByName,
     updateUser,
-    deleteUser
+    deleteUser,
+    updateSystemPermissions,
+    getAvailablePermissions
 };

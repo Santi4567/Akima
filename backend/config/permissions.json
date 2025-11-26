@@ -16,8 +16,8 @@
   "vendedor": [
     "view.products",
     "view.clients",
-    "view.inventory",
     "view.own.visits",
+    "add.order",
     "view.own.order",
     "edit.visits"
   ],

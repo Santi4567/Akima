@@ -17,7 +17,9 @@ const {
     searchUserByName,
     updateUser,
     deleteUser,
-    getProfile
+    getProfile,
+    updateSystemPermissions,
+    getAvailablePermissions
 } = require('../controllers/userController');
 
 
@@ -46,5 +48,35 @@ router.put('/:id', verifyToken, validateUpdatePayload, updateUser);
 // Eliminar un usuario
 router.delete('/:id', verifyToken, requirePermission(PERMISSIONS.DELETE_USERS), deleteUser);
 
+// =================================================================
+// [NUEVO] RUTA DE ADMINISTRACIÓN DE PERMISOS
+// =================================================================
+router.put(
+    '/admin/permissions',
+    verifyToken,
+    // Middleware en línea para doble seguridad: SOLO el rol 'admin' pasa.
+    // (Aunque el controlador también lo valida, es bueno detenerlo aquí antes)
+    (req, res, next) => {
+        if (req.user.rol !== 'admin') {
+             return res.status(403).json({ success: false, error: 'ACCESO_DENEGADO', message: 'Que intentas hacer??' });
+        }
+        next();
+    },
+    updateSystemPermissions // <--- 2. USAR EL NUEVO CONTROLADOR
+);
+/**
+ * [GET] Obtener lista de todos los permisos disponibles
+ */
+router.get(
+    '/admin/permissions-list',
+    verifyToken,
+    (req, res, next) => {
+        if (req.user.rol !== 'admin') {
+             return res.status(403).json({ success: false, error: 'ACCESO_DENEGADO', message: 'Nope' });
+        }
+        next();
+    },
+    getAvailablePermissions
+);
 
 module.exports = router;

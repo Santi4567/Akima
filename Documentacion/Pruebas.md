@@ -24,6 +24,12 @@
   ## Consultar informacion 
     curl -v -X GET http://localhost:3000/api/users/profile
 
+  ## Cambioar?modificar/eliminar/permisos (solo admins)
+  curl -v -X PUT http://localhost:3000/api/users/admin/permissions  -H "Content-Type: application/json"  -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"vendedor": ["view.products","view.clients","view.own.visits","add.order","view.own.order"]}'
+
+  ## Consulta de permisos 
+  curl -v -X GET http://localhost:3000/api/users/admin/permissions-list -H "Authorization: Bearer <TU_TOKEN_JWT>"
+
 
 # Categorias
 

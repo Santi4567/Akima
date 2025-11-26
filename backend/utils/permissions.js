@@ -1,31 +1,12 @@
-/**
- * SISTEMA DE PERMISOS SIMPLIFICADO
- * - Gestión de permisos basado en roles
- * - Permisos: add, edit, delete, view para cada tabla
- * - Ubicación: utils/permissions.js
- */
+// En utils/permissions.js
 
 const fs = require('fs');
 const path = require('path');
 
-// Función para cargar/recargar permisos desde archivo JSON
-const loadPermissions = () => {
-  try {
-    const permissionsPath = path.join(__dirname, '../config/permissions.json');
-    delete require.cache[require.resolve('../config/permissions.json')]; // Limpiar cache
-    return JSON.parse(fs.readFileSync(permissionsPath, 'utf8'));
-  } catch (error) {
-    console.error('Error cargando permisos:', error);
-    return {};
-  }
-};
+// Ruta al archivo JSON
+const permissionsPath = path.join(__dirname, '../config/permissions.json');
 
-// Cargar permisos inicialmente
-let permissions = loadPermissions();
-
-/**
- * Constantes de permisos disponibles
- */
+// 1. LISTA MAESTRA DE PERMISOS VÁLIDOS
 const PERMISSIONS = {
   // Usuarios
   ADD_USERS: 'add.users',
@@ -58,58 +39,84 @@ const PERMISSIONS = {
   DELETE_CLIENTS: 'delete.clients',
   VIEW_CLIENTS: 'view.clients',
   
-  // Visitas (Todo plural)
+  // Visitas
   ADD_VISITS: 'add.visits',
   EDIT_VISITS: 'edit.visits',
   DELETE_VISITS: 'delete.visits',
+  ASSIGN_VISITS: 'assign.visits',
   VIEW_OWN_VISITS: 'view.own.visits',
   VIEW_ALL_VISITS: 'view.all.visits',
-  ASSIGN_VISITS: 'assign.visits', 
 
-  // Oredenes/Pedidos 
+  // Pedidos (Orders)
   ADD_ORDER: 'add.order',
-  VIEW_ALL_ORDERS : 'view.all.order', 
-  VIEW_OWN_ORDERS: 'view.own.order', 
-  EDIT_ORDER_CONTENT: 'edit.order.content', 
+  EDIT_ORDER_CONTENT: 'edit.order.content',
   EDIT_ORDER_STATUS: 'edit.order.status',
   CANCEL_ORDER: 'cancel.order',
+  VIEW_OWN_ORDER: 'view.own.order',
+  VIEW_ALL_ORDER: 'view.all.order',
   
-  
-  // Returns 
-  ISSUE_REFUND: 'issue.refund',       
-  EDIT_RETURN_STATUS: 'edit.return.status' 
+  // Devoluciones (Returns)
+  ISSUE_REFUND: 'issue.refund',
+  EDIT_RETURN_STATUS: 'edit.return.status'
+};
+
+// Array plano para validación rápida
+const VALID_PERMISSIONS_LIST = Object.values(PERMISSIONS);
+
+// --- FUNCIONES DE AYUDA ---
+
+// Carga los permisos leyendo el archivo directamente (Más seguro que require con caché)
+const loadPermissions = () => {
+  try {
+    const data = fs.readFileSync(permissionsPath, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error cargando permisos:', error);
+    return {};
+  }
+};
+
+// Variable en memoria para acceso rápido
+let permissions = loadPermissions();
+
+// Función para actualizar el archivo y la variable en memoria
+const updatePermissionsFile = (newPermissions) => {
+    try {
+        fs.writeFileSync(permissionsPath, JSON.stringify(newPermissions, null, 2), 'utf8');
+        permissions = newPermissions; // Actualizar memoria inmediatamente
+        return true;
+    } catch (error) {
+        console.error('Error al escribir permisos:', error);
+        throw error;
+    }
 };
 
 /**
- * Verifica si un rol tiene un permiso específico.
- * Esta es ahora nuestra ÚNICA función para verificar permisos.
- * @param {string} userRole - El rol del usuario
- * @param {string} permission - El permiso a verificar
- * @returns {boolean} - true si tiene el permiso, false si no
+ * Verifica si un permiso existe en la Lista Maestra
  */
-const checkPermission = (userRole, permission) => {
-  if (!userRole || !permission) return false;
+const isValidSystemPermission = (permission) => {
+    if (permission === '*') return true;
+    return VALID_PERMISSIONS_LIST.includes(permission);
+};
+
+const checkPermission = (userRole, requiredPermission) => {
+  if (!userRole || !requiredPermission) return false;
   
-  permissions = loadPermissions();
+  // Usamos la variable en memoria que siempre está actualizada gracias a updatePermissionsFile
+  // (Si prefieres recargar siempre desde disco, descomenta la siguiente línea, pero es más lento)
+  // permissions = loadPermissions(); 
   
   if (!permissions[userRole]) return false;
-  if (permissions[userRole] === '*') return true;//verificacion de admin 
+  if (permissions[userRole] === '*') return true;
   if (Array.isArray(permissions[userRole])) {
-    return permissions[userRole].includes(permission);
+    return permissions[userRole].includes(requiredPermission);
   }
-  
   return false;
 };
 
-/**
- * Middleware para verificar permisos específicos en rutas
- * @param {string} requiredPermission - El permiso requerido
- * @returns {function} - Middleware de Express
- */
 const requirePermission = (requiredPermission) => {
   return (req, res, next) => {
     const userRole = req.user?.rol || 'vendedor';
-    
     if (!checkPermission(userRole, requiredPermission)) {
       return res.status(403).json({
         success: false,
@@ -117,18 +124,12 @@ const requirePermission = (requiredPermission) => {
         message: `No tienes permisos para: ${requiredPermission}`
       });
     }
-    
     next();
   };
 };
 
-/**
- * Middleware para verificar si es admin (equivalente al anterior requireAdmin)
- * @returns {function} - Middleware de Express
- */
 const requireAdmin = (req, res, next) => {
   const userRole = req.user?.rol || 'vendedor';
-  
   if (userRole !== 'admin') {
     return res.status(403).json({
       success: false,
@@ -136,7 +137,6 @@ const requireAdmin = (req, res, next) => {
       message: 'Se requieren permisos de administrador'
     });
   }
-  
   next();
 };
 
@@ -145,5 +145,8 @@ module.exports = {
   checkPermission,
   requirePermission,
   requireAdmin,
-  loadPermissions // Exportar función para recargar permisos manualmente
+  loadPermissions,
+  updatePermissionsFile,
+  isValidSystemPermission,
+  VALID_PERMISSIONS_LIST //<- Si se ocupa
 };
