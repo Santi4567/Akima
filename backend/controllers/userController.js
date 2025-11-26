@@ -9,7 +9,8 @@ const {
     updatePermissionsFile, 
     loadPermissions, 
     isValidSystemPermission,
-    VALID_PERMISSIONS_LIST 
+    VALID_PERMISSIONS_LIST,
+    getSystemRoles 
 } = require('../utils/permissions');
 
 /**
@@ -505,6 +506,109 @@ const getAvailablePermissions = (req, res) => {
     }
 };
 
+/**
+ * [SUPER ADMIN] Crear un nuevo ROL en el sistema
+ */
+const createSystemRole = async (req, res) => {
+    try {
+        const currentUser = req.user;
+        const { roleName } = req.body;
+
+        // 1. Seguridad
+        if (currentUser.rol !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Solo el Super Admin puede crear roles.' });
+        }
+
+        // 2. Validar input
+        if (!roleName || typeof roleName !== 'string') {
+            return res.status(400).json({ success: false, message: 'Se requiere el campo "roleName" (texto).' });
+        }
+
+        // 3. Sanitizar nombre del rol (Solo letras minúsculas, números y guiones bajos)
+        // Esto es importante para que sea una "clave" válida en JSON y fácil de usar.
+        const cleanRoleName = sanitizeInput(roleName).toLowerCase().replace(/[^a-z0-9_]/g, '');
+
+        if (cleanRoleName.length < 3) {
+            return res.status(400).json({ success: false, message: 'El nombre del rol es muy corto o contiene caracteres inválidos.' });
+        }
+
+        // 4. Verificar si ya existe
+        const currentRoles = getSystemRoles();
+        if (currentRoles.includes(cleanRoleName)) {
+            return res.status(409).json({ success: false, message: `El rol '${cleanRoleName}' ya existe.` });
+        }
+
+        // 5. Guardar el nuevo rol
+        const currentPermissions = loadPermissions();
+        
+        // Lo inicializamos como un array vacío (sin permisos)
+        currentPermissions[cleanRoleName] = [];
+
+        updatePermissionsFile(currentPermissions);
+
+        res.status(201).json({ 
+            success: true, 
+            message: `Rol '${cleanRoleName}' creado exitosamente. Ahora puedes asignarle permisos.`,
+            data: { role: cleanRoleName } 
+        });
+
+    } catch (error) {
+        console.error('Error al crear rol:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    }
+};
+
+/**
+ * [SUPER ADMIN] Eliminar un Rol del sistema
+ */
+const deleteSystemRole = async (req, res) => {
+    try {
+        const currentUser = req.user;
+        // Recibimos el nombre del rol por la URL (ej: /admin/roles/logistica)
+        const roleName = req.params.roleName; 
+
+        // 1. Seguridad: Solo admin
+        if (currentUser.rol !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Solo el Super Admin puede eliminar roles.' });
+        }
+
+        // 2. Sanitizar el nombre del rol
+        const cleanRoleName = sanitizeInput(roleName);
+
+        // 3. PROTECCIÓN CRÍTICA: No borrar al admin
+        if (cleanRoleName === 'admin') {
+            return res.status(400).json({ 
+                success: false, 
+                error: 'PROTECCION_SISTEMA', 
+                message: 'No se puede eliminar el rol de sistema "admin".' 
+            });
+        }
+
+        // 4. Cargar permisos actuales
+        const currentPermissions = loadPermissions();
+
+        // 5. Verificar que el rol exista
+        if (!currentPermissions[cleanRoleName]) {
+            return res.status(404).json({ success: false, message: `El rol '${cleanRoleName}' no existe.` });
+        }
+
+        // 6. Eliminar el rol del objeto
+        delete currentPermissions[cleanRoleName];
+
+        // 7. Guardar cambios en el archivo
+        updatePermissionsFile(currentPermissions);
+
+        res.status(200).json({ 
+            success: true, 
+            message: `Rol '${cleanRoleName}' eliminado correctamente del sistema.` 
+        });
+
+    } catch (error) {
+        console.error('Error al eliminar rol:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    }
+};
+
 module.exports = {
     register,
     getProfile,
@@ -514,5 +618,7 @@ module.exports = {
     updateUser,
     deleteUser,
     updateSystemPermissions,
-    getAvailablePermissions
+    getAvailablePermissions,
+    createSystemRole,
+    deleteSystemRole
 };

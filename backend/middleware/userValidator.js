@@ -1,6 +1,7 @@
+// 1. IMPORTAR EL HELPER (Esto faltaba)
+const { getSystemRoles } = require('../utils/permissions');
 
 const USER_SCHEMA = {
-    // campos permitidos
     registerFields: ['Nombre', 'Correo', 'Passwd', 'Estado', 'rol', 'phone', 'address', 'sex'],
     updateFields: ['Nombre', 'Correo', 'Passwd', 'Estado', 'rol', 'phone', 'address', 'sex'],
     
@@ -9,17 +10,18 @@ const USER_SCHEMA = {
         Correo: { type: 'string', maxLength: 100 },
         Passwd: { type: 'string', maxLength: 255, minLength: 6 },
         Estado: { type: 'boolean' },
-        rol: { type: 'string', maxLength: 20, enum: ['admin', 'gerente', 'vendedor', 'administracion'] },
-        
-        // --- NUEVAS REGLAS ---
+        rol: { 
+            type: 'string', 
+            maxLength: 30,
+            dynamicValidation: true 
+        },
         phone: { 
             type: 'string', 
             maxLength: 20, 
-            // Esta Regex asegura que SOLO haya números (0-9). Ni letras, ni espacios, ni guiones.
             pattern: /^[0-9]+$/, 
             errorMessage: 'El teléfono debe contener solo números, sin espacios ni guiones.'
         },
-        address: { type: 'string' }, // TEXT en BD no tiene límite corto, pero string en JS
+        address: { type: 'string' },
         sex: { type: 'string', enum: ['M', 'F', 'O'] }
     }
 };
@@ -47,9 +49,29 @@ const validatePayload = (allowedFields) => (req, res, next) => {
             if (rule.maxLength && typeof value === 'string' && value.length > rule.maxLength) return res.status(400).json({ success: false, message: `El campo '${field}' excede los ${rule.maxLength} caracteres.` });
             if (rule.minLength && typeof value === 'string' && value.length < rule.minLength) return res.status(400).json({ success: false, message: `El campo '${field}' debe tener al menos ${rule.minLength} caracteres.` });
             
-            // Validar ENUM
-            if (rule.enum && !rule.enum.includes(value)) return res.status(400).json({ success: false, message: `El valor para '${field}' no es válido.` });
+            // Validar roles Dinamico (Específico para 'rol')
+            if (field === 'rol') {
+                const currentRoles = getSystemRoles();
+                if (!currentRoles.includes(value)) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        error: 'ROL_NO_VALIDO', 
+                        message: `El rol '${value}' no existe. Roles disponibles: ${currentRoles.join(', ')}` 
+                    });
+                }
+            }
 
+            // 2. VALIDACIÓN GENÉRICA DE ENUM (Esto faltaba para 'sex')
+            // Si el campo tiene una lista 'enum' definida en el esquema (como sex), verificamos que el valor esté dentro.
+            if (rule.enum && !rule.enum.includes(value)) {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: 'VALOR_INVALIDO',
+                    message: `El valor para '${field}' no es válido. Opciones: ${rule.enum.join(', ')}` 
+                });
+            }
+
+            // Validar Patrón (Regex)
             if (rule.pattern && !rule.pattern.test(value)) {
                 return res.status(400).json({ 
                     success: false, 

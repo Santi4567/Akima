@@ -19,7 +19,9 @@ const {
     deleteUser,
     getProfile,
     updateSystemPermissions,
-    getAvailablePermissions
+    getAvailablePermissions,
+    createSystemRole,
+    deleteSystemRole
 } = require('../controllers/userController');
 
 
@@ -85,6 +87,33 @@ router.get(
         next();
     },
     getAvailablePermissions
+);
+
+/**
+ * [SUPER ADMIN] Crear un nuevo Rol
+ * POST /api/users/admin/roles
+ */
+router.post(
+    '/admin/roles',
+    verifyToken,
+    (req, res, next) => {
+        if (req.user.rol !== 'admin') return res.status(403).json({ message: 'Acceso denegado' });
+        next();
+    },
+    createSystemRole
+);
+/**
+ * [SUPER ADMIN] Eliminar un Rol existente
+ * DELETE /api/users/admin/roles/:roleName
+ */
+router.delete(
+    '/admin/roles/:roleName',
+    verifyToken,
+    (req, res, next) => {
+        if (req.user.rol !== 'admin') return res.status(403).json({ message: 'Acceso denegado' });
+        next();
+    },
+    deleteSystemRole
 );
 
 module.exports = router;

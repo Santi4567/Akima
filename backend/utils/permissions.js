@@ -140,6 +140,16 @@ const requireAdmin = (req, res, next) => {
   next();
 };
 
+/**
+ * Obtiene la lista de roles disponibles actualmente en el sistema.
+ * @returns {string[]} Array de nombres de roles (ej: ['admin', 'gerente'])
+ */
+
+const getSystemRoles = () => {
+    const perms = loadPermissions();
+    return Object.keys(perms);
+};
+
 module.exports = {
   PERMISSIONS,
   checkPermission,
@@ -148,5 +158,6 @@ module.exports = {
   loadPermissions,
   updatePermissionsFile,
   isValidSystemPermission,
-  VALID_PERMISSIONS_LIST //<- Si se ocupa
+  VALID_PERMISSIONS_LIST, //<- Si se ocupa
+  getSystemRoles
 };
