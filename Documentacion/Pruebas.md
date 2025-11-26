@@ -9,20 +9,35 @@
     curl -X POST http://localhost:3000/api/users/login -H "Content-Type: application/json" -d '{ "Correo": "administracion@test.com", "Passwd": "test123"}'
 
 # Registrer
-    curl -X POST http://localhost:3000/api/users/register -H "Content-Type: application/json" -d '{"Nombre": "Admin F", "Correo": "admin@test.com", "Passwd": "test123"}'
+    curl -X POST http://localhost:3000/api/users/register -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"Nombre": "Admin F", "Correo": "admin@test.com", "Passwd": "test123"}'
 
-    curl -X POST http://localhost:3000/api/users/register -H "Content-Type: application/json" -d '{"Nombre": "Juan Flores", "Correo": "gerente@test.com"","Passwd":"test123"}'
-    curl -X POST http://localhost:3000/api/users/register -H "Content-Type: application/json" -d '{"Nombre": "vendedor Flores","Correo": "vendedor@test.com"","Passwd": "test123"}'
+    curl -X POST http://localhost:3000/api/users/register -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"Nombre": "Juan Flores", "Correo": "gerente@test.com"","Passwd":"test123"}'
+    curl -X POST http://localhost:3000/api/users/register -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"Nombre": "vendedor Flores","Correo": "vendedor@test.com"","Passwd": "test123"}'
 
-    curl -X POST http://localhost:3000/api/users/register -H "Content-Type: application/json" -d '{"Nombre": "adm Flores","Correo": "administracion@test.com","Passwd": "test123"}'
+    curl -X POST http://localhost:3000/api/users/register -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"Nombre": "adm Flores","Correo": "administracion@test.com","Passwd": "test123"}'
 
+curl -v -X POST http://localhost:3000/api/users -H "Authorization: Bearer <TU_TOKEN_DE_ADMIN>" -H "Content-Type: application/json" -d '{"Nombre": "Nuevo Vendedor","Correo": "vendedor2@akima.com","Passwd": "password123","rol": "vendedor","Estado": 1,"phone": "5512345678","address": "Calle Ventas 101","sex": "M"}'
 
 # Users
-  ## Consultar informacion de permisos 
+
+  ## Actulizar Usuarios
+    curl -v -X PUT http://localhost:3000/api/users/ID -H "Authorization: Bearer <TU_TOKEN_JWT>" -H "Content-Type: application/json" -d '{"Nombre": "Juan Flores Actualizado","phone": "5512345678","address": "Calle Nueva 123, Centro","sex": "M"}'
+
+  ## Ver usuarios
+    curl -v -X GET http://localhost:3000/api/users -H "Authorization: Bearer <TU_TOKEN_JWT>"
+
+  ## Eliminar usuarios
+  curl -v -X DELETE http://localhost:3000/api/users/15 -H "Authorization: Bearer <TU_TOKEN_JWT>"
+
+  ## Buscar usuarios
+  curl -v -X GET "http://localhost:3000/api/users/search?q=Juan" -H "Authorization: Bearer <TU_TOKEN_JWT>"
+
+
+
+# Roles
+  ## Consultar informacion de un usurio y sus permisos 
     curl -X GET http://localhost:3000/api/users/profile -H "Authorization: Bearer <TU_TOKEN_JWT>"
     
-  ## Consultar informacion 
-    curl -v -X GET http://localhost:3000/api/users/profile
 
   ## Crear nuevo grupo
     curl -v -X POST http://localhost:3000/api/users/admin/roles -H "Authorization: Bearer <TU_TOKEN_JWT>" -H "Content-Type: application/json" -d '{ "roleName": "logistica" }'  
@@ -34,6 +49,9 @@
 
   ## Consulta de permisos 
   curl -v -X GET http://localhost:3000/api/users/admin/permissions-list -H "Authorization: Bearer <TU_TOKEN_JWT>"
+
+  ## Obtner todos los roles y los usuario que dependen de el 
+  curl -v -X GET http://localhost:3000/api/users/admin/roles/stats -H "Authorization: Bearer <TU_TOKEN_JWT>"
 
 
 # Categorias

@@ -52,8 +52,9 @@ const PERMISSIONS = {
   EDIT_ORDER_CONTENT: 'edit.order.content',
   EDIT_ORDER_STATUS: 'edit.order.status',
   CANCEL_ORDER: 'cancel.order',
-  VIEW_OWN_ORDER: 'view.own.order',
+  VIEW_OWN_ORDERS: 'view.own.order',
   VIEW_ALL_ORDER: 'view.all.order',
+
   
   // Devoluciones (Returns)
   ISSUE_REFUND: 'issue.refund',

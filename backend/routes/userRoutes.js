@@ -21,7 +21,9 @@ const {
     updateSystemPermissions,
     getAvailablePermissions,
     createSystemRole,
-    deleteSystemRole
+    deleteSystemRole,
+    getRolesWithUserCount,
+    getRolesList
 } = require('../controllers/userController');
 
 
@@ -48,6 +50,18 @@ router.get('/', verifyToken, requirePermission(PERMISSIONS.VIEW_USERS), getAllUs
 
 // Buscar usuarios por nombre
 router.get('/search', verifyToken, requirePermission(PERMISSIONS.VIEW_USERS), searchUserByName);
+
+
+/**
+ * [GET] Lista simple de roles (Para dropdowns)
+ * URL: GET /api/users/roles-list
+ */
+router.get(
+    '/roles-list',
+    verifyToken,
+    getRolesList
+);
+
 
 // Obtener un usuario por ID
 router.get('/:id', verifyToken, requirePermission(PERMISSIONS.VIEW_USERS), getUserById);
@@ -114,6 +128,20 @@ router.delete(
         next();
     },
     deleteSystemRole
+);
+
+/**
+ * [GET] Estadísticas de usuarios por Rol
+ * URL: GET /api/users/admin/roles/stats
+ */
+router.get(
+    '/admin/roles/stats',
+    verifyToken,
+    (req, res, next) => {
+        if (req.user.rol !== 'admin') return res.status(403).json({ message: 'Acceso denegado' });
+        next();
+    },
+    getRolesWithUserCount
 );
 
 module.exports = router;

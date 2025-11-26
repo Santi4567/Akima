@@ -158,7 +158,7 @@ const getAllUsers = async (req, res) => {
     let connection;
     try {
         connection = await getConnection();
-        const [users] = await connection.execute('SELECT ID, Nombre, Correo, Estado, rol FROM users ORDER BY Nombre ASC');
+        const [users] = await connection.execute('SELECT ID, Nombre, Correo, Estado, phone, rol FROM users ORDER BY Nombre ASC');
         res.status(200).json({ success: true, data: users });
     } catch (error) {
         console.error('Error al obtener usuarios:', error);
@@ -176,7 +176,7 @@ const getUserById = async (req, res) => {
     try {
         const { id } = req.params;
         connection = await getConnection();
-        const [user] = await connection.execute('SELECT ID, Nombre, Correo, Estado, rol FROM users WHERE ID = ?', [id]);
+        const [user] = await connection.execute('SELECT ID, Nombre, Correo, Estado, phone, rol FROM users WHERE ID = ?', [id]);
         if (user.length === 0) {
             return res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
         }
@@ -609,6 +609,76 @@ const deleteSystemRole = async (req, res) => {
     }
 };
 
+/**
+ * [SUPER ADMIN] Obtener estadísticas de roles
+ * Devuelve la lista de roles y cuántos usuarios tienen asignado cada uno.
+ */
+const getRolesWithUserCount = async (req, res) => {
+    let connection;
+    try {
+        // 1. Seguridad: Solo Admin
+        if (req.user.rol !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Acceso denegado. Solo administradores.' });
+        }
+
+        // 2. Obtener los roles definidos en el sistema (JSON)
+        const systemRoles = getSystemRoles();
+
+        connection = await getConnection();
+
+        // 3. Obtener el conteo real desde la Base de Datos
+        // Esto nos devuelve algo como: [ { rol: 'admin', total: 2 }, { rol: 'vendedor', total: 10 } ]
+        const [dbCounts] = await connection.execute(
+            'SELECT rol, COUNT(ID) as total FROM users GROUP BY rol'
+        );
+
+        // 4. Procesar y Fusionar Datos
+        // Convertimos el array de la BD a un objeto para búsqueda rápida: { "admin": 2, "vendedor": 10 }
+        const countsMap = {};
+        dbCounts.forEach(row => {
+            countsMap[row.rol] = row.total;
+        });
+
+        // Mapeamos los roles del sistema y le asignamos su conteo (o 0 si no hay nadie)
+        const stats = systemRoles.map(roleName => ({
+            role: roleName,
+            count: countsMap[roleName] || 0 // Si no existe en el mapa, es 0
+        }));
+
+        res.status(200).json({ 
+            success: true, 
+            message: 'Estadísticas de roles obtenidas.',
+            data: stats 
+        });
+
+    } catch (error) {
+        console.error('Error al obtener estadísticas de roles:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+/**
+ * [PROTEGIDO] Obtener lista simple de roles disponibles
+ * Útil para llenar selects/dropdowns en el Frontend.
+ */
+const getRolesList = (req, res) => {
+    try {
+        // 1. Obtener las claves del JSON (ej: ['admin', 'gerente', 'vendedor'])
+        const roles = getSystemRoles();
+
+        res.status(200).json({ 
+            success: true, 
+            message: 'Lista de roles obtenida.',
+            data: roles 
+        });
+
+    } catch (error) {
+        console.error('Error al obtener roles:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    }
+};
+
 module.exports = {
     register,
     getProfile,
@@ -620,5 +690,7 @@ module.exports = {
     updateSystemPermissions,
     getAvailablePermissions,
     createSystemRole,
-    deleteSystemRole
+    deleteSystemRole,
+    getRolesWithUserCount,
+    getRolesList
 };
