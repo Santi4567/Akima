@@ -19,34 +19,89 @@ const {
 const register = async (req, res) => {
     let connection;
     try {
-        const { Nombre, Correo, Passwd } = req.body;
+        // 1. Obtener datos del body
+        const { Nombre, Correo, Passwd, Estado, rol, phone, address, sex } = req.body;
+
+        // 2. Validar campos obligatorios básicos
         if (!Nombre || !Correo || !Passwd) {
             return res.status(400).json({ success: false, error: 'CAMPOS_REQUERIDOS', message: 'Los campos Nombre, Correo y Passwd son obligatorios.' });
         }
 
+        // 3. Sanitización de todos los campos
         const sanitizedNombre = sanitizeInput(Nombre);
         const sanitizedCorreo = sanitizeInput(Correo);
+        // Los opcionales pueden venir null/undefined, así que los validamos antes de sanitizar
+        const sanitizedPhone = phone ? sanitizeInput(phone) : null;
+        const sanitizedAddress = address ? sanitizeInput(address) : null;
+        const sanitizedSex = sex ? sanitizeInput(sex) : null;
 
+        // 4. Verificar patrones maliciosos (SQL Injection) en los campos de texto
         if (containsSQLInjection(sanitizedNombre) || containsSQLInjection(sanitizedCorreo) || containsSQLInjection(Passwd)) {
             return res.status(400).json({ success: false, error: 'INPUT_MALICIOSO', message: 'Los datos contienen patrones no permitidos.' });
         }
+        if (sanitizedPhone && containsSQLInjection(sanitizedPhone)) {
+             return res.status(400).json({ success: false, error: 'INPUT_MALICIOSO', message: 'El teléfono contiene patrones no permitidos.' });
+        }
+        if (sanitizedAddress && containsSQLInjection(sanitizedAddress)) {
+             return res.status(400).json({ success: false, error: 'INPUT_MALICIOSO', message: 'La dirección contiene patrones no permitidos.' });
+        }
+
+        // 5. Validar formato de email
         if (!validator.isEmail(sanitizedCorreo)) {
             return res.status(400).json({ success: false, error: 'EMAIL_INVALIDO', message: 'El formato del correo no es válido.' });
         }
 
         connection = await getConnection();
+
+        // 6. Validar Correo Duplicado
         const [existing] = await connection.execute('SELECT ID FROM users WHERE Correo = ?', [sanitizedCorreo]);
         if (existing.length > 0) {
             return res.status(409).json({ success: false, error: 'CORREO_YA_EXISTE', message: 'El correo electrónico ya está registrado.' });
         }
 
+        // (Opcional) Validar Teléfono Duplicado si se proporcionó uno
+        if (sanitizedPhone) {
+            const [existingPhone] = await connection.execute('SELECT ID FROM users WHERE phone = ?', [sanitizedPhone]);
+            if (existingPhone.length > 0) {
+                return res.status(409).json({ success: false, error: 'TELEFONO_YA_EXISTE', message: 'El número de teléfono ya está registrado.' });
+            }
+        }
+
+        // 7. Encriptar contraseña
         const hashedPassword = await bcrypt.hash(Passwd, 12);
+
+        // 8. Definir valores por defecto si no se enviaron
+        // Como es un CRM privado, si el admin no especifica, asumimos 'vendedor' e 'inactivo' (0) o 'activo' (1) según prefieras.
+        // Aquí lo dejaré activo (1) por defecto si lo crea un admin.
+        const rolToSave = rol || 'vendedor';
+        const estadoToSave = Estado !== undefined ? Estado : 1; 
+
+        // 9. Insertar en la Base de Datos
         const [result] = await connection.execute(
-            'INSERT INTO users (Nombre, Correo, Passwd, Estado, rol) VALUES (?, ?, ?, ?, ?)',
-            [sanitizedNombre, sanitizedCorreo, hashedPassword, 0, 'vendedor']
+            'INSERT INTO users (Nombre, Correo, Passwd, Estado, rol, phone, address, sex) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [
+                sanitizedNombre, 
+                sanitizedCorreo, 
+                hashedPassword, 
+                estadoToSave, 
+                rolToSave,
+                sanitizedPhone,
+                sanitizedAddress,
+                sanitizedSex
+            ]
         );
 
-        res.status(201).json({ success: true, message: 'Usuario registrado. La cuenta está pendiente de activación.', data: { id: result.insertId } });
+        res.status(201).json({ 
+            success: true, 
+            message: 'Usuario creado exitosamente.', 
+            data: { 
+                id: result.insertId,
+                nombre: sanitizedNombre,
+                correo: sanitizedCorreo,
+                rol: rolToSave
+            } 
+        });
+
     } catch (error) {
         console.error('Error en registro:', error);
         res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
@@ -57,7 +112,7 @@ const register = async (req, res) => {
 
 /**
  * [PROTEGIDO] Obtener el perfil del usuario actualmente autenticado
- * (ACTUALIZADO: Ahora también incluye la lista de permisos del usuario)
+ * Ahora también incluye la lista de permisos del usuario)
  */
 const getProfile = (req, res) => {
     try {
@@ -160,7 +215,9 @@ const searchUserByName = async (req, res) => {
 
 /**
  * [PROTEGIDO] Actualizar un usuario.
- * La lógica de permisos es mixta y se queda en el controlador.
+ * - Lógica de permisos mixta (propio vs otros).
+ * - Manejo de campos sensibles (rol, estado).
+ * - Actualización dinámica de campos.
  */
 const updateUser = async (req, res) => {
     let connection;
@@ -173,53 +230,67 @@ const updateUser = async (req, res) => {
             return res.status(400).json({ success: false, error: 'SIN_DATOS', message: 'Debe proporcionar al menos un campo para actualizar.' });
         }
         
-        // =================================================================
         // 1. LÓGICA DE PERMISOS
-        // =================================================================
         const canEditOthers = checkPermission(currentUser.rol, PERMISSIONS.EDIT_USERS);
         const isOwner = currentUser.userId.toString() === targetUserId;
         const canEditOwn = isOwner && checkPermission(currentUser.rol, PERMISSIONS.EDIT_OWN_PROFILE);
 
+        // Si no tiene permiso ni para otros ni para sí mismo -> Acceso Denegado
         if (!canEditOthers && !canEditOwn) {
             return res.status(403).json({ success: false, error: 'ACCESO_DENEGADO', message: 'No tienes permisos para modificar este usuario.' });
         }
-        // Un usuario no puede cambiar su propio rol o estado, ni el de otros, sin el permiso general.
+
+        // Protección de campos sensibles: 'rol' y 'Estado'
+        // Solo alguien con permiso de editar OTROS (como un admin/gerente) puede cambiarlos.
+        // Un usuario normal no puede cambiarse su propio rol ni estado.
         if ((updates.rol || updates.Estado !== undefined) && !canEditOthers) {
             return res.status(403).json({ success: false, error: 'ACCESO_DENEGADO', message: 'No tienes permisos para modificar el rol o estado de un usuario.' });
         }
 
-        // =================================================================
-        // 2. SANITIZACIÓN Y SEGURIDAD
-        // =================================================================
+        // 2. SANITIZACIÓN Y PREPARACIÓN
         const sanitizedUpdates = {};
+        
         for (const key in updates) {
             const value = updates[key];
-            if (typeof value === 'string') {
-                const sanitizedValue = sanitizeInput(value);
-                if (containsSQLInjection(sanitizedValue)) {
-                    return res.status(400).json({ success: false, error: 'INPUT_MALICIOSO', message: `El campo '${key}' contiene patrones no permitidos.` });
+            
+            // Solo procesamos campos conocidos para evitar basura en la BD
+            // (Aunque el validador middleware ya debió filtrar los campos extraños, esto es doble seguridad)
+            if (['Nombre', 'Correo', 'Passwd', 'Estado', 'rol', 'phone', 'address', 'sex'].includes(key)) {
+                
+                if (typeof value === 'string') {
+                    const sanitizedValue = sanitizeInput(value);
+                    if (containsSQLInjection(sanitizedValue)) {
+                        return res.status(400).json({ success: false, error: 'INPUT_MALICIOSO', message: `El campo '${key}' contiene patrones no permitidos.` });
+                    }
+                    sanitizedUpdates[key] = sanitizedValue;
+                } else {
+                    sanitizedUpdates[key] = value; // Para booleanos o números
                 }
-                sanitizedUpdates[key] = sanitizedValue;
-            } else {
-                sanitizedUpdates[key] = value; // Copiar valores no-string (como boolean)
             }
         }
         
-        // Validaciones específicas post-sanitización
+        // 3. VALIDACIONES ESPECÍFICAS POST-SANITIZACIÓN
+        
+        // Validar Email
         if (sanitizedUpdates.Correo && !validator.isEmail(sanitizedUpdates.Correo)) {
             return res.status(400).json({ success: false, error: 'EMAIL_INVALIDO', message: 'El formato del correo no es válido.' });
         }
+        
+        // Validar Teléfono (Solo números, para WhatsApp)
+        if (sanitizedUpdates.phone && !/^[0-9]+$/.test(sanitizedUpdates.phone)) {
+             return res.status(400).json({ success: false, error: 'TELEFONO_INVALIDO', message: 'El teléfono debe contener solo números.' });
+        }
+
+        // Encriptar Contraseña si se está actualizando
         if (sanitizedUpdates.Passwd) {
             sanitizedUpdates.Passwd = await bcrypt.hash(sanitizedUpdates.Passwd, 12);
         }
 
-        // =================================================================
-        // 3. VALIDACIONES DE NEGOCIO Y BASE DE DATOS
-        // =================================================================
+        // 4. VALIDACIONES DE NEGOCIO Y BD
         connection = await getConnection();
 
-        // Verificar que el usuario a editar existe
-        const [targetUserQuery] = await connection.execute('SELECT ID, Correo, rol FROM users WHERE ID = ?', [targetUserId]);
+        // Verificar que el usuario a editar existe y obtener sus datos actuales
+        const [targetUserQuery] = await connection.execute('SELECT ID, Correo, rol, phone FROM users WHERE ID = ?', [targetUserId]);
         if (targetUserQuery.length === 0) {
             return res.status(404).json({ success: false, message: 'El usuario que intentas modificar no existe.' });
         }
@@ -230,27 +301,35 @@ const updateUser = async (req, res) => {
             return res.status(403).json({ success: false, error: 'ACCESO_DENEGADO', message: 'Solo un administrador puede modificar a otro administrador.' });
         }
         
-        // Regla: Verificar que el nuevo correo no esté en uso por otro usuario
+        // Regla: Verificar duplicado de Correo
         if (sanitizedUpdates.Correo && sanitizedUpdates.Correo !== targetUser.Correo) {
             const [existingEmail] = await connection.execute('SELECT ID FROM users WHERE Correo = ? AND ID != ?', [sanitizedUpdates.Correo, targetUserId]);
             if (existingEmail.length > 0) {
                 return res.status(409).json({ success: false, error: 'CORREO_EN_USO', message: 'El correo electrónico ya está en uso por otra cuenta.' });
             }
         }
+
+        // Regla: Verificar duplicado de Teléfono
+        if (sanitizedUpdates.phone && sanitizedUpdates.phone !== targetUser.phone) {
+            const [existingPhone] = await connection.execute('SELECT ID FROM users WHERE phone = ? AND ID != ?', [sanitizedUpdates.phone, targetUserId]);
+            if (existingPhone.length > 0) {
+                return res.status(409).json({ success: false, error: 'TELEFONO_EN_USO', message: 'El teléfono ya está registrado en otra cuenta.' });
+            }
+        }
         
-        // =================================================================
-        // 4. EJECUTAR ACTUALIZACIÓN
-        // =================================================================
+        // 5. EJECUTAR ACTUALIZACIÓN DINÁMICA
+        // Construimos la query solo con los campos que se enviaron
         const updateFields = Object.keys(sanitizedUpdates).map(field => `${field} = ?`).join(', ');
         const queryParams = [...Object.values(sanitizedUpdates), targetUserId];
         
-        const [result] = await connection.execute(`UPDATE users SET ${updateFields} WHERE ID = ?`, queryParams);
-
-        if (result.affectedRows === 0) {
-             return res.status(404).json({ success: false, message: 'No se encontró el usuario para actualizar.' });
+        if (updateFields.length === 0) {
+             return res.status(400).json({ success: false, message: 'No hay campos válidos para actualizar.' });
         }
 
+        await connection.execute(`UPDATE users SET ${updateFields} WHERE ID = ?`, queryParams);
+
         res.status(200).json({ success: true, message: 'Usuario actualizado exitosamente.' });
+
     } catch (error) {
         console.error('Error al actualizar usuario:', error);
         res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });

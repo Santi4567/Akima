@@ -24,9 +24,17 @@ const {
 
 
 // --- RUTAS PÚBLICAS DE AUTENTICACIÓN ---
-router.post('/register', validateRegisterPayload, register);
+
 router.post('/login', login);
 
+// CREAR USUARIO (Ahora es protegido y requiere permiso)
+router.post(
+    '/', 
+    verifyToken, 
+    validateRegisterPayload, 
+    requirePermission(PERMISSIONS.ADD_USERS), // <--- El permiso
+    register
+);
 
 // --- RUTAS PROTEGIDAS DE GESTIÓN DE USUARIOS ---
 

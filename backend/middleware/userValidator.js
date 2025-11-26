@@ -1,13 +1,26 @@
 
 const USER_SCHEMA = {
-    registerFields: ['Nombre', 'Correo', 'Passwd'],
-    updateFields: ['Nombre', 'Correo', 'Passwd', 'Estado', 'rol'],
+    // campos permitidos
+    registerFields: ['Nombre', 'Correo', 'Passwd', 'Estado', 'rol', 'phone', 'address', 'sex'],
+    updateFields: ['Nombre', 'Correo', 'Passwd', 'Estado', 'rol', 'phone', 'address', 'sex'],
+    
     fieldRules: {
-        Nombre: { type: 'string', maxLength: 100, required: true },
-        Correo: { type: 'string', maxLength: 100, required: true },
-        Passwd: { type: 'string', maxLength: 255, minLength: 6, required: true },
+        Nombre: { type: 'string', maxLength: 100 },
+        Correo: { type: 'string', maxLength: 100 },
+        Passwd: { type: 'string', maxLength: 255, minLength: 6 },
         Estado: { type: 'boolean' },
-        rol: { type: 'string', maxLength: 20, enum: ['admin', 'gerente', 'vendedor', 'administracion'] }
+        rol: { type: 'string', maxLength: 20, enum: ['admin', 'gerente', 'vendedor', 'administracion'] },
+        
+        // --- NUEVAS REGLAS ---
+        phone: { 
+            type: 'string', 
+            maxLength: 20, 
+            // Esta Regex asegura que SOLO haya números (0-9). Ni letras, ni espacios, ni guiones.
+            pattern: /^[0-9]+$/, 
+            errorMessage: 'El teléfono debe contener solo números, sin espacios ni guiones.'
+        },
+        address: { type: 'string' }, // TEXT en BD no tiene límite corto, pero string en JS
+        sex: { type: 'string', enum: ['M', 'F', 'O'] }
     }
 };
 
@@ -36,6 +49,14 @@ const validatePayload = (allowedFields) => (req, res, next) => {
             
             // Validar ENUM
             if (rule.enum && !rule.enum.includes(value)) return res.status(400).json({ success: false, message: `El valor para '${field}' no es válido.` });
+
+            if (rule.pattern && !rule.pattern.test(value)) {
+                return res.status(400).json({ 
+                    success: false, 
+                    error: 'FORMATO_INVALIDO', 
+                    message: rule.errorMessage || `El formato de '${field}' no es válido.`
+                });
+            }
         }
     }
     next();
