@@ -158,7 +158,7 @@ export const ReturnsList = ({ onCreate, onViewDetails }) => {
                           onClick={() => onViewDetails(rma)}
                           className="text-blue-600 hover:text-blue-900 flex items-center gap-1 text-sm font-medium transition-colors"
                           title="Ver detalles completos"
-                        >
+                        >Mas detalles
                           <EyeIcon className="h-5 w-5" />
                         </button>
 

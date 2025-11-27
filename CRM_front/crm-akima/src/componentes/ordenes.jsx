@@ -6,61 +6,113 @@ import { OrderForm } from './ordenes/OrderForm';
 import { OrderItems } from './ordenes/OrderItem';
 import { ReturnsList } from './ordenes/ReturnsList';
 import { ReturnsForm } from './ordenes/ReturnsForm';
+import { ReturnDetails } from './ordenes/ReturnDetails';
 
 export const Ordenes = () => {
-  // Estado del HUB: 'list', 'form', 'details', 'returns', 'return-form'
+  // Estado del HUB: 'list', 'form', 'details', 'returns', 'return-form', 'return-details'
   const [view, setView] = useState('list'); 
-  const [selectedOrder, setSelectedOrder] = useState(null); // Para ver detalles
+  
+  // Estado para Órdenes
+  const [selectedOrder, setSelectedOrder] = useState(null); 
 
-  // Navegación del Tab
+  // Estado para Devoluciones (¡ESTA ES LA LÍNEA QUE TE FALTABA!)
+  const [selectedReturn, setSelectedReturn] = useState(null);
+
+  // --- LÓGICA DE NAVEGACIÓN ---
+
   const handleTabChange = (tab) => {
-    if (tab === 'list') setView('list');
-    if (tab === 'form') setView('form');
-    if (tab === 'returns') setView('returns');
+    setView(tab);
+    // Limpiamos selecciones al cambiar de pestaña principal
+    setSelectedOrder(null);
+    setSelectedReturn(null);
   };
+
+  const handleCreateOrder = () => {
+    setSelectedOrder(null);
+    setView('form');
+  };
+
+  const handleEditOrder = (order) => {
+    setSelectedOrder(order);
+    setView('form');
+  };
+
+  const handleCreateReturn = () => {
+    setSelectedReturn(null);
+    setView('return-form');
+  };
+
+  // Volver a la lista correspondiente
+  const handleBack = () => {
+    if (view === 'form') setView('list');
+    if (view === 'details') setView('list');
+    
+    if (view === 'return-form') setView('returns');
+    if (view === 'return-details') setView('returns');
+    
+    setSelectedOrder(null);
+    setSelectedReturn(null);
+  };
+
+  // --- RENDERIZADO ---
 
   return (
     <div>
-      {/* NAVEGACIÓN (Solo si no estamos viendo detalles profundos para no saturar) */}
-      {view !== 'details' && (
-        <OrderHub activeTab={view} onTabChange={handleTabChange} />
+      {/* NAVEGACIÓN (Solo si no estamos en detalles profundos para no saturar) */}
+      {view !== 'details' && view !== 'return-details' && (
+        <OrderHub activeTab={view === 'return-form' ? 'returns' : view === 'form' ? 'list' : view} onTabChange={handleTabChange} />
       )}
 
-      {/* VISTA: LISTA DE ÓRDENES */}
+      {/* 1. SECCIÓN ÓRDENES */}
+      
+      {/* Lista */}
       {view === 'list' && (
         <OrderList 
           onViewDetails={(order) => { setSelectedOrder(order); setView('details'); }}
-          onCreateNew={() => setView('form')}
+          onCreateNew={handleCreateOrder}
         />
       )}
 
-      {/* VISTA: CREAR ORDEN */}
+      {/* Formulario (Crear/Editar) */}
       {view === 'form' && (
         <OrderForm 
-          onSuccess={() => setView('list')} 
+          initialData={selectedOrder} // Si quieres soportar edición
+          onClose={handleBack}
+          onSuccess={() => { setView('list'); }} 
         />
       )}
 
-      {/* VISTA: DETALLES DE ORDEN */}
+      {/* Detalles Completos */}
       {view === 'details' && selectedOrder && (
         <OrderItems 
           order={selectedOrder}
-          onClose={() => { setSelectedOrder(null); setView('list'); }}
+          onClose={handleBack}
         />
       )}
 
-      {/* VISTA: DEVOLUCIONES (Placeholder) */}
+
+      {/* 2. SECCIÓN DEVOLUCIONES */}
+
+      {/* Lista */}
       {view === 'returns' && (
          <ReturnsList 
-            onCreate={() => setView('return-form')}
-            
-            // --- AGREGA ESTA LÍNEA QUE FALTA ---
+            onCreate={handleCreateReturn}
+            // AQUÍ USAMOS EL ESTADO QUE FALTABA
             onViewDetails={(rma) => { setSelectedReturn(rma); setView('return-details'); }}
          />
       )}
       
+      {/* Formulario */}
       {view === 'return-form' && (
-        <ReturnsForm onClose={() => setView('returns')} />
+        <ReturnsForm onClose={handleBack} />
+      )}
+
+      {/* Detalles (Nuevo) */}
+      {view === 'return-details' && selectedReturn && (
+        <ReturnDetails 
+            returnId={selectedReturn.id}
+            onClose={handleBack}
+        />
       )}
 
     </div>
