@@ -3,7 +3,7 @@ import { ArrowLeftIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/solid'
 import { HasPermission } from '../HasPermission';
 import { Notification } from '../Notification'; // Importamos el componente de notificación
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL;
 
 export const UserDetails = ({ user, onClose, onEdit, onDeleteSuccess }) => {
   const [notification, setNotification] = useState({ type: '', message: '' });

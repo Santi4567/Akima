@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { PlusIcon, XMarkIcon, ArrowLeftIcon } from '@heroicons/react/24/solid';
 import { Notification } from '../Notification';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL;
 const PRODUCTS_ENDPOINT = `${API_URL}/api/products`;
 const CATEGORIES_ENDPOINT = `${API_URL}/api/categories`;
 const SUPPLIERS_ENDPOINT = `${API_URL}/api/suppliers`;

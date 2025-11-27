@@ -5,7 +5,7 @@ import { UserForm } from './usuarios/UserForm';
 import { UserDetails } from './usuarios/UserDetails';
 import { RoleManager } from './usuarios/RoleManager';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL;
 
 export const Usuarios = () => {
   const [view, setView] = useState('list'); // 'list', 'form', 'details', 'roles'

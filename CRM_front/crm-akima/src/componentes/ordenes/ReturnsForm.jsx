@@ -8,7 +8,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { Notification } from '../Notification';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL;
 
 export const ReturnsForm = ({ onClose, initialData }) => { 
   const [step, setStep] = useState(initialData ? 2 : 1); 

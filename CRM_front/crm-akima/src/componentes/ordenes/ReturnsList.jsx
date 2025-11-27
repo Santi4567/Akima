@@ -9,7 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { HasPermission } from '../HasPermission';
 import { Notification } from '../Notification';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL;
 
 export const ReturnsList = ({ onCreate, onViewDetails }) => {
   const [returns, setReturns] = useState([]);

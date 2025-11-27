@@ -21,7 +21,7 @@ export const LoginPage = () => {
     setIsLoading(true);
     setError(null);
 
-    const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const baseURL = import.meta.env.VITE_API_URL;
     const loginURL = `${baseURL}/api/users/login`;
 
     // El payload con las claves que tu API espera

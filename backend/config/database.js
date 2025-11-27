@@ -6,6 +6,7 @@
  * - Manejo de variables de entorno para BD
  * - Ubicacion config/database.js 
  */
+//K7m@9vP2!xJ$qL4&nB8w#E3tR%sD1hY0oU6iZ5cF
 const mysql = require('mysql2/promise');
 
 const dbConfig = {

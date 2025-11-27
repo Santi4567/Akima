@@ -3,7 +3,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 // URL de tu API
 // Se ha ajustado para evitar el warning 'import.meta'. 
 // Para producción, esto debería venir de un .env
-const API_URL = 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL;
 
 // 1. Crear el Contexto
 const AuthContext = createContext();

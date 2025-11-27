@@ -57,5 +57,8 @@ export const PERMISSIONS = {
     'add.payment',   // Registrar cobro
     'view.payments'  // Ver historial
   ],
-  // ...etc.
+  Company: [
+    'manage.company',
+    'manage.content'
+  ]
 };

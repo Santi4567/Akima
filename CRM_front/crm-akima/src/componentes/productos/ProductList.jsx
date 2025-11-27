@@ -7,7 +7,7 @@ import { Notification } from '../Notification';
 import { PERMISSIONS } from '../../config/permissions'; // Ruta sube 2 niveles
 import { useAuth } from '../../context/AuthContext';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL;
 const PRODUCTS_ENDPOINT = `${API_URL}/api/products`;
 
 export const ProductList = ({ onCreate, onEdit, onManageImages, externalNotification }) => {

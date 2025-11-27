@@ -5,7 +5,7 @@ import { HasPermission } from '../HasPermission';
 import { Notification } from '../Notification';
 import { PERMISSIONS } from '../../config/permissions';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL;
 const ORDERS_ENDPOINT = `${API_URL}/api/orders`;
 
 export const OrderList = ({ onViewDetails, onCreateNew }) => {

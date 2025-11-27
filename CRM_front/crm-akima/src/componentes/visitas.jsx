@@ -17,7 +17,7 @@ import { Notification } from './Notification.jsx';
 import { PERMISSIONS } from '../config/permissions.js';
 
 // URLs de la API
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL;
 const VISITS_ENDPOINT = `${API_URL}/api/visits`;
 const CLIENTS_ENDPOINT = `${API_URL}/api/clients`;
 const USERS_ENDPOINT = `${API_URL}/api/users`;

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CalendarDaysIcon, ClockIcon } from '@heroicons/react/24/solid';
 import { useAuth } from '../../context/AuthContext';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL;
 
 export const PendingVisitsCard = () => {
   const [pendingCount, setPendingCount] = useState(0);

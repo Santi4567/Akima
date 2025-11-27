@@ -473,7 +473,6 @@ CREATE TABLE `users` (
   `Passwd` varchar(255) NOT NULL,
   `fecha_registro` date DEFAULT curdate(),
   `Estado` tinyint(1) DEFAULT 0,
-  `Admin` tinyint(1) DEFAULT 0,
   `rol` varchar(20) DEFAULT NULL,
   PRIMARY KEY (`ID`),
   UNIQUE KEY `Correo` (`Correo`),
@@ -488,11 +487,11 @@ CREATE TABLE `users` (
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
 INSERT INTO `users` VALUES
-(8,'Admin F','admin@test.com','12121221212','','M','$2b$12$QcWa8uA.qf.4J/SQmTX4B.uR7xXLNbrqPacUCqEXYuRhmxqmeaaRO','2025-10-13',1,0,'admin'),
-(9,'Juan Flores Actualizado','gerente@test.com','5512345678','Calle Nueva 123, Centro','M','$2b$12$wfg2Okp/lwc9OK5de4Tlve6nCg.4KLXmJTCtGgO7d0yGH4ORUKt.O','2025-10-13',1,0,'gerente'),
-(10,'Lino Viveros','vendedor@test.com','234453','Calle Nueva 123, Centro','M','$2b$12$Vb0yMDJKKTVocEQzMoSxu.KjgprfNc8.JlCXdRWXZvmxtXbaFy.56','2025-10-13',1,0,'vendedor'),
-(12,'Nuevo Vendedor','vendedor2@akima.com','55123456728','','M','$2b$12$03515XRfu86N.AMHnciNVeeozc5V0ScBT0Ba6M9NaGdsl1bNOII26','2025-11-26',1,0,'administracion'),
-(13,'Prueba','preuba@test.com','1112221212','','M','$2b$12$kfgFTex7DN8v8vEM.DYpz.lQR.lvXDpHYl0ZvglmShQnP12IIKz3y','2025-11-26',1,0,'administracion');
+(8,'Admin F','admin@test.com','12121221212','','M','$2b$12$QcWa8uA.qf.4J/SQmTX4B.uR7xXLNbrqPacUCqEXYuRhmxqmeaaRO','2025-10-13',1,'admin'),
+(9,'Juan Flores Actualizado','gerente@test.com','5512345678','Calle Nueva 123, Centro','M','$2b$12$wfg2Okp/lwc9OK5de4Tlve6nCg.4KLXmJTCtGgO7d0yGH4ORUKt.O','2025-10-13',1,'gerente'),
+(10,'Lino Viveros','vendedor@test.com','234453','Calle Nueva 123, Centro','M','$2b$12$Vb0yMDJKKTVocEQzMoSxu.KjgprfNc8.JlCXdRWXZvmxtXbaFy.56','2025-10-13',1,'vendedor'),
+(12,'Nuevo Vendedor','vendedor2@akima.com','55123456728','','M','$2b$12$03515XRfu86N.AMHnciNVeeozc5V0ScBT0Ba6M9NaGdsl1bNOII26','2025-11-26',1,'administracion'),
+(13,'Prueba','preuba@test.com','1112221212','','M','$2b$12$kfgFTex7DN8v8vEM.DYpz.lQR.lvXDpHYl0ZvglmShQnP12IIKz3y','2025-11-26',1,'administracion');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -536,4 +535,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-11-27 13:19:25
+-- Dump completed on 2025-11-27 14:21:00

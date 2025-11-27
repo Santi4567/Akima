@@ -15,7 +15,7 @@ import { Notification } from './Notification.jsx';
 import { PERMISSIONS } from '../config/permissions.js';
 
 // Define la URL de la API
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL;
 // Endpoint específico de Clientes (según tu .md)
 const API_ENDPOINT = `${API_URL}/api/clients`;
 

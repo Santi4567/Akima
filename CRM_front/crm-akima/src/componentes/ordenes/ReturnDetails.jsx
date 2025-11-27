@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { ArrowLeftIcon, CubeIcon, CurrencyDollarIcon, UserIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 import { Notification } from '../Notification';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL;
 
 export const ReturnDetails = ({ returnId, onClose }) => {
   const [details, setDetails] = useState(null);

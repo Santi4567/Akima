@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { BanknotesIcon, CreditCardIcon, UserIcon } from '@heroicons/react/24/solid';
 import { Notification } from '../Notification';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL;
 
 export const IncomeList = () => {
   const [payments, setPayments] = useState([]);

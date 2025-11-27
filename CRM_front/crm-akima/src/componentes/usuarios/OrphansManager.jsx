@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ArrowLeftIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 import { Notification } from '../Notification';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL;
 
 export const OrphansManager = ({ orphans, validRoles, onClose, onAssignSuccess }) => {
   const [selectedUsers, setSelectedUsers] = useState([]); // IDs de usuarios seleccionados

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { ArrowLeftIcon, KeyIcon, XMarkIcon } from '@heroicons/react/24/solid'; // Agregué iconos útiles
 import { Notification } from '../Notification';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_URL = import.meta.env.VITE_API_URL;
 
 export const UserForm = ({ initialData, onClose, onSuccess }) => {
   const isEditing = !!initialData;
