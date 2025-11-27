@@ -63,6 +63,9 @@ const PERMISSIONS = {
   // --- Pagos (Finanzas) ---
   ADD_PAYMENT: 'add.payment',      // Registrar un cobro
   VIEW_PAYMENTS: 'view.payments',  // Ver historial de pagos de una orden
+
+  // --- Configuración de Empresa ---
+  MANAGE_COMPANY: 'manage.company'
 };
 
 // Array plano para validación rápida
