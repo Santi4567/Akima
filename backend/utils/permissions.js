@@ -65,7 +65,8 @@ const PERMISSIONS = {
   VIEW_PAYMENTS: 'view.payments',  // Ver historial de pagos de una orden
 
   // --- Configuración de Empresa ---
-  MANAGE_COMPANY: 'manage.company'
+  MANAGE_COMPANY: 'manage.company',
+  MANAGE_CONTENT: 'manage.content'
 };
 
 // Array plano para validación rápida

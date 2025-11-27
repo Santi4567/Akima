@@ -10,7 +10,8 @@ const { validateProductPayload } = require('../middleware/productValidator');
 const upload = require('../middleware/upload'); // <-- Importar Multer
 const { uploadProductImage,
         deleteProductImage,
-        getProductImages
+        getProductImages,
+        getWebCatalog
  } = require('../controllers/productController');
 
  //Productos 
@@ -94,5 +95,18 @@ router.get(
     requirePermission(PERMISSIONS.VIEW_PRODUCTS),
     getProductImages
 );
+
+
+// =================================================================
+// RUTAS PÚBLICAS (CATÁLOGO WEB)
+// =================================================================
+
+/**
+ * Obtener catálogo completo para la tienda online
+ * Sin autenticación requerida. Solo productos activos.
+ */
+router.get('/catalog', getWebCatalog);
+
+
 
 module.exports = router;

@@ -457,6 +457,83 @@ const getProductImages = async (req, res) => {
     }
 };
 
+
+
+/**
+ * [PÚBLICO] Catálogo Web
+ * Devuelve solo productos ACTIVOS con sus imágenes y atributos formateados.
+ * Estructura optimizada para e-commerce.
+ */
+const getWebCatalog = async (req, res) => {
+    let connection;
+    try {
+        connection = await getConnection();
+
+        // 1. Obtener productos ACTIVOS
+        // Incluimos nombres de categoría y proveedor por si los necesitas en el front
+        const sqlProducts = `
+            SELECT 
+                p.id, p.name, p.description, p.price, p.status, 
+                p.category_id, p.supplier_id,
+                p.weight, p.height, p.width, p.depth,
+                p.custom_fields,
+                c.name AS category_name, 
+                s.name AS supplier_name
+            FROM products p
+            LEFT JOIN categories c ON p.category_id = c.id
+            LEFT JOIN suppliers s ON p.supplier_id = s.id
+            WHERE p.status = 'active'
+            ORDER BY p.name ASC
+        `;
+        const [products] = await connection.execute(sqlProducts);
+
+        // Si no hay productos, devolvemos array vacío y ahorramos tiempo
+        if (products.length === 0) {
+            return res.status(200).json({ success: true, data: [] });
+        }
+
+        // 2. Obtener TODAS las imágenes de los productos activos
+        // Usamos IN (...) con los IDs que acabamos de obtener
+        const productIds = products.map(p => p.id);
+        
+        // Truco para crear los signos de interrogación dinámicos (?,?,?)
+        const placeholders = productIds.map(() => '?').join(',');
+        
+        const sqlImages = `
+            SELECT id, product_id, image_path, alt_text, is_primary, display_order
+            FROM product_images
+            WHERE product_id IN (${placeholders})
+            ORDER BY product_id, is_primary DESC, display_order ASC
+        `;
+        
+        const [allImages] = await connection.execute(sqlImages, productIds);
+
+        // 3. Unir Productos + Imágenes + Formato de Atributos
+        // Procesamos la lista en Javascript para armar el JSON final
+        const catalog = products.map(product => {
+            // A. Formatear custom_fields (usando tu helper existente)
+            const formattedProduct = formatProductAttributes(product);
+
+            // B. Encontrar las imágenes de este producto específico
+            const productImages = allImages.filter(img => img.product_id === product.id);
+
+            // C. Retornar el objeto combinado
+            return {
+                ...formattedProduct,
+                images: productImages
+            };
+        });
+
+        res.status(200).json({ success: true, data: catalog });
+
+    } catch (error) {
+        console.error('Error al obtener catálogo web:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
 module.exports = { 
     createProduct, 
     updateProduct, 
@@ -465,5 +542,6 @@ module.exports = {
     deleteProduct,
     uploadProductImage,
     deleteProductImage,
-    getProductImages
+    getProductImages,
+    getWebCatalog
 };

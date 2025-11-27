@@ -294,3 +294,36 @@ curl -X DELETE http://localhost:3000/api/products/images/7 -H "Authorization: Be
 
   ## Mejor cliente
     curl -X GET http://localhost:3000/api/clients/reports/best -H "Authorization: Bearer  <TU_TOKEN_JWT>"
+
+
+# Datos empresa 
+## actualizar datos
+Parámetros (Body):
+name (Obligatorio la primera vez)
+legal_name
+tax_id
+email
+phone
+address
+website
+logo (Archivo de imagen, opcional)
+
+Ejemplo con cURL (Actualizando datos y logo):
+
+curl -X PUT http://localhost:3000/api/company -H "Authorization: Bearer <TU_TOKEN_JWT>" -F "name=Akima Tech S.A." -F "phone=5512345678" -F "logo=@mi_logo_nuevo.png"
+
+## Ver datos 
+  curl -v -X GET http://localhost:3000/api/company -H "Authorization: Bearer <TU_TOKEN_JWT>"
+
+
+# Banner
+  curl -v -X POST http://localhost:3000/api/content/banners -H "Authorization: Bearer <TU_TOKEN_JWT>" -F "image=@promo_verano.jpg" -F "title=Gran Venta de Verano" -F "link_url=/ofertas" -F "display_order=1"
+
+  curl -v -X GET http://localhost:3000/api/content/banners -H "Authorization: Bearer <TU_TOKEN_JWT>"
+
+
+
+# Publicas
+
+  ## Catalogo web 
+   curl -v -X GET http://localhost:3000/api/products/catalog
