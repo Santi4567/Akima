@@ -15,7 +15,8 @@ const {
     getClientById,
     searchClientByName,
     updateClient,
-    deleteClient
+    deleteClient,
+    getBestClients
 } = require('../controllers/clientController');
 
 // [C]REATE: Crear un nuevo cliente
@@ -66,6 +67,17 @@ router.delete(
     verifyToken,
     requirePermission(PERMISSIONS.DELETE_CLIENTS),
     deleteClient
+);
+
+/**
+ * Reporte de Mejores Clientes
+ * GET /api/clients/reports/best
+ */
+router.get(
+    '/reports/best',
+    verifyToken,
+    requirePermission(PERMISSIONS.VIEW_CLIENTS), // O un permiso más estricto si prefieres
+    getBestClients
 );
 
 module.exports = router;

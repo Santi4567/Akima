@@ -251,21 +251,46 @@ curl -v -X GET http://localhost:3000/api/orders/101/items -H "Authorization: Bea
 
 # Imagenes 
 ## Subir imagen primaria
-curl -X POST http://localhost:3000/api/products/10/images -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjgsIm5vbWJyZSI6IkFkbWluIEYiLCJjb3JyZW8iOiJhZG1pbkB0ZXN0LmNvbSIsInJvbCI6ImFkbWluIiwidHlwZSI6ImFjY2Vzc190b2tlbiIsImlhdCI6MTc2MzUyODAwMSwiZXhwIjoxNzYzNTcxMjAxLCJpc3MiOiJha2ltYS1hcGkiLCJzdWIiOiI4In0.sLIld8xBHtMb6_Z_LeYZH2X--Ms7BuKWZ7fblM7yLlk" -F "image=@images.jpeg" -F "is_primary=true"
+curl -X POST http://localhost:3000/api/products/10/images -H "Authorization: Bearer  <TU_TOKEN_JWT>" -F "image=@images.jpeg" -F "is_primary=true"
 
 ### Respuesta
 {"success":true,"message":"Imagen subida exitosamente.","data":{"id":6,"image_path":"/uploads/products/1763533798900-344045963.jpeg","is_primary":true,"display_order":0}}%            
 
 ## Subir imagen con orden 
-curl -X POST http://localhost:3000/api/products/10/images -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjgsIm5vbWJyZSI6IkFkbWluIEYiLCJjb3JyZW8iOiJhZG1pbkB0ZXN0LmNvbSIsInJvbCI6ImFkbWluIiwidHlwZSI6ImFjY2Vzc190b2tlbiIsImlhdCI6MTc2MzUyODAwMSwiZXhwIjoxNzYzNTcxMjAxLCJpc3MiOiJha2ltYS1hcGkiLCJzdWIiOiI4In0.sLIld8xBHtMb6_Z_LeYZH2X--Ms7BuKWZ7fblM7yLlk" -F "image=@images.jpeg" -F "display_order=2"
+curl -X POST http://localhost:3000/api/products/10/images -H "Authorization: Bearer  <TU_TOKEN_JWT>" -F "image=@images.jpeg" -F "display_order=2"
 ### Respuesta
 {"success":true,"message":"Imagen subida exitosamente.","data":{"id":7,"image_path":"/uploads/products/1763533805787-754000999.jpeg","is_primary":false,"display_order":2}}
 
 ## Ver por ID de produto
- curl -X GET http://localhost:3000/api/products/10/images -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjgsIm5vbWJyZSI6IkFkbWluIEYiLCJjb3JyZW8iOiJhZG1pbkB0ZXN0LmNvbSIsInJvbCI6ImFkbWluIiwidHlwZSI6ImFjY2Vzc190b2tlbiIsImlhdCI6MTc2MzUyODAwMSwiZXhwIjoxNzYzNTcxMjAxLCJpc3MiOiJha2ltYS1hcGkiLCJzdWIiOiI4In0.sLIld8xBHtMb6_Z_LeYZH2X--Ms7BuKWZ7fblM7yLlk"
+ curl -X GET http://localhost:3000/api/products/10/images -H "Authorization: Bearer  <TU_TOKEN_JWT>"
 {"success":true,"data":[{"id":6,"image_path":"/uploads/products/1763533798900-344045963.jpeg","alt_text":null,"display_order":0,"is_primary":1},{"id":7,"image_path":"/uploads/products/1763533805787-754000999.jpeg","alt_text":null,"display_order":2,"is_primary":0}]}
 
 ## Eliminar 
-curl -X DELETE http://localhost:3000/api/products/images/7 -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjgsIm5vbWJyZSI6IkFkbWluIEYiLCJjb3JyZW8iOiJhZG1pbkB0ZXN0LmNvbSIsInJvbCI6ImFkbWluIiwidHlwZSI6ImFjY2Vzc190b2tlbiIsImlhdCI6MTc2MzUyODAwMSwiZXhwIjoxNzYzNTcxMjAxLCJpc3MiOiJha2ltYS1hcGkiLCJzdWIiOiI4In0.sLIld8xBHtMb6_Z_LeYZH2X--Ms7BuKWZ7fblM7yLlk"
+curl -X DELETE http://localhost:3000/api/products/images/7 -H "Authorization: Bearer  <TU_TOKEN_JWT>"
 ### Respuesta
 {"success":true,"message":"Imagen eliminada exitosamente."}
+
+
+# Pagos
+
+  ## Generar un pago 
+    curl -X POST http://localhost:3000/api/payments -H "Authorization: Bearer  <TU_TOKEN_JWT>" -H "Content-Type: application/json" -d '{"order_id": 101,"amount": 500.00,"method": "cash","notes": "Pago parcial en mostrador"}'
+  ## Obtener los abonos de un pago
+    curl -X GET http://localhost:3000/api/payments/order/101 -H "Authorization: Bearer <TU_TOKEN_JWT>"  
+  ## Obtener todos los abonos 
+    curl -X GET http://localhost:3000/api/payments -H "Authorization: Bearer <TU_TOKEN_JWT>"
+
+# Finanzas 
+  ## Total de cuentas
+  curl -v -X GET http://localhost:3000/api/finance/dashboard -H "Authorization: Bearer  <TU_TOKEN_JWT>"
+
+  {"success":true,"data":{"gross_sales":2569711.5,"net_income":10500,"accounts_receivable":2559211.5,"total_refunds":28623.98}}
+  ## Productos mas vendidos 
+  curl -v -X GET http://localhost:3000/api/finance/reports/top-products -H "Authorization: Bearer  <TU_TOKEN_JWT>"
+  {"success":true,"data":[{"product_name":"Fertilizante","total_sold":"201","total_revenue":"2474712.00"},{"product_name":"Teclado Mecánico RGB TKL","total_sold":"50","total_revenue":"94999.50"}]}
+  ## Productos menos vendidos 
+  curl -v -X GET http://localhost:3000/api/finance/reports/least-sold -H "Authorization: Bearer  <TU_TOKEN_JWT>"
+  {"success":true,"data":[{"product_name":"Teclado Mecánico RGB TKL","total_sold":"50"},{"product_name":"Fertilizante","total_sold":"201"}]}
+
+  ## Mejor cliente
+    curl -X GET http://localhost:3000/api/clients/reports/best -H "Authorization: Bearer  <TU_TOKEN_JWT>"

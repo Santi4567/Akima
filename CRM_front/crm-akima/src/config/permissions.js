@@ -53,5 +53,9 @@ export const PERMISSIONS = {
     'issue.refund',
     'edit.return.status'
   ],
+  PAYMENTS: [
+    'add.payment',   // Registrar cobro
+    'view.payments'  // Ver historial
+  ],
   // ...etc.
 };

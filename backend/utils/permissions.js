@@ -58,7 +58,11 @@ const PERMISSIONS = {
   // Devoluciones (Returns)
   ISSUE_REFUND: 'issue.refund',
   EDIT_RETURN_STATUS: 'edit.return.status',
-  VIEW_RETURNS: 'view.returns'
+  VIEW_RETURNS: 'view.returns',
+
+  // --- Pagos (Finanzas) ---
+  ADD_PAYMENT: 'add.payment',      // Registrar un cobro
+  VIEW_PAYMENTS: 'view.payments',  // Ver historial de pagos de una orden
 };
 
 // Array plano para validación rápida

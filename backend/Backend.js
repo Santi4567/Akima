@@ -22,6 +22,8 @@ const clientRoutes = require('./routes/clientRoutes');
 const visitRoutes = require('./routes/visitRoutes');
 const orderRoutes = require('./routes/orderRoutes');
 const returnRoutes = require('./routes/returnRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
+const financeRoutes = require('./routes/financeRoutes');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -43,6 +45,8 @@ app.use('/api/clients', clientRoutes); // Clientes
 app.use('/api/visits', visitRoutes); // Visitas 
 app.use('/api/orders', orderRoutes); // Orders 
 app.use('/api/returns', returnRoutes); // Visitas 
+app.use('/api/payments', paymentRoutes); // Visitas 
+app.use('/api/finance', financeRoutes);//Finanzas
 
 // HACER PÚBLICA LA CARPETA DE UPLOADS
 // Esto permite acceder a http://localhost:3000/uploads/products/foto.jpg

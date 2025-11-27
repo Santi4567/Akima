@@ -262,6 +262,66 @@ const deleteClient = async (req, res) => {
         if (connection) connection.release();
     }
 };
+/**
+ * [PROTEGIDO] Reporte de Mejores Clientes (VIP)
+ * Criterio: Mayor volumen de compras y velocidad de pago.
+ */
+const getBestClients = async (req, res) => {
+    let connection;
+    try {
+        // Solo Admin y Gerentes deberían ver esto (o Ventas si lo decides)
+        // Usamos un permiso de alto nivel como 'view.reports' o reutilizamos 'view.all.orders'
+        // Aquí usaré 'view.clients' para simplificar, pero podrías restringirlo más.
+        
+        connection = await getConnection();
+
+        const sql = `
+            SELECT 
+                c.id,
+                CONCAT(c.first_name, ' ', c.last_name) AS client_name,
+                c.email,
+                c.phone,
+                
+                -- Métricas de Volumen
+                COUNT(DISTINCT o.id) AS total_orders,
+                COALESCE(SUM(o.total_amount), 0) AS total_spent,
+                
+                -- Métricas de Pago (Promedio en Horas)
+                -- TIMESTAMPDIFF calcula la diferencia en horas entre creación y pago
+                ROUND(AVG(TIMESTAMPDIFF(HOUR, o.created_at, p.payment_date)), 1) AS avg_hours_to_pay,
+                
+                -- Última compra
+                MAX(o.created_at) as last_purchase_date
+
+            FROM clients c
+            INNER JOIN orders o ON c.id = o.client_id
+            -- Usamos LEFT JOIN con payments para incluir clientes que compran aunque no hayan pagado todo
+            LEFT JOIN payments p ON o.id = p.order_id
+            
+            WHERE o.status != 'cancelled'
+            GROUP BY c.id
+            
+            -- ORDENAMIENTO MÁGICO:
+            -- Primero los que más gastan, luego los que pagan más rápido (menor tiempo)
+            ORDER BY total_spent DESC, avg_hours_to_pay ASC
+            LIMIT 20;
+        `;
+
+        const [report] = await connection.execute(sql);
+
+        res.status(200).json({ 
+            success: true, 
+            message: 'Reporte de mejores clientes generado.', 
+            data: report 
+        });
+
+    } catch (error) {
+        console.error('Error al obtener reporte de mejores clientes:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
 
 module.exports = {
     createClient,
@@ -269,5 +329,6 @@ module.exports = {
     getClientById,
     searchClientByName,
     updateClient,
-    deleteClient
+    deleteClient,
+    getBestClients
 };
