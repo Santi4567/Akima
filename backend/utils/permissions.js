@@ -7,6 +7,10 @@ const path = require('path');
 const permissionsPath = path.join(__dirname, '../config/permissions.json');
 
 // 1. LISTA MAESTRA DE PERMISOS VÁLIDOS
+//=============================================================
+// NOTA SI VAS A AGREGAR UN NUEVO PERMISO TAMBIEN AGREGALO EN 
+// PERMISSION_GROUPS EN SU DEBIDO LUGAR
+//=============================================================
 const PERMISSIONS = {
   // Usuarios
   ADD_USERS: 'add.users',
@@ -66,11 +70,89 @@ const PERMISSIONS = {
 
   // --- Configuración de Empresa ---
   MANAGE_COMPANY: 'manage.company',
-  MANAGE_CONTENT: 'manage.content'
+  MANAGE_CONTENT: 'manage.content',
+
+  // --- Inventario (Almacén) ---
+  ADJUST_INVENTORY: 'adjust.inventory',
+  VIEW_INVENTORY_LOGS: 'view.inventory.logs'
+};
+
+// ---------------------------------------------------------
+// 2. LISTA AGRUPADA (PARA ENVIAR AL FRONTEND)
+// AQUÍ SÍ usas el formato que quieres.
+// Usamos las constantes de arriba para no equivocarnos al escribir.
+// ---------------------------------------------------------
+const PERMISSION_GROUPS = {
+  USERS: [
+    PERMISSIONS.ADD_USERS,
+    PERMISSIONS.EDIT_USERS,
+    PERMISSIONS.DELETE_USERS,
+    PERMISSIONS.VIEW_USERS,
+    PERMISSIONS.EDIT_OWN_PROFILE
+  ],
+  PRODUCTS: [
+    PERMISSIONS.ADD_PRODUCTS,
+    PERMISSIONS.EDIT_PRODUCTS,
+    PERMISSIONS.DELETE_PRODUCTS,
+    PERMISSIONS.VIEW_PRODUCTS
+  ],
+  CATEGORY: [
+    PERMISSIONS.ADD_CATEGORY,
+    PERMISSIONS.VIEW_CATEGORY,
+    PERMISSIONS.EDIT_CATEGORY,
+    PERMISSIONS.DELETE_CATEGORY
+  ],
+  SUPPLIER: [
+    PERMISSIONS.ADD_SUPPLIERS,
+    PERMISSIONS.EDIT_SUPPLIERS,
+    PERMISSIONS.DELETE_SUPPLIERS,
+    PERMISSIONS.VIEW_SUPPLIERS
+  ],
+  CLIENTS: [
+    PERMISSIONS.ADD_CLIENTS,
+    PERMISSIONS.EDIT_CLIENTS,
+    PERMISSIONS.DELETE_CLIENTS,
+    PERMISSIONS.VIEW_CLIENTS
+  ],
+  VISITS: [
+    PERMISSIONS.ADD_VISITS,
+    PERMISSIONS.EDIT_VISITS,
+    PERMISSIONS.DELETE_VISITS,
+    PERMISSIONS.ASSIGN_VISITS,
+    PERMISSIONS.VIEW_OWN_VISITS,
+    PERMISSIONS.VIEW_ALL_VISITS,
+  ],
+  ORDERS: [
+    PERMISSIONS.ADD_ORDER,
+    PERMISSIONS.EDIT_ORDER_CONTENT,
+    PERMISSIONS.EDIT_ORDER_STATUS,
+    PERMISSIONS.CANCEL_ORDER,
+    PERMISSIONS.VIEW_OWN_ORDERS,
+    PERMISSIONS.VIEW_ALL_ORDER,
+  ],
+  RETURNS: [
+    PERMISSIONS.ISSUE_REFUND,
+    PERMISSIONS.EDIT_RETURN_STATUS,
+    PERMISSIONS.VIEW_RETURNS,
+  ],
+  PAYMENTS: [
+    PERMISSIONS.ADD_PAYMENT,
+    PERMISSIONS.VIEW_PAYMENTS
+  ],
+  INVENTORY: [
+    PERMISSIONS.ADJUST_INVENTORY,
+    PERMISSIONS.VIEW_INVENTORY_LOGS
+  ],
+  COMPANY: [
+    PERMISSIONS.MANAGE_COMPANY,
+    PERMISSIONS.MANAGE_CONTENT
+  ]
 };
 
 // Array plano para validación rápida
 const VALID_PERMISSIONS_LIST = Object.values(PERMISSIONS);
+
+
 
 // --- FUNCIONES DE AYUDA ---
 
@@ -160,7 +242,8 @@ const getSystemRoles = () => {
 };
 
 module.exports = {
-  PERMISSIONS,
+  PERMISSIONS, // <- permisos Backend
+  PERMISSION_GROUPS, //<--permisos agrupados front
   checkPermission,
   requirePermission,
   requireAdmin,

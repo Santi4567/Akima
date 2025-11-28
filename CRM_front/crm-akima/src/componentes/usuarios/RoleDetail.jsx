@@ -1,3 +1,5 @@
+// src/componentes/usuarios/RoleDetail.jsx
+
 import { useState, useEffect } from 'react';
 import { 
   ArrowLeftIcon, 
@@ -5,15 +7,15 @@ import {
   UserIcon, 
   PencilIcon, 
   ShieldCheckIcon,
-  XMarkIcon 
+  Square2StackIcon 
 } from '@heroicons/react/24/solid';
 import { Notification } from '../Notification';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export const RoleDetail = ({ roleName, users, onClose }) => {
-  const [currentPermissions, setCurrentPermissions] = useState([]); // Permisos que TIENE el rol
-  const [allPermissions, setAllPermissions] = useState([]); // Catálogo de permisos disponibles
+  const [currentPermissions, setCurrentPermissions] = useState([]); 
+  const [groupedPermissions, setGroupedPermissions] = useState({}); 
   const [isEditing, setIsEditing] = useState(false);
   const [notification, setNotification] = useState({ type: '', message: '' });
 
@@ -21,7 +23,6 @@ export const RoleDetail = ({ roleName, users, onClose }) => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Ejecutamos en paralelo para velocidad
         const [listRes, roleRes] = await Promise.all([
             fetch(`${API_URL}/api/users/admin/permissions-list`, { credentials: 'include' }),
             fetch(`${API_URL}/api/users/roles/${roleName}/permissions`, { credentials: 'include' })
@@ -30,23 +31,37 @@ export const RoleDetail = ({ roleName, users, onClose }) => {
         const listData = await listRes.json();
         const roleData = await roleRes.json();
 
-        // 1. Catálogo de opciones (botones)
+        // 1. Catálogo Agrupado (Lista maestra de opciones)
         if (listData.success) {
-            setAllPermissions(listData.data);
+            setGroupedPermissions(listData.data); 
         }
 
-        // 2. Permisos actuales del rol
+        // 2. Permisos actuales del rol (CORRECCIÓN AQUÍ)
         if (roleData.success) {
-            const perms = roleData.data;
-            // Si es '*', lo manejamos visualmente como un permiso especial, o si es array lo guardamos tal cual
-            setCurrentPermissions(Array.isArray(perms) ? perms : (perms === '*' ? ['* SUPER ADMIN'] : []));
+            const rawData = roleData.data;
+
+            // CASO ESPECIAL: ADMIN
+            if (roleName === 'admin') {
+                // Aunque el API traiga todos los grupos, forzamos el modo "Super Admin" visual
+                setCurrentPermissions(['* SUPER ADMIN']);
+            } 
+            // CASO NORMAL: OTROS ROLES
+            else if (typeof rawData === 'object' && !Array.isArray(rawData)) {
+                // El API devuelve un objeto agrupado { GROUP: [perms], GROUP2: [perms] }
+                // Lo "aplanamos" a un solo array de strings para que el estado lo entienda
+                const flatPerms = Object.values(rawData).flat();
+                setCurrentPermissions(flatPerms);
+            } 
+            // CASO LEGACY (Por si acaso alguna vez devuelve array directo o string)
+            else {
+                setCurrentPermissions(Array.isArray(rawData) ? rawData : []);
+            }
         } else {
-            // Si es un rol nuevo sin permisos configurados
             setCurrentPermissions([]);
         }
 
       } catch (error) {
-        console.error("Error cargando permisos", error);
+        console.error(error);
         setNotification({ type: 'error', message: 'Error al cargar configuración.' });
       }
     };
@@ -54,37 +69,31 @@ export const RoleDetail = ({ roleName, users, onClose }) => {
     if (roleName) fetchData();
   }, [roleName]);
 
-  // --- GUARDAR CAMBIOS (PUT) ---
+  // --- GUARDAR CAMBIOS ---
   const handleSavePermissions = async () => {
     try {
       let permissionsToSend;
 
-      // 1. Limpieza y Lógica de Admin
-      if (currentPermissions.includes('* SUPER ADMIN') || currentPermissions.includes('*')) {
+      // Si es Super Admin, mandamos asterisco (aunque la UI de admin no deja guardar, es protección extra)
+      if (currentPermissions.includes('* SUPER ADMIN')) {
           permissionsToSend = '*';
       } else {
-          // === AQUÍ ESTÁ LA MAGIA DE LA LIMPIEZA ===
+          // Limpieza de datos
           permissionsToSend = currentPermissions
-              // A. Filtramos que sea string y que no esté vacío
-              .filter(p => typeof p === 'string' && p.trim() !== '' && p !== '* SUPER ADMIN')
-              // B. Quitamos espacios accidentales al inicio/final
+              .filter(p => typeof p === 'string' && p.trim() !== '')
               .map(p => p.trim());
-          
-          // C. Eliminamos duplicados por si acaso
           permissionsToSend = [...new Set(permissionsToSend)];
       }
-
-      // 2. Construir Payload
+      
+      // Construimos el payload: { "gerente": ["permiso1", "permiso2"] }
       const payload = {
         [roleName]: permissionsToSend
       };
 
-      console.log("Enviando Payload Limpio:", JSON.stringify(payload)); // <--- Verifica esto en la consola del navegador
-
       const res = await fetch(`${API_URL}/api/users/admin/permissions`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include', 
+        credentials: 'include',
         body: JSON.stringify(payload)
       });
       
@@ -101,7 +110,7 @@ export const RoleDetail = ({ roleName, users, onClose }) => {
     }
   };
 
-  // --- TOGGLE (Marcar/Desmarcar) ---
+  // --- TOGGLE INDIVIDUAL ---
   const togglePermission = (perm) => {
     if (currentPermissions.includes(perm)) {
       setCurrentPermissions(currentPermissions.filter(p => p !== perm));
@@ -110,11 +119,26 @@ export const RoleDetail = ({ roleName, users, onClose }) => {
     }
   };
 
+  // --- TOGGLE GRUPO COMPLETO ---
+  const toggleGroup = (groupPerms) => {
+    const allSelected = groupPerms.every(p => currentPermissions.includes(p));
+
+    if (allSelected) {
+      setCurrentPermissions(currentPermissions.filter(p => !groupPerms.includes(p)));
+    } else {
+      const newPerms = [...new Set([...currentPermissions, ...groupPerms])];
+      setCurrentPermissions(newPerms);
+    }
+  };
+
+  // Verificamos si es admin para bloquear la UI
+  const isAdminRole = roleName === 'admin';
+
   return (
     <div className="space-y-6">
       <Notification type={notification.type} message={notification.message} onClose={() => setNotification({type:'', message:''})} />
 
-      {/* Header con Botón Atrás */}
+      {/* Header */}
       <div className="flex items-center gap-4 border-b pb-4">
         <button onClick={onClose} className="p-2 text-gray-600 hover:bg-gray-100 rounded-full">
           <ArrowLeftIcon className="h-6 w-6" />
@@ -129,13 +153,13 @@ export const RoleDetail = ({ roleName, users, onClose }) => {
         
         {/* COLUMNA IZQ: EDITOR DE PERMISOS */}
         <div className="lg:col-span-2 bg-white p-6 rounded-lg shadow border border-gray-200">
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-6 border-b pb-4">
                 <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                     <ShieldCheckIcon className="h-5 w-5 text-blue-600"/> Permisos Asignados
                 </h3>
                 
-                {/* Botones de Edición (Ocultos para 'admin' si quieres protegerlo) */}
-                {roleName !== 'admin' && (
+                {/* Ocultar botones si es Admin */}
+                {!isAdminRole && (
                     !isEditing ? (
                         <button onClick={() => setIsEditing(true)} className="text-sm bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 flex items-center gap-1 shadow-sm">
                             <PencilIcon className="h-4 w-4"/> Editar Permisos
@@ -153,45 +177,79 @@ export const RoleDetail = ({ roleName, users, onClose }) => {
                 )}
             </div>
 
-            {/* Área de Badges/Botones */}
-            <div className="flex flex-wrap gap-2">
-                {isEditing ? (
-                    // MODO EDICIÓN: Muestra TODOS los permisos del sistema para activar/desactivar
-                    allPermissions.map(perm => {
-                        const isActive = currentPermissions.includes(perm);
+            {/* CASO ESPECIAL: ADMIN */}
+            {isAdminRole ? (
+                <div className="p-8 text-center bg-blue-50 border border-blue-200 rounded-lg">
+                    <ShieldCheckIcon className="h-12 w-12 text-blue-600 mx-auto mb-2" />
+                    <h4 className="text-lg font-bold text-blue-900">Acceso Total (Super Admin)</h4>
+                    <p className="text-sm text-blue-700 mt-1">
+                        Este rol tiene acceso irrestricto a todos los módulos del sistema. 
+                        No es posible modificar sus permisos individualmente.
+                    </p>
+                </div>
+            ) : (
+                /* CASO NORMAL: LISTA AGRUPADA */
+                <div className="space-y-6">
+                    {Object.entries(groupedPermissions).map(([groupName, permissions]) => {
+                        const hasPermsInGroup = permissions.some(p => currentPermissions.includes(p));
+                        if (!isEditing && !hasPermsInGroup) return null;
+
                         return (
-                            <button 
-                                key={perm}
-                                onClick={() => togglePermission(perm)}
-                                className={`px-3 py-1.5 rounded-md text-sm border transition-all flex items-center gap-2 ${
-                                    isActive 
-                                    ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
-                                    : 'bg-white border-gray-300 text-gray-600 hover:border-gray-400'
-                                }`}
-                            >
-                                {isActive ? <CheckCircleIcon className="h-4 w-4"/> : <div className="h-4 w-4 rounded-full border border-gray-400"></div>}
-                                {perm}
-                            </button>
+                            <div key={groupName} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h4 className="text-sm font-bold text-gray-700 uppercase tracking-wide">{groupName}</h4>
+                                    {isEditing && (
+                                        <button 
+                                            onClick={() => toggleGroup(permissions)}
+                                            className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 bg-white px-2 py-1 rounded border hover:bg-blue-50"
+                                        >
+                                            <Square2StackIcon className="h-3 w-3"/> Grupo
+                                        </button>
+                                    )}
+                                </div>
+
+                                <div className="flex flex-wrap gap-2">
+                                    {permissions.map(perm => {
+                                        const isActive = currentPermissions.includes(perm);
+                                        if (!isEditing && !isActive) return null;
+
+                                        return (
+                                            <button 
+                                                key={perm}
+                                                onClick={() => isEditing && togglePermission(perm)}
+                                                disabled={!isEditing}
+                                                className={`px-3 py-1.5 rounded-md text-xs font-medium border transition-all flex items-center gap-2 ${
+                                                    isActive 
+                                                    ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                                                    : 'bg-white border-gray-300 text-gray-500 hover:border-gray-400'
+                                                }`}
+                                            >
+                                                {isEditing && (
+                                                    <div className={`w-3 h-3 rounded border flex items-center justify-center ${
+                                                        isActive ? 'bg-blue-800 border-blue-800' : 'bg-white border-gray-300'
+                                                    }`}>
+                                                        {isActive && <CheckCircleIcon className="h-3 w-3 text-white" />}
+                                                    </div>
+                                                )}
+                                                {perm}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
                         );
-                    })
-                ) : (
-                    // MODO VISUALIZACIÓN: Solo muestra los activos
-                    currentPermissions.length > 0 ? (
-                        currentPermissions.map((perm, idx) => (
-                            <span key={idx} className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 border border-green-200 flex items-center gap-1">
-                                <CheckCircleIcon className="h-3 w-3"/> {perm}
-                            </span>
-                        ))
-                    ) : (
+                    })}
+
+                    {!isEditing && currentPermissions.length === 0 && (
                         <div className="p-6 text-center border-2 border-dashed border-gray-200 rounded-lg w-full">
-                            <p className="text-gray-400 italic">No hay permisos configurados para este rol.</p>
+                            <p className="text-gray-400 italic">Este rol no tiene permisos asignados.</p>
                         </div>
-                    )
-                )}
-            </div>
+                    )}
+                </div>
+            )}
         </div>
 
-        {/* COLUMNA DER: USUARIOS DEPENDIENTES */}
+        {/* COLUMNA DER: USUARIOS */}
         <div className="lg:col-span-1 bg-white p-4 rounded-lg shadow border border-gray-200 h-fit">
             <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                 <UserIcon className="h-5 w-5 text-gray-500"/> Usuarios
@@ -200,8 +258,8 @@ export const RoleDetail = ({ roleName, users, onClose }) => {
                 {users.length > 0 ? (
                     <ul className="divide-y divide-gray-100">
                         {users.map(u => (
-                            <li key={u.ID} className="py-3 flex items-center gap-3">
-                                <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 font-bold text-xs border">
+                            <li key={u.ID} className="py-3 flex items-center gap-3 hover:bg-gray-50 px-2 rounded transition-colors">
+                                <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs border">
                                     {u.Nombre ? u.Nombre.charAt(0).toUpperCase() : '?'}
                                 </div>
                                 <div className="overflow-hidden">

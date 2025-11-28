@@ -4,12 +4,19 @@ const bcrypt = require('bcrypt');
 const validator = require('validator');
 const { getConnection } = require('../config/database');
 const { sanitizeInput, containsSQLInjection } = require('../utils/sanitizer');
-const { checkPermission, PERMISSIONS } = require('../utils/permissions');
+
+//Relacionado con listas de permisos 
 const { 
+        PERMISSIONS,
+        VALID_PERMISSIONS_LIST, 
+        PERMISSION_GROUPS 
+    } = require('../utils/permissions');
+//Permisos 
+const { 
+    checkPermission,
     updatePermissionsFile, 
     loadPermissions, 
     isValidSystemPermission,
-    VALID_PERMISSIONS_LIST,
     getSystemRoles 
 } = require('../utils/permissions');
 
@@ -117,37 +124,65 @@ const register = async (req, res) => {
  */
 const getProfile = (req, res) => {
     try {
-        // 1. req.user es la información del token (userId, nombre, correo, rol)
-        const currentUser = req.user; 
+        const currentUser = req.user;
 
-        // 2. Cargamos la estructura completa de permisos desde el archivo
+        // 1. Cargar permisos del archivo
         const allPermissions = loadPermissions();
-        
-        // 3. Buscamos los permisos específicos para el rol de este usuario
-        let userPermissions = allPermissions[currentUser.rol];
+        let flatPermissions = allPermissions[currentUser.rol];
 
-        // 4. Manejamos el caso especial del Admin
-        if (userPermissions === '*') {
-            // Si es admin, le enviamos un array con el comodín.
-            // El frontend puede interpretar "*" como "acceso total".
-            userPermissions = ['*'];
+        // Manejo de seguridad para roles no definidos
+        if (!flatPermissions) {
+            flatPermissions = [];
         }
 
-        // 5. Preparamos la respuesta
-        const profileData = {
-            id: currentUser.userId,
-            nombre: currentUser.nombre,
-            correo: currentUser.correo,
-            rol: currentUser.rol,
-            permissions: userPermissions || [] // Enviamos la lista de permisos
-        };
+        // 2. Lógica de Agrupación (La misma de getRolePermissions)
+        let groupedPermissions = {};
 
-        // 6. Enviamos el perfil completo
-        res.status(200).json({ success: true, data: profileData });
+        if (flatPermissions === '*') {
+            // Caso Admin: Tiene acceso a todos los grupos completos
+            flatPermissions = ['*']; // Mantenemos el comodín en la lista plana
+            groupedPermissions = PERMISSION_GROUPS; // Entregamos el mapa completo
+        } else {
+            // Caso Normal: Filtramos por grupo
+            for (const [groupName, groupPerms] of Object.entries(PERMISSION_GROUPS)) {
+                // Filtramos: De los permisos de este grupo, ¿cuáles tiene el usuario?
+                const activeInGroup = groupPerms.filter(p => flatPermissions.includes(p));
+
+                // Si tiene al menos uno, agregamos el grupo
+                if (activeInGroup.length > 0) {
+                    groupedPermissions[groupName] = activeInGroup;
+                }
+            }
+            
+            // (Opcional) Detectar Huérfanos
+            const allKnownPerms = Object.values(PERMISSION_GROUPS).flat();
+            const orphans = flatPermissions.filter(p => !allKnownPerms.includes(p));
+            if (orphans.length > 0) {
+                groupedPermissions['OTROS'] = orphans;
+            }
+        }
+
+        // 3. Responder
+        res.status(200).json({
+            success: true,
+            message: 'Perfil recuperado exitosamente.',
+            data: {
+                id: currentUser.userId,
+                nombre: currentUser.nombre,
+                correo: currentUser.correo,
+                rol: currentUser.rol,
+                
+                // Opción A: Lista Plana (Para lógica de código: can('add.order'))
+                permissions: flatPermissions, 
+                
+                // Opción B: Objeto Agrupado (Para pintar Menús/UI)
+                grouped_permissions: groupedPermissions 
+            }
+        });
 
     } catch (error) {
-        console.error('Error al obtener el perfil:', error);
-        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR', message: 'No se pudo obtener la información del perfil.' });
+        console.error('Error al obtener perfil:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR', message: 'No se pudo cargar el perfil.' });
     }
 };
 
@@ -477,7 +512,7 @@ const getAvailablePermissions = (req, res) => {
             success: true, 
             message: 'Lista de permisos del sistema obtenida.',
             // Esto devuelve: ['add.users', 'edit.users', 'view.products', ...]
-            data: VALID_PERMISSIONS_LIST 
+            data: PERMISSION_GROUPS //AGRUPADOS  
         });
 
     } catch (error) {
@@ -663,30 +698,71 @@ const getRolesList = (req, res) => {
  * [PROTEGIDO] Obtener los permisos de un rol específico
  * URL: GET /api/users/roles/:roleName/permissions
  */
+/**
+ * [PROTEGIDO] Obtener permisos de un rol (AGRUPADOS)
+ * Retorna un objeto: { "USERS": ["add.users", ...], "ORDERS": [...] }
+ */
 const getRolePermissions = (req, res) => {
     try {
         const { roleName } = req.params;
+        const currentUser = req.user;
 
-        // 1. Cargar la configuración
-        const allPermissions = loadPermissions();
-
-        // 2. Verificar si el rol existe
-        // Usamos hasOwnProperty para seguridad
-        if (!Object.prototype.hasOwnProperty.call(allPermissions, roleName)) {
-            return res.status(404).json({ success: false, message: `El rol '${roleName}' no existe en el sistema.` });
+        if (currentUser.rol !== 'admin') {
+            return res.status(403).json({ success: false, error: 'ACCESO_PROHIBIDO', message: 'Solo el Super Admin puede modificar permisos.' });
         }
 
-        // 3. Devolver los permisos
-        const permissions = allPermissions[roleName];
+        // 1. Cargar permisos del archivo
+        const allPermissions = loadPermissions();
+
+        if (!Object.prototype.hasOwnProperty.call(allPermissions, roleName)) {
+            return res.status(404).json({ success: false, message: `El rol '${roleName}' no existe.` });
+        }
+
+        // Esta es la lista plana: ["add.users", "view.products", ...]
+        const flatPermissions = allPermissions[roleName];
+
+        // CASO ESPECIAL: Si es ADMIN ("*")
+        if (flatPermissions === '*') {
+            return res.status(200).json({ 
+                success: true, 
+                message: `Permisos del rol '${roleName}' obtenidos (Super Admin).`,
+                // Opción A: Devolver todo el mapa completo (porque tiene acceso a todo)
+                // Opción B: Devolver un indicador especial. Usaremos la A para que se vea lleno.
+                data: PERMISSION_GROUPS 
+            });
+        }
+
+        // 2. LÓGICA DE AGRUPACIÓN (Transformación)
+        const groupedPermissions = {};
+
+        // Recorremos cada grupo maestro (USERS, PRODUCTS, etc.)
+        for (const [groupName, groupPerms] of Object.entries(PERMISSION_GROUPS)) {
+            
+            // Filtramos: De los permisos de este grupo, ¿cuáles tiene el usuario?
+            const activeInGroup = groupPerms.filter(p => flatPermissions.includes(p));
+
+            // Si tiene al menos uno, agregamos el grupo al resultado
+            if (activeInGroup.length > 0) {
+                groupedPermissions[groupName] = activeInGroup;
+            }
+        }
+
+        // (Opcional) Detectar Huérfanos: Permisos que el usuario tiene pero no están en ningún grupo
+        const allKnownPerms = Object.values(PERMISSION_GROUPS).flat();
+        const orphans = flatPermissions.filter(p => !allKnownPerms.includes(p));
+        
+        if (orphans.length > 0) {
+            groupedPermissions['OTROS'] = orphans;
+        }
 
         res.status(200).json({ 
             success: true, 
-            message: `Permisos del rol '${roleName}' obtenidos.`,
-            data: permissions 
+            message: `Permisos del rol '${roleName}' obtenidos y agrupados.`,
+            data: groupedPermissions 
         });
 
     } catch (error) {
-        console.error('Error al obtener permisos del rol:', error);
+        console.error('Error al obtener permisos:', error);
         res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
     }
 };

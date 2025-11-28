@@ -5,7 +5,7 @@
 const PRODUCT_SCHEMA = {
     allowedFields: [
         'sku', 'barcode', 'name', 'description', 'price', 'cost_price', 
-        'stock_quantity', 'product_type', 'status', 'category_id', 'supplier_id',
+        'product_type', 'status', 'category_id', 'supplier_id',
         'weight', 'height', 'width', 'depth', 'custom_fields'
     ],
     fieldRules: {
@@ -15,7 +15,6 @@ const PRODUCT_SCHEMA = {
         description: { type: 'string' }, // TEXT fields don't have a max length here
         price: { type: 'number', required: true },
         cost_price: { type: 'number' },
-        stock_quantity: { type: 'integer' },
         product_type: { type: 'string', enum: ['product', 'service'] },
         status: { type: 'string', enum: ['active', 'inactive', 'draft', 'discontinued'] },
         category_id: { type: 'integer' },
@@ -72,4 +71,32 @@ const validateProductPayload = (req, res, next) => {
     next();
 };
 
-module.exports = { validateProductPayload };
+
+const STOCK_UPDATE_SCHEMA = {
+    allowedFields: ['quantity', 'type', 'reason'],
+    fieldRules: {
+        quantity: { type: 'integer', required: true }, // Siempre positivo
+        type: { type: 'string', required: true, enum: ['add', 'subtract', 'set'] }, // Operación
+        reason: { type: 'string', required: true } // Obligatorio explicar por qué
+    }
+};
+
+const validateStockUpdate = (req, res, next) => {
+    const { quantity, type, reason } = req.body;
+
+    if (quantity === undefined || !type || !reason) {
+        return res.status(400).json({ success: false, message: 'Faltan campos: quantity, type, reason.' });
+    }
+    
+    if (!Number.isInteger(quantity) || quantity < 0) {
+        return res.status(400).json({ success: false, message: 'La cantidad debe ser un número entero positivo.' });
+    }
+
+    if (!['add', 'subtract', 'set'].includes(type)) {
+        return res.status(400).json({ success: false, message: 'El tipo debe ser: add, subtract o set.' });
+    }
+
+    next();
+};
+
+module.exports = { validateProductPayload,validateStockUpdate };

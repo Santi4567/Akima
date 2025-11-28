@@ -69,7 +69,12 @@ router.get(
 router.get(
     '/roles/:roleName/permissions',
     verifyToken,
-    // Opcional: requirePermission(PERMISSIONS.VIEW_USERS), o solo Admin
+    (req, res, next) => {
+        if (req.user.rol !== 'admin') {
+             return res.status(403).json({ success: false, error: 'ACCESO_DENEGADO', message: 'Que intentas hacer??' });
+        }
+        next();
+    },
     getRolePermissions
 );
 

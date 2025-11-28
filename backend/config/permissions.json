@@ -10,7 +10,8 @@
     "add.suppliers",
     "edit.suppliers",
     "view.suppliers",
-    "add.clients"
+    "add.clients",
+    "edit.users"
   ],
   "vendedor": [
     "view.products",

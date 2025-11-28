@@ -1,3 +1,5 @@
+// src/main.jsx
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
@@ -10,24 +12,22 @@ import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './componentes/ProtectedRoute';
 import { PermissionGuard } from './componentes/PermissionGuard';
 import { Unauthorized } from './componentes/Unauthorized';
-import { PERMISSIONS } from './config/permissions';
 
-// Páginas y Plantillas
+// Páginas y Layouts
 import { LoginPage } from './componentes/login';
-import { Home } from './componentes/Home';
+import { Home } from './componentes/Home'; // Recuerda que movimos el Home a 'pages'
 import { DashboardLayout } from './componentes/DashboardLayout'; 
 
-// --- 1. IMPORTA TUS NUEVOS COMPONENTES ---
-// (Asumo que exportas 'Clientes' desde 'clientes.jsx', 'Finanzas' desde 'finanzas.jsx', etc.)
+// --- IMPORTACIÓN DE HUBS Y COMPONENTES ---
+// Asegúrate de que estas rutas coincidan con dónde guardaste cada archivo final
 import { Clientes } from './componentes/clientes';
-import { Finanzas } from './componentes/finanzas';
-import { Ordenes } from './componentes/ordenes';
-import { Productos } from './componentes/productos';
+import { Productos } from './componentes/productos'; // El Hub Principal de Productos
 import { Categorias } from './componentes/categorias';
+import { Finanzas } from './componentes/finanzas';   // El Hub Principal de Finanzas
+import { Ordenes } from './componentes/ordenes';     // El Hub Principal de Órdenes
 import { Proveedores } from './componentes/proveedores';
-import { Usuarios } from './componentes/usuarios';
+import { Usuarios } from './componentes/usuarios';   // El Hub Principal de Usuarios
 import { Visitas } from './componentes/visitas';
-import { Configuraciones } from './componentes/configuraciones';
 
 
 const router = createBrowserRouter([
@@ -37,101 +37,103 @@ const router = createBrowserRouter([
     element: <LoginPage />,
   },
   {
-    path: '/', // La raíz AHORA es el login
+    path: '/', 
     element: <LoginPage />,
   },
   {
-    // Página a la que te enviamos si no tienes permisos
     path: '/unauthorized', 
     element: <Unauthorized />,
   },
-  {// --- Rutas Privadas (Protegidas) ---
-    // 1. Primero, debes estar AUTENTICADO (logueado)
+  {
+    // --- RUTAS PRIVADAS (PROTEGIDAS) ---
+    // 1. Verifica Autenticación (Token)
     element: <ProtectedRoute />,
     children: [
       {
-        // 2. Si estás logueado, se aplica el "Marco" (Header + hueco)
+        // 2. Aplica el Layout (Header + Contenedor)
         element: <DashboardLayout />,
         children: [
-          // 3. Estas son las páginas que van DENTRO del marco
           
-          // Home (accesible para todos los logueados)
+          // Home (Accesible para todos los logueados)
           { path: '/home', element: <Home /> },
 
-          // Clientes (solo si tienes algún permiso de CLIENTS)
-          {
-            path: '/clientes',
-            element: (
-              <PermissionGuard any={PERMISSIONS.CLIENTS}>
-                <Clientes />
-              </PermissionGuard>
-            ),
-          },
-          
-          // Sección de Productos (Hub)
+          // --- MÓDULO PRODUCTOS (HUB) ---
           {
             path: '/productos',
             element: (
-              <PermissionGuard any={[...PERMISSIONS.PRODUCTS, ...PERMISSIONS.CATEGORY]}>
+              // Solo requiere 'view.products' para entrar al Hub
+              <PermissionGuard any={['view.products']}>
                 <Productos />
               </PermissionGuard>
             ),
           },
-          // Gestor de Categorías (anidado en la misma sección)
+          // Categorías (Ruta separada pero accesible desde el Hub)
           {
             path: '/productos/categorias',
             element: (
-              <PermissionGuard any={PERMISSIONS.CATEGORY}>
+              <PermissionGuard any={['view.category']}>
                 <Categorias />
               </PermissionGuard>
             ),
           },
 
-          // Finanzas
+          // --- MÓDULO CLIENTES ---
+          {
+            path: '/clientes',
+            element: (
+              <PermissionGuard any={['view.clients']}>
+                <Clientes />
+              </PermissionGuard>
+            ),
+          },
+
+          // --- MÓDULO ÓRDENES (HUB) ---
+          {
+            path: '/ordenes',
+            element: (
+              // Acceso si puede ver propias o todas
+              <PermissionGuard any={['view.own.order', 'view.all.order']}>
+                <Ordenes />
+              </PermissionGuard>
+            ),
+          },
+
+          // --- MÓDULO FINANZAS (HUB) ---
           {
             path: '/finanzas',
             element: (
-              <PermissionGuard any={PERMISSIONS.FINANCE}>
+              // Requiere permiso específico de dashboard o ver pagos para entrar
+              <PermissionGuard any={['view.finance.dashboard', 'view.payments']}>
                 <Finanzas />
               </PermissionGuard>
             ),
           },
           
-          // Ordenes
-          {
-            path: '/ordenes',
-            element: (
-              <PermissionGuard any={PERMISSIONS.ORDERS}>
-                <Ordenes />
-              </PermissionGuard>
-            ),
-          },
-          
-          // Proveedores
+          // --- MÓDULO PROVEEDORES ---
           {
             path: '/proveedores',
             element: (
-              <PermissionGuard any={PERMISSIONS.SUPPLLIERS}>
+              <PermissionGuard any={['view.suppliers']}>
                 <Proveedores />
               </PermissionGuard>
             ),
           },
 
-          // Usuarios
+          // --- MÓDULO USUARIOS (HUB) ---
           {
             path: '/usuarios',
             element: (
-              <PermissionGuard any={PERMISSIONS.USERS}>
+              <PermissionGuard any={['view.users']}>
                 <Usuarios />
               </PermissionGuard>
             ),
           },
 
-          // Visitas
+          // --- MÓDULO VISITAS ---
           {
             path: '/visitas',
             element: (
-              <PermissionGuard any={PERMISSIONS.VISITS}>
+              <PermissionGuard any={['view.own.visits', 'view.all.visits']}>
                 <Visitas />
               </PermissionGuard>
             ),
@@ -141,6 +143,7 @@ const router = createBrowserRouter([
     ],
   },
 ]);
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <AuthProvider>

@@ -54,15 +54,42 @@ const createProduct = async (req, res) => {
         if (existingName.length > 0) return res.status(409).json({ success: false, message: `El producto con nombre '${name}' ya existe.` });
 
         // 4. Inserción en la base de datos
-        const fields = Object.keys(productData);
-        const values = Object.values(productData);
-        const placeholders = fields.map(() => '?').join(', ');
-        
-        const [result] = await connection.execute(`INSERT INTO products (${fields.join(', ')}) VALUES (${placeholders})`, values);
-        res.status(201).json({ success: true, message: 'Producto creado exitosamente.', data: { id: result.insertId } });
+        const initialStock = 0; 
+
+        // INSERTAR
+        // Asegúrate de incluir 'stock_quantity' en el INSERT con el valor 0
+        const [result] = await connection.execute(
+            `INSERT INTO products (
+                sku, name, description, price, cost_price, 
+                stock_quantity, status, category_id, supplier_id,
+                weight, height, width, depth, custom_fields
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+                productData.sku,
+                productData.name,
+                productData.description,
+                productData.price,
+                productData.cost_price,
+                initialStock, // <--- Aquí va el 0 forzado
+                productData.status || 'draft',
+                productData.category_id,
+                productData.supplier_id,
+                productData.weight,
+                productData.height,
+                productData.width,
+                productData.depth,
+                productData.custom_fields // (Recuerda que esto ya se procesó a string JSON arriba)
+            ]
+        );
+
+        res.status(201).json({ 
+            success: true, 
+            message: 'Producto creado exitosamente. El inventario inicial es 0.', 
+            data: { id: result.insertId } 
+        });
 
     } catch (error) {
-        console.error('Error al crear producto:', error);
+        console.error(error);
         res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
     } finally {
         if (connection) connection.release();
@@ -75,62 +102,82 @@ const createProduct = async (req, res) => {
 const updateProduct = async (req, res) => {
     let connection;
     try {
-        const { id } = req.params;
-        const productData = req.body;
+        const productId = req.params.id;
+        const updates = req.body;
 
-        if (Object.keys(productData).length === 0) {
-            return res.status(400).json({ success: false, error: 'SIN_DATOS', message: 'Debe proporcionar al menos un campo para actualizar.' });
+        if (Object.keys(updates).length === 0) {
+            return res.status(400).json({ success: false, message: 'No se enviaron datos para actualizar.' });
         }
 
-        // 1. Sanitización de todos los campos
-        for (const key in productData) {
-            if (typeof productData[key] === 'string') {
-                productData[key] = sanitizeInput(productData[key]);
+        // 1. Sanitización y Filtrado de Campos
+        const sanitizedUpdates = {};
+        
+        // Lista negra explícita: Campos que NO se pueden tocar desde aquí
+        const forbiddenFields = ['id', 'created_at', 'updated_at', 'stock_quantity'];
+
+        for (const key in updates) {
+            // Si el campo está prohibido (como stock_quantity), lo saltamos
+            if (forbiddenFields.includes(key)) continue;
+
+            const value = updates[key];
+
+            // Manejo especial para custom_fields (JSON)
+            if (key === 'custom_fields') {
+                if (typeof value === 'object') {
+                    // Si viene como objeto, lo sanitizamos y convertimos a string
+                    if (jsonObjectContainsSQLInjection(value)) {
+                        return res.status(400).json({ success: false, error: 'INPUT_MALICIOSO', message: 'JSON malicioso.' });
+                    }
+                    sanitizedUpdates[key] = JSON.stringify(sanitizeJsonObject(value));
+                } else {
+                    // Si viene como string, asumimos que ya viene listo (o lo rechazamos)
+                    // Para seguridad, mejor exigir objeto o intentar parsear/sanitizar
+                    continue; 
+                }
+            } 
+            // Manejo de strings normales
+            else if (typeof value === 'string') {
+                const cleanValue = sanitizeInput(value);
+                if (containsSQLInjection(cleanValue)) {
+                    return res.status(400).json({ success: false, error: 'INPUT_MALICIOSO', message: `Campo ${key} inválido.` });
+                }
+                sanitizedUpdates[key] = cleanValue;
+            } 
+            // Manejo de números/booleanos
+            else {
+                sanitizedUpdates[key] = value;
             }
-        }
-        if (productData.custom_fields) {
-             if (jsonObjectContainsSQLInjection(productData.custom_fields)) {
-                return res.status(400).json({ success: false, error: 'INPUT_MALICIOSO', message: `El campo 'custom_fields' contiene patrones no permitidos.` });
-            }
-            const sanitizedCustomFields = sanitizeJsonObject(productData.custom_fields);
-            productData.custom_fields = JSON.stringify(sanitizedCustomFields);
         }
 
-        // 2. Detección de patrones maliciosos post-sanitización
-        for (const key in productData) {
-            if (typeof productData[key] === 'string' && key !== 'custom_fields' && containsSQLInjection(productData[key])) {
-                return res.status(400).json({ success: false, error: 'INPUT_MALICIOSO', message: `El campo '${key}' contiene patrones no permitidos.` });
-            }
+        // Si después de filtrar no queda nada (ej. solo enviaron stock_quantity), error
+        if (Object.keys(sanitizedUpdates).length === 0) {
+            return res.status(400).json({ success: false, message: 'Ningún campo válido para actualizar (El stock no se edita aquí).' });
         }
 
         connection = await getConnection();
-        
-        // 3. Validaciones de negocio
-        const { category_id, supplier_id, sku, name } = productData;
-        if (category_id) {
-            const [category] = await connection.execute('SELECT id FROM categories WHERE id = ?', [category_id]);
-            if (category.length === 0) return res.status(404).json({ success: false, message: 'La categoría especificada no existe.' });
+
+        // 2. Verificar que el producto exista
+        const [existing] = await connection.execute('SELECT id FROM products WHERE id = ?', [productId]);
+        if (existing.length === 0) {
+            return res.status(404).json({ success: false, message: 'Producto no encontrado.' });
         }
-        if (supplier_id) {
-            const [supplier] = await connection.execute('SELECT id FROM suppliers WHERE id = ?', [supplier_id]);
-            if (supplier.length === 0) return res.status(404).json({ success: false, message: 'El proveedor especificado no existe.' });
+
+        // 3. Validar duplicados (SKU) si se está intentando cambiar
+        if (sanitizedUpdates.sku) {
+            const [skuCheck] = await connection.execute('SELECT id FROM products WHERE sku = ? AND id != ?', [sanitizedUpdates.sku, productId]);
+            if (skuCheck.length > 0) {
+                return res.status(409).json({ success: false, message: `El SKU '${sanitizedUpdates.sku}' ya está en uso.` });
+            }
         }
-        if (sku) {
-            const [existing] = await connection.execute('SELECT id FROM products WHERE sku = ? AND id != ?', [sku, id]);
-            if (existing.length > 0) return res.status(409).json({ success: false, message: `El SKU '${sku}' ya está en uso por otro producto.` });
-        }
-        if (name) {
-            const [existing] = await connection.execute('SELECT id FROM products WHERE name = ? AND id != ?', [name, id]);
-            if (existing.length > 0) return res.status(409).json({ success: false, message: `El nombre '${name}' ya está en uso por otro producto.` });
-        }
-        
-        // 4. Actualización en la base de datos
-        const fields = Object.keys(productData).map(field => `${field} = ?`).join(', ');
-        const values = [...Object.values(productData), id];
-        const [result] = await connection.execute(`UPDATE products SET ${fields} WHERE id = ?`, values);
-        if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Producto no encontrado.' });
-        
-        res.status(200).json({ success: true, message: 'Producto actualizado exitosamente.' });
+
+        // 4. Construir Query Dinámica
+        const fields = Object.keys(sanitizedUpdates).map(field => `${field} = ?`).join(', ');
+        const values = [...Object.values(sanitizedUpdates), productId];
+
+        await connection.execute(`UPDATE products SET ${fields} WHERE id = ?`, values);
+
+        res.status(200).json({ success: true, message: 'Producto actualizado correctamente.' });
+
     } catch (error) {
         console.error('Error al actualizar producto:', error);
         res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
@@ -282,9 +329,212 @@ const deleteProduct = async (req, res) => {
     }
 };
 
+//===========================================
+// Inventario(Privado)
+//===========================================
+
+/**
+ * [PROTEGIDO] Ajuste Manual de Inventario (Almacén)
+ * - Actualiza el stock en 'products'
+ * - Guarda el historial en 'inventory_logs'
+ */
+const updateProductStock = async (req, res) => {
+    let connection;
+    try {
+        const productId = req.params.id;
+        const { quantity, type, reason } = req.body;
+        const currentUser = req.user;
+
+        connection = await getConnection();
+        
+        // 1. Iniciar Transacción (Para que se guarden los dos o ninguno)
+        await connection.beginTransaction();
+
+        // 2. Obtener el stock actual (Bloqueamos la fila 'FOR UPDATE' para evitar condiciones de carrera)
+        const [products] = await connection.execute(
+            'SELECT name, stock_quantity FROM products WHERE id = ? FOR UPDATE', 
+            [productId]
+        );
+        
+        if (products.length === 0) {
+            await connection.rollback();
+            return res.status(404).json({ success: false, message: 'Producto no encontrado.' });
+        }
+        
+        const currentStock = products[0].stock_quantity;
+        let newStock = currentStock;
+
+        // 3. Calcular
+        switch (type) {
+            case 'add':
+                newStock = currentStock + quantity;
+                break;
+            case 'subtract':
+                // =========================================================
+                // VALIDACIÓN LÓGICA: No puedes quitar lo que no tienes
+                // =========================================================
+                
+                // Opción A: Bloquear si ya estás en negativo
+                if (currentStock < 0) {
+                    await connection.rollback();
+                    return res.status(400).json({ 
+                        success: false, 
+                        error: 'STOCK_NEGATIVO', 
+                        message: `No se puede restar inventario porque el stock actual ya es negativo (${currentStock}). Debes hacer una entrada (add) o un ajuste (set) primero.` 
+                    });
+                }
+
+                // Opción B: Bloquear si la resta te llevaría a negativo
+                if (currentStock < quantity) {
+                    await connection.rollback();
+                    return res.status(400).json({ 
+                        success: false, 
+                        error: 'STOCK_INSUFICIENTE', 
+                        message: `No hay suficiente stock físico para restar ${quantity}. Solo hay ${currentStock} unidades.` 
+                    });
+                }
+
+                newStock = currentStock - quantity;
+                break;
+            case 'set':
+                newStock = quantity;
+                break;
+        }
+
+        // 4. Actualizar Stock en Producto
+        await connection.execute(
+            'UPDATE products SET stock_quantity = ? WHERE id = ?',
+            [newStock, productId]
+        );
+
+        // 5. GUARDAR LA EVIDENCIA (Insertar en logs) <--- AQUÍ SE GUARDA EL REASON
+        await connection.execute(
+            'INSERT INTO inventory_logs (product_id, user_id, type, quantity, previous_stock, new_stock, reason) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [productId, currentUser.userId, type, quantity, currentStock, newStock, sanitizeInput(reason)]
+        );
+
+        // 6. Confirmar
+        await connection.commit();
+
+        res.status(200).json({ 
+            success: true, 
+            message: 'Inventario actualizado y movimiento registrado.',
+            data: { 
+                product_id: productId,
+                new_stock: newStock 
+            }
+        });
+
+    } catch (error) {
+        if (connection) await connection.rollback();
+        console.error('Error al actualizar stock:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
+/**
+ * [PROTEGIDO] Obtener historial completo de movimientos de inventario
+ * Incluye nombre del producto y del usuario responsable.
+ */
+const getInventoryLogs = async (req, res) => {
+    let connection;
+    try {
+        // Opcional: Filtros por fecha o producto podrían ir aquí en el futuro
+        
+        connection = await getConnection();
+
+        const sql = `
+            SELECT 
+                il.id,
+                il.type,            -- 'add', 'subtract', 'set'
+                il.quantity,
+                il.previous_stock,
+                il.new_stock,
+                il.reason,
+                il.created_at,
+                p.name AS product_name,
+                p.sku AS product_sku,
+                u.Nombre AS user_name,
+                u.rol AS user_role
+            FROM inventory_logs il
+            INNER JOIN products p ON il.product_id = p.id
+            INNER JOIN users u ON il.user_id = u.ID
+            ORDER BY il.created_at DESC
+            LIMIT 100 -- Paginación recomendada para el futuro
+        `;
+
+        const [logs] = await connection.execute(sql);
+
+        res.status(200).json({ success: true, data: logs });
+
+    } catch (error) {
+        console.error('Error al obtener logs de inventario:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
+/**
+ * [PROTEGIDO] Obtener historial de inventario de UN producto específico
+ * URL: GET /api/products/:id/inventory-logs
+ */
+const getProductInventoryLogs = async (req, res) => {
+    let connection;
+    try {
+        const productId = req.params.id;
+
+        // Validar ID
+        if (isNaN(parseInt(productId, 10))) {
+            return res.status(400).json({ success: false, message: 'ID de producto inválido.' });
+        }
+
+        connection = await getConnection();
+
+        // 1. Verificar que el producto exista (opcional, pero recomendado)
+        const [product] = await connection.execute('SELECT name FROM products WHERE id = ?', [productId]);
+        if (product.length === 0) {
+            return res.status(404).json({ success: false, message: 'Producto no encontrado.' });
+        }
+
+        // 2. Consulta filtrada por producto
+        const sql = `
+            SELECT 
+                il.id,
+                il.type,
+                il.quantity,
+                il.previous_stock,
+                il.new_stock,
+                il.reason,
+                il.created_at,
+                u.Nombre AS user_name,
+                u.rol AS user_role
+            FROM inventory_logs il
+            INNER JOIN users u ON il.user_id = u.ID
+            WHERE il.product_id = ?  -- <--- EL FILTRO CLAVE
+            ORDER BY il.created_at DESC
+        `;
+
+        const [logs] = await connection.execute(sql, [productId]);
+
+        res.status(200).json({ 
+            success: true, 
+            message: `Historial del producto '${product[0].name}' obtenido.`,
+            data: logs 
+        });
+
+    } catch (error) {
+        console.error('Error al obtener logs del producto:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
 
 //===========================================
-// Imagenes 
+// Imagenes(Privado)
 //===========================================
 
 /**
@@ -457,7 +707,9 @@ const getProductImages = async (req, res) => {
     }
 };
 
-
+//===========================================
+// Catalogo web Publico 
+//===========================================
 
 /**
  * [PÚBLICO] Catálogo Web
@@ -469,38 +721,42 @@ const getWebCatalog = async (req, res) => {
     try {
         connection = await getConnection();
 
-        // 1. Obtener productos ACTIVOS
-        // Incluimos nombres de categoría y proveedor por si los necesitas en el front
+        // 1. Obtener productos ACTIVOS con datos de Jerarquía de Categorías
         const sqlProducts = `
             SELECT 
                 p.id, p.name, p.description, p.price, p.status, 
-                p.category_id, p.supplier_id,
                 p.weight, p.height, p.width, p.depth,
                 p.custom_fields,
-                c.name AS category_name, 
+                
+                -- Datos de la Categoría del Producto (Hijo)
+                c.id AS category_id,
+                c.name AS category_name,
+                
+                -- Datos de la Categoría Padre (Para filtros agrupados)
+                parent.id AS parent_category_id,
+                parent.name AS parent_category_name,
+
                 s.name AS supplier_name
             FROM products p
             LEFT JOIN categories c ON p.category_id = c.id
+            LEFT JOIN categories parent ON c.parent_id = parent.id  -- <--- LA MAGIA ESTÁ AQUÍ
             LEFT JOIN suppliers s ON p.supplier_id = s.id
             WHERE p.status = 'active'
             ORDER BY p.name ASC
         `;
+        
         const [products] = await connection.execute(sqlProducts);
 
-        // Si no hay productos, devolvemos array vacío y ahorramos tiempo
         if (products.length === 0) {
             return res.status(200).json({ success: true, data: [] });
         }
 
-        // 2. Obtener TODAS las imágenes de los productos activos
-        // Usamos IN (...) con los IDs que acabamos de obtener
+        // 2. Obtener imágenes (Esto sigue igual)
         const productIds = products.map(p => p.id);
-        
-        // Truco para crear los signos de interrogación dinámicos (?,?,?)
         const placeholders = productIds.map(() => '?').join(',');
         
         const sqlImages = `
-            SELECT id, product_id, image_path, alt_text, is_primary, display_order
+            SELECT id, product_id, image_path, alt_text, is_primary
             FROM product_images
             WHERE product_id IN (${placeholders})
             ORDER BY product_id, is_primary DESC, display_order ASC
@@ -508,18 +764,21 @@ const getWebCatalog = async (req, res) => {
         
         const [allImages] = await connection.execute(sqlImages, productIds);
 
-        // 3. Unir Productos + Imágenes + Formato de Atributos
-        // Procesamos la lista en Javascript para armar el JSON final
+        // 3. Unir todo
         const catalog = products.map(product => {
-            // A. Formatear custom_fields (usando tu helper existente)
             const formattedProduct = formatProductAttributes(product);
-
-            // B. Encontrar las imágenes de este producto específico
             const productImages = allImages.filter(img => img.product_id === product.id);
 
-            // C. Retornar el objeto combinado
+            // Estructura final del objeto
             return {
                 ...formattedProduct,
+                // Agrupamos la info de categoría para que sea más limpio en el JSON
+                category: {
+                    id: product.category_id,
+                    name: product.category_name,
+                    parent_id: product.parent_category_id, // Será null si es categoría raíz
+                    parent_name: product.parent_category_name
+                },
                 images: productImages
             };
         });
@@ -533,6 +792,7 @@ const getWebCatalog = async (req, res) => {
         if (connection) connection.release();
     }
 };
+
 
 /**
  * [PÚBLICO] Obtener detalle de UN producto para la Web
@@ -598,6 +858,107 @@ const getWebProductById = async (req, res) => {
     }
 };
 
+/**
+ * [PÚBLICO] Buscador para el Catálogo Web
+ * - Filtra por nombre, SKU o descripción.
+ * - Solo productos ACTIVOS.
+ * - Misma estructura de respuesta que el catálogo (Imágenes + Categoría Padre + Atributos).
+ */
+const searchWebProducts = async (req, res) => {
+    let connection;
+    try {
+        const { q } = req.query;
+
+        // 1. Validar que haya término de búsqueda
+        if (!q) {
+            return res.status(400).json({ success: false, message: 'Ingresa un término de búsqueda.' });
+        }
+
+        // 2. Sanitizar
+        const term = sanitizeInput(q);
+        if (containsSQLInjection(term)) {
+            return res.status(400).json({ success: false, error: 'INPUT_MALICIOSO' });
+        }
+
+        connection = await getConnection();
+
+        // 3. Consulta Principal (Productos + Categoría + Padre)
+        // Nota: Agregamos "OR p.description LIKE" para que la búsqueda sea más útil en la web
+        const sqlProducts = `
+            SELECT 
+                p.id, p.name, p.description, p.price, p.status, 
+                p.weight, p.height, p.width, p.depth,
+                p.custom_fields,
+                
+                -- Datos Categoría Hijo
+                c.id AS category_id,
+                c.name AS category_name,
+                
+                -- Datos Categoría Padre
+                parent.id AS parent_category_id,
+                parent.name AS parent_category_name,
+
+                s.name AS supplier_name
+            FROM products p
+            LEFT JOIN categories c ON p.category_id = c.id
+            LEFT JOIN categories parent ON c.parent_id = parent.id
+            LEFT JOIN suppliers s ON p.supplier_id = s.id
+            WHERE p.status = 'active' 
+            AND (p.name LIKE ? OR p.sku LIKE ? OR p.description LIKE ?)
+            LIMIT 20
+        `;
+
+        const searchPattern = `%${term}%`;
+        const [products] = await connection.execute(sqlProducts, [searchPattern, searchPattern, searchPattern]);
+
+        // Si no hay resultados, retornamos array vacío
+        if (products.length === 0) {
+            return res.status(200).json({ success: true, data: [] });
+        }
+
+        // 4. Obtener Imágenes (Igual que en el catálogo)
+        const productIds = products.map(p => p.id);
+        const placeholders = productIds.map(() => '?').join(',');
+        
+        const sqlImages = `
+            SELECT id, product_id, image_path, alt_text, is_primary, display_order
+            FROM product_images
+            WHERE product_id IN (${placeholders})
+            ORDER BY product_id, is_primary DESC, display_order ASC
+        `;
+        
+        const [allImages] = await connection.execute(sqlImages, productIds);
+
+        // 5. Armar el JSON Final (Mismo formato que el Catálogo)
+        const results = products.map(product => {
+            const formatted = formatProductAttributes(product);
+            const productImages = allImages.filter(img => img.product_id === product.id);
+
+            return {
+                ...formatted,
+                // Estructura de categoría anidada
+                category: {
+                    id: product.category_id,
+                    name: product.category_name,
+                    parent_id: product.parent_category_id,
+                    parent_name: product.parent_category_name
+                },
+                images: productImages
+            };
+        });
+
+        res.status(200).json({ success: true, data: results });
+
+    } catch (error) {
+        console.error('Error en buscador web:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
+
+
 module.exports = { 
     createProduct, 
     updateProduct, 
@@ -608,5 +969,9 @@ module.exports = {
     deleteProductImage,
     getProductImages,
     getWebCatalog,
-    getWebProductById
+    getWebProductById,
+    searchWebProducts,
+    updateProductStock,
+    getInventoryLogs,
+    getProductInventoryLogs
 };

@@ -39,22 +39,22 @@ curl -v -X POST http://localhost:3000/api/users -H "Authorization: Bearer <TU_TO
     curl -X GET http://localhost:3000/api/users/profile -H "Authorization: Bearer <TU_TOKEN_JWT>"
     
 
-  ## Crear nuevo grupo
+  ## Crear nuevo grupo (solo admins)
     curl -v -X POST http://localhost:3000/api/users/admin/roles -H "Authorization: Bearer <TU_TOKEN_JWT>" -H "Content-Type: application/json" -d '{ "roleName": "logistica" }'  
-  ## Eliminar roles 
+  ## Eliminar roles  (solo admins)
     curl -v -X DELETE http://localhost:3000/api/users/admin/roles/logistica -H "Authorization: Bearer <TU_TOKEN_JWT>"
 
   ## Cambioar/modificar/eliminar permisos (solo admins)
   curl -v -X PUT http://localhost:3000/api/users/admin/permissions  -H "Content-Type: application/json"  -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"vendedor": ["view.products","view.clients","view.own.visits","add.order","view.own.order"]}'
 
-  ## Consulta de permisos 
+  ## peticion para traer todos los permisos exixtentes (solo admins)
   curl -v -X GET http://localhost:3000/api/users/admin/permissions-list -H "Authorization: Bearer <TU_TOKEN_JWT>"
 
-  ## Obtner todos los roles y los usuario que dependen de el 
+  ## Obtner todos los roles y cuantos usuarios dependen de cada uni(solo admin)
   curl -v -X GET http://localhost:3000/api/users/admin/roles/stats -H "Authorization: Bearer <TU_TOKEN_JWT>"
 
-  ## ver los permisos de un rol en espesifico
-   curl -v -X GET http://localhost:3000/api/users/roles/gerente/permissions -H "Authorization: Bearer <TU_TOKEN_JWT>"
+  ## ver los permisos que tiene un rol en espesifico
+   curl -v -X GET http://localhost:3000/api/users/roles/[rol]/permissions -H "Authorization: Bearer <TU_TOKEN_JWT>"
 
 
 # Categorias
@@ -113,7 +113,7 @@ curl -v -X POST http://localhost:3000/api/users -H "Authorization: Bearer <TU_TO
 
  ## Insertar 
   ```shell
-   curl -v -X POST http://localhost:3000/api/products -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"name": "Teclado Mecánico RGB TKL", "sku": "TEC-RGB-TKL-001", "barcode": "7501234567890", "description": "Teclado mecánico Tenkeyless con switches azules y retroiluminación RGB personalizable.","price": 1899.99, "cost_price": 1200.00, "stock_quantity": 50, "product_type": "product", "status": "active", "category_id": 1, "supplier_id": 1, "weight": 0.85,"height": 4.5, "width": 36.0, "depth": 14.0, "custom_fields": { "tipo_switch": "Blue Gateron", "formato": "TKL (Tenkeyless)", "conexion": "USB-C" } }'
+   curl -v -X POST http://localhost:3000/api/products -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"name": "Teclado Mecánico RGB TKL", "sku": "TEC-RGB-TKL-001", "barcode": "7501234567890", "description": "Teclado mecánico Tenkeyless con switches azules y retroiluminación RGB personalizable.","price": 1899.99, "cost_price": 1200.00, "product_type": "product", "status": "active", "category_id": 1, "supplier_id": 1, "weight": 0.85,"height": 4.5, "width": 36.0, "depth": 14.0, "custom_fields": { "tipo_switch": "Blue Gateron", "formato": "TKL (Tenkeyless)", "conexion": "USB-C" } }'
   ```
 
  ## Ver productos 
@@ -134,6 +134,24 @@ curl -v -X POST http://localhost:3000/api/users -H "Authorization: Bearer <TU_TO
    curl -v -X DELETE http://localhost:3000/api/products/ID -H "Authorization: Bearer <TU_TOKEN_JWT>"
   ```
 
+# Inventario
+
+## Casos 
+A. Llegó mercancía (Sumar)
+Llegaron 50 teclados nuevos del proveedor
+
+curl -v -X PUT http://localhost:3000/api/products/8/inventory  -H "Authorization: Bearer <TU_TOKEN_JWT>" -H "Content-Type: application/json" -d '{"type": "add", "quantity": 50,"reason": "Recepción de pedido de proveedor #XP-900"}'
+
+B. Se rompió algo (Restar)
+Un empleado tiró una caja y se rompieron 2.
+curl -v -X PUT http://localhost:3000/api/products/8/inventory -H "Authorization: Bearer <TU_TOKEN_JWT>" -H "Content-Type: application/json" -d '{"type": "subtract","quantity": 2,"reason": "Merma: Daño en almacén, caja caída"}' 
+
+C. Auditoría (Fijar)
+El sistema dice que hay 100, pero contaste físicamente y hay 98. Corriges el número real.
+curl -v -X PUT http://localhost:3000/api/products/8/inventory -H "Authorization: Bearer <TU_TOKEN_JWT>" -H "Content-Type: application/json" -d '{"type": "set","quantity": 98,"reason": "Ajuste por inventario físico mensual"}'
+
+# Ver inventario
+curl -X GET http://localhost:3000/api/products/inventory-logs -H "Authorization: Bearer <TU_TOKEN_JWT>"
 
 # Clientes 
 
@@ -319,6 +337,7 @@ curl -X PUT http://localhost:3000/api/company -H "Authorization: Bearer <TU_TOKE
 # Banner
   curl -v -X POST http://localhost:3000/api/content/banners -H "Authorization: Bearer <TU_TOKEN_JWT>" -F "image=@promo_verano.jpg" -F "title=Gran Venta de Verano" -F "link_url=/ofertas" -F "display_order=1"
 
+ ## Publica
   curl -v -X GET http://localhost:3000/api/content/banners 
 
 
@@ -330,3 +349,6 @@ curl -X PUT http://localhost:3000/api/company -H "Authorization: Bearer <TU_TOKE
 
 
    scp -o "HostKeyAlgorithms=+ssh-rsa,rsa-sha2-512,rsa-sha2-256" -i /home/s4nti/Documentos/aws/alkimia.pem -r dist/* ubuntu@ec2-52-14-208-243.us-east-2.compute.amazonaws.com:/var/www/crm
+
+  ## Buscador
+   curl -X GET "http://localhost:3000/api/products/catalog/search?q=teclado"

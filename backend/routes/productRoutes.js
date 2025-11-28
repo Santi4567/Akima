@@ -11,8 +11,6 @@ const upload = require('../middleware/upload'); // <-- Importar Multer
 const { uploadProductImage,
         deleteProductImage,
         getProductImages,
-        getWebCatalog,
-        getWebProductById
  } = require('../controllers/productController');
 
  //Productos 
@@ -23,6 +21,27 @@ const {
     searchProducts,
     deleteProduct
 } = require('../controllers/productController');
+
+//Publicos -catalogo web
+const { getWebCatalog,
+        getWebProductById,
+        searchWebProducts
+ } = require('../controllers/productController');
+
+ // Inventario 
+const { 
+    getInventoryLogs,
+    updateProductStock,
+    getProductInventoryLogs 
+} = require('../controllers/productController');
+const { 
+    // validador de stock
+    validateStockUpdate 
+} = require('../middleware/productValidator');
+
+//===========================================
+// Rutas privadas Productos
+//===========================================
 
 // Crear un nuevo producto
 router.post(
@@ -67,6 +86,41 @@ router.delete(
 );
 
 //===========================================
+// Rutas privadas Inventario
+//===========================================
+
+/**
+ * Ver bitácora de movimientos de inventario
+ * GET /api/products/inventory-logs
+ */
+router.get(
+    '/inventory-logs',
+    verifyToken,
+    requirePermission(PERMISSIONS.VIEW_INVENTORY_LOGS),
+    getInventoryLogs
+);
+
+// GET /api/products/:id/inventory-logs
+router.get(
+    '/:id/inventory-logs',
+    verifyToken,
+    requirePermission(PERMISSIONS.VIEW_INVENTORY_LOGS),
+    getProductInventoryLogs
+);
+
+/**
+ * Ajuste manual de inventario
+ * PUT /api/products/:id/inventory
+ */
+router.put(
+    '/:id/inventory',
+    verifyToken,
+    requirePermission(PERMISSIONS.ADJUST_INVENTORY), // Permiso exclusivo de almacén
+    validateStockUpdate,
+    updateProductStock
+);
+
+//===========================================
 // Imagenes 
 //===========================================
 /**
@@ -107,8 +161,13 @@ router.get(
  * Sin autenticación requerida. Solo productos activos.
  */
 router.get('/catalog', getWebCatalog);
+
+// GET /api/products/catalog/search?q=teclado
+router.get('/catalog/search', searchWebProducts);
+
 // GET /api/products/catalog/:id
 router.get('/catalog/:id', getWebProductById);
+
 
 
 
