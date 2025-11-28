@@ -11,7 +11,8 @@ const upload = require('../middleware/upload'); // <-- Importar Multer
 const { uploadProductImage,
         deleteProductImage,
         getProductImages,
-        getWebCatalog
+        getWebCatalog,
+        getWebProductById
  } = require('../controllers/productController');
 
  //Productos 
@@ -106,6 +107,8 @@ router.get(
  * Sin autenticación requerida. Solo productos activos.
  */
 router.get('/catalog', getWebCatalog);
+// GET /api/products/catalog/:id
+router.get('/catalog/:id', getWebProductById);
 
 
 

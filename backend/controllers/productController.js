@@ -534,6 +534,70 @@ const getWebCatalog = async (req, res) => {
     }
 };
 
+/**
+ * [PÚBLICO] Obtener detalle de UN producto para la Web
+ * - Solo productos 'active'.
+ * - Incluye imágenes ordenadas.
+ * - Formatea atributos.
+ * - NO muestra precios de costo ni datos internos.
+ */
+const getWebProductById = async (req, res) => {
+    let connection;
+    try {
+        const productId = req.params.id;
+
+        // Validar ID numérico
+        if (isNaN(parseInt(productId, 10))) {
+            return res.status(400).json({ success: false, message: 'ID inválido.' });
+        }
+
+        connection = await getConnection();
+
+        // 1. Obtener datos del producto (Solo campos públicos)
+        const sqlProduct = `
+            SELECT 
+                p.id, p.sku, p.name, p.description, p.price, 
+                p.weight, p.height, p.width, p.depth,
+                p.custom_fields,
+                c.name AS category_name
+            FROM products p
+            LEFT JOIN categories c ON p.category_id = c.id
+            WHERE p.id = ? AND p.status = 'active'
+        `;
+
+        const [products] = await connection.execute(sqlProduct, [productId]);
+
+        if (products.length === 0) {
+            return res.status(404).json({ success: false, message: 'Producto no encontrado o no disponible.' });
+        }
+
+        // 2. Obtener imágenes del producto
+        const sqlImages = `
+            SELECT id, image_path, alt_text, is_primary
+            FROM product_images
+            WHERE product_id = ?
+            ORDER BY is_primary DESC, display_order ASC
+        `;
+        
+        const [images] = await connection.execute(sqlImages, [productId]);
+
+        // 3. Formatear y Unir
+        // Usamos el helper que ya tenías para los custom_fields
+        const formattedProduct = formatProductAttributes(products[0]);
+
+        // Agregamos las imágenes al objeto final
+        formattedProduct.images = images;
+
+        res.status(200).json({ success: true, data: formattedProduct });
+
+    } catch (error) {
+        console.error('Error al obtener producto web:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
 module.exports = { 
     createProduct, 
     updateProduct, 
@@ -543,5 +607,6 @@ module.exports = {
     uploadProductImage,
     deleteProductImage,
     getProductImages,
-    getWebCatalog
+    getWebCatalog,
+    getWebProductById
 };

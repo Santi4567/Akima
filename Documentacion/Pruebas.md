@@ -319,7 +319,7 @@ curl -X PUT http://localhost:3000/api/company -H "Authorization: Bearer <TU_TOKE
 # Banner
   curl -v -X POST http://localhost:3000/api/content/banners -H "Authorization: Bearer <TU_TOKEN_JWT>" -F "image=@promo_verano.jpg" -F "title=Gran Venta de Verano" -F "link_url=/ofertas" -F "display_order=1"
 
-  curl -v -X GET http://localhost:3000/api/content/banners -H "Authorization: Bearer <TU_TOKEN_JWT>"
+  curl -v -X GET http://localhost:3000/api/content/banners 
 
 
 
@@ -327,3 +327,6 @@ curl -X PUT http://localhost:3000/api/company -H "Authorization: Bearer <TU_TOKE
 
   ## Catalogo web 
    curl -v -X GET http://localhost:3000/api/products/catalog
+
+
+   scp -o "HostKeyAlgorithms=+ssh-rsa,rsa-sha2-512,rsa-sha2-256" -i /home/s4nti/Documentos/aws/alkimia.pem -r dist/* ubuntu@ec2-52-14-208-243.us-east-2.compute.amazonaws.com:/var/www/crm

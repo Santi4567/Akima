@@ -39,7 +39,7 @@ const { getBanners, uploadBanner, deleteBanner } = require('../controllers/conte
 // --- Rutas ---
 
 // Ver Banners (Público o Protegido según prefieras, aquí lo pongo protegido básico)
-router.get('/', verifyToken, getBanners);
+router.get('/', getBanners);
 
 // Subir Banner (Admin/Marketing)
 router.post(
