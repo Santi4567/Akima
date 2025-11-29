@@ -318,10 +318,8 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
   const [formData, setFormData] = useState({
     client_id: null,
     user_id: null,
-    // --- CAMBIO: Separamos los campos ---
-    visit_date: '', // Nuevo campo para la fecha
-    visit_time: '', // Nuevo campo para la hora
-    // ---
+    visit_date: '', 
+    visit_time: '', 
     notes: '',
     status: 'pending',
   });
@@ -339,6 +337,22 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
 
   const isEditing = !!initialData;
   const formTitle = isEditing ? 'Editar Visita' : 'Agendar Visita';
+
+  // --- LÓGICA DE FILTRADO ---
+  // Filtramos clientes basándonos en la búsqueda
+  const filteredClients = clientSearch
+    ? allClients.filter(client =>
+        `${client.first_name} ${client.last_name}`.toLowerCase().includes(clientSearch.toLowerCase())
+      )
+    : allClients;
+
+  // Filtramos usuarios basándonos en la búsqueda (si aplica)
+  const filteredUsers = userSearch
+    ? allUsers.filter(user =>
+        user.Nombre.toLowerCase().includes(userSearch.toLowerCase())
+      )
+    : allUsers;
+
 
   // Cargar Clientes y Usuarios (sin cambios)
   useEffect(() => {
@@ -375,12 +389,10 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
   // Cargar datos iniciales o valores por defecto
   useEffect(() => {
     if (isEditing) {
-      // --- CAMBIO: Separamos la fecha y hora al cargar ---
       let datePart = '';
       let timePart = '';
 
       if (initialData.scheduled_for) {
-        // Obtenemos 'YYYY-MM-DDTHH:MM'
         const localDateTime = new Date(initialData.scheduled_for).toISOString().slice(0, 16);
         const parts = localDateTime.split('T');
         datePart = parts[0];
@@ -397,13 +409,11 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
       });
       
     } else {
-      // Valor por defecto: asignar al usuario actual
       setFormData(prev => ({ ...prev, user_id: user.id }));
       setUserSearch(user.nombre);
     }
   }, [initialData, isEditing, user]);
 
-  // Handlers de selección (sin cambios)
   const selectClient = (client) => {
     setFormData(prev => ({ ...prev, client_id: client.id }));
     setClientSearch(`${client.first_name} ${client.last_name}`);
@@ -418,7 +428,6 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
     setFormErrors(prev => ({ ...prev, user_id: null }));
   };
   
-  // Validación (ahora revisa fecha y hora)
   const validateForm = () => {
     const errors = {};
     if (!formData.client_id) {
@@ -427,7 +436,6 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
     if (!formData.user_id) {
       errors.user_id = 'Debes asignar la visita a un vendedor';
     }
-    // --- CAMBIO: Validamos los campos nuevos ---
     if (!formData.visit_date) {
       errors.visit_date = 'La fecha es obligatoria';
     }
@@ -447,13 +455,11 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
     
     setIsSubmitting(true);
     
-    // --- CAMBIO: Unimos fecha y hora al formato de MySQL ---
-    // El input 'time' da 'HH:MM'. Añadimos ':00' para los segundos.
     const mysqlDateTime = `${formData.visit_date} ${formData.visit_time}:00`;
     
     const payload = {
       client_id: formData.client_id,
-      scheduled_for: mysqlDateTime, // <-- Enviamos el formato unido
+      scheduled_for: mysqlDateTime, 
       notes: formData.notes,
     };
     
@@ -490,7 +496,6 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
     }
   };
   
-  // Helper para clases de inputs (sin cambios)
   const getInputClasses = (fieldName) => {
     return `mt-1 block w-full p-2 border rounded-md shadow-sm ${
       formErrors[fieldName]
@@ -615,7 +620,7 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
 
         </div>
         
-        {/* --- CAMBIO: Fila de Fecha y Hora --- */}
+        {/* Fila de Fecha y Hora */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
             <label htmlFor="visit_date" className="block text-sm font-medium text-gray-700">

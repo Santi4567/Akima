@@ -153,6 +153,9 @@ curl -v -X PUT http://localhost:3000/api/products/8/inventory -H "Authorization:
 # Ver inventario
 curl -X GET http://localhost:3000/api/products/inventory-logs -H "Authorization: Bearer <TU_TOKEN_JWT>"
 
+## ver los movimientos de inventario de un producto en espesifico 
+curl -X GET http://localhost:3000/api/products/8/inventory-logs "Authorization: Bearer <TU_TOKEN_JWT>"
+
 # Clientes 
 
  ## Crear Clientes
