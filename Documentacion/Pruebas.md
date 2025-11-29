@@ -355,3 +355,6 @@ curl -X PUT http://localhost:3000/api/company -H "Authorization: Bearer <TU_TOKE
 
   ## Buscador
    curl -X GET "http://localhost:3000/api/products/catalog/search?q=teclado"
+
+
+   

@@ -3,9 +3,12 @@ import React from 'react';
 import { Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { FontAwesome } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 
 export default function PanelLayout() {
   return (
+    <>
+    <StatusBar style="dark" backgroundColor="#f8f9fa" />
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -100,8 +103,28 @@ export default function PanelLayout() {
         name="historial-ordenes" 
         options={{ href: null, tabBarStyle: { display: 'none' } }} 
       />
+      {/* Pagos */}
+       <Tabs.Screen 
+         name="generar-pago" 
+         options={{ href: null, tabBarStyle: { display: 'none' } }} 
+       />
+       <Tabs.Screen 
+        name="inventario" 
+        options={{ href: null, tabBarStyle: { display: 'none' } }} 
+      />
+      <Tabs.Screen 
+        name="despacho" 
+        options={{ href: null, tabBarStyle: { display: 'none' } }} 
+      />
+      <Tabs.Screen 
+        name="productos" 
+        options={{ 
+          href: null, 
+          tabBarStyle: { display: 'none' } 
+        }} 
+      />
 
     </Tabs>
-    
+    </>
   );
 }

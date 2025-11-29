@@ -334,7 +334,7 @@ export default function NuevaOrdenScreen() {
     if (client) {
       setOrderClient(null); // Si hay cliente, regresamos al paso 1
     } else {
-      router.back(); // Si no hay cliente, regresamos al menú anterior
+      router.replace('/(panel)/vendedor'); // Si no hay cliente, regresamos al menú anterior
     }
   };
 
