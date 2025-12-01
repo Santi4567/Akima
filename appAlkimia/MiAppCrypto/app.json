@@ -12,16 +12,17 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.h4ck3r.alkimia",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-        "expo": {
+      "expo": {
         "android": {
           "package": "com.tuusuario.alkimia",
-          "usesCleartextTraffic": true  
+          "usesCleartextTraffic": true
         }
       },
       "edgeToEdgeEnabled": true,
@@ -49,6 +50,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "9ceb2be9-2427-4624-a62b-07a553cf362d"
+      }
     }
   }
 }

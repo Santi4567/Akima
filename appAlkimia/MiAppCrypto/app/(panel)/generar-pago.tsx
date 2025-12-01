@@ -12,7 +12,6 @@ import { useToast } from '@/components/ToastNotification';
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
-// Mapeo de métodos de pago (Para mostrar en español)
 const PAYMENT_METHODS = [
     { id: 'cash', label: 'Efectivo 💵' },
     { id: 'transfer', label: 'Transferencia 🏦' },
@@ -27,6 +26,13 @@ export default function GenerarPagoScreen() {
 
   // Estados del Modal de Pago
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  
+  // --- NUEVOS ESTADOS PARA HISTORIAL Y CÁLCULO ---
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [pendingBalance, setPendingBalance] = useState(0);
+  // -----------------------------------------------
+
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('cash');
   const [notes, setNotes] = useState('');
@@ -38,7 +44,7 @@ export default function GenerarPagoScreen() {
     fetchOrders();
   }, []);
 
-  // 1. CARGAR ÓRDENES
+  // 1. CARGAR ÓRDENES (Lista General)
   const fetchOrders = async () => {
     setLoading(true);
     try {
@@ -49,11 +55,13 @@ export default function GenerarPagoScreen() {
       const data = await res.json();
       
       if (data.success) {
-        // Filtramos: No mostrar las que ya están "paid" o "completed" 
-        // (A menos que manejes pagos parciales y el estatus siga en pending)
-        const pending = data.data.filter((o: any) => o.status !== 'cancelled');
-        setOrders(pending);
-        setFilteredOrders(pending);
+        // Mostramos las pendientes y procesando (excluyendo canceladas)
+        const active = data.data.filter((o: any) => o.status !== 'cancelled');
+        // Ordenar por ID descendente
+        active.sort((a:any, b:any) => b.id - a.id);
+        
+        setOrders(active);
+        setFilteredOrders(active);
       }
     } catch (error) {
       showToast(false, "Error al cargar órdenes");
@@ -62,7 +70,6 @@ export default function GenerarPagoScreen() {
     }
   };
 
-  // 2. BUSCADOR
   const handleSearch = (text: string) => {
     setSearchQuery(text);
     if (!text) {
@@ -77,33 +84,59 @@ export default function GenerarPagoScreen() {
     setFilteredOrders(filtered);
   };
 
-  // 3. SELECCIONAR ORDEN (ABRIR MODAL)
-  const handleSelectOrder = (order: any) => {
-    // Calculamos saldo pendiente (Simulado si el API no trae 'paid_amount')
-    // Asumimos que si no hay info, debe todo.
-    const total = parseFloat(order.total_amount);
-    const paid = parseFloat(order.paid_amount || '0'); 
-    
-    // Agregamos datos calculados al objeto para usar en el modal
-    const orderWithBalance = {
-        ...order,
-        pending_balance: total - paid
-    };
-    
-    setSelectedOrder(orderWithBalance);
-    setAmount(''); // Limpiar campo
+  // 2. SELECCIONAR ORDEN Y CARGAR HISTORIAL (LÓGICA NUEVA)
+  const handleSelectOrder = async (order: any) => {
+    setSelectedOrder(order);
+    setAmount('');
     setNotes('');
     setMethod('cash');
+    setPaymentHistory([]); // Limpiar anterior
+    setLoadingHistory(true);
+
+    try {
+        const token = await AsyncStorage.getItem('userToken');
+        // --- NUEVO ENDPOINT DE HISTORIAL ---
+        const res = await fetch(`${API_URL}/api/payments/order/${order.id}`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+
+        let totalPaid = 0;
+        let history = [];
+
+        if (data.success && Array.isArray(data.data)) {
+            history = data.data;
+            // Sumar todos los abonos
+            totalPaid = history.reduce((sum: number, pay: any) => sum + parseFloat(pay.amount), 0);
+        }
+
+        setPaymentHistory(history);
+        
+        // Calcular saldo pendiente real
+        const totalOrder = parseFloat(order.total_amount);
+        setPendingBalance(Math.max(0, totalOrder - totalPaid));
+
+    } catch (error) {
+        console.error(error);
+        showToast(false, "Error al calcular saldo");
+    } finally {
+        setLoadingHistory(false);
+    }
   };
 
-  // 4. ENVIAR PAGO (POST)
+  // 3. ENVIAR PAGO
   const submitPayment = async () => {
     if (!amount || parseFloat(amount) <= 0) {
-        showToast(false, "El monto debe ser mayor a 0");
+        showToast(false, "Monto inválido");
         return;
     }
-    setProcessing(true);
+    // Validar que no pague más de lo que debe (Opcional, pero recomendado)
+    if (parseFloat(amount) > pendingBalance + 1) { // +1 margen por decimales
+        showToast(false, `El saldo pendiente es solo $${pendingBalance.toFixed(2)}`);
+        return;
+    }
 
+    setProcessing(true);
     try {
         const token = await AsyncStorage.getItem('userToken');
         const payload = {
@@ -125,11 +158,13 @@ export default function GenerarPagoScreen() {
         const data = await res.json();
 
         if (data.success) {
-            showToast(true, "Pago registrado exitosamente 💰");
-            setSelectedOrder(null); // Cerrar modal
-            fetchOrders(); // Recargar lista para actualizar saldos
+            showToast(true, "Pago registrado 💰");
+            // Recargamos el historial interno de este modal para actualizar saldos sin cerrar
+            handleSelectOrder(selectedOrder); 
+            // También actualizamos la lista de fondo por si cambió el estatus
+            fetchOrders(); 
         } else {
-            showToast(false, data.message || "Error al registrar cobro");
+            showToast(false, data.message || "Error al registrar");
         }
 
     } catch (error) {
@@ -139,7 +174,6 @@ export default function GenerarPagoScreen() {
     }
   };
 
-  // RENDER ITEM DE LA LISTA
   const renderItem = ({ item }: { item: any }) => (
     <TouchableOpacity style={styles.card} onPress={() => handleSelectOrder(item)}>
         <View style={styles.cardRow}>
@@ -149,15 +183,9 @@ export default function GenerarPagoScreen() {
         <Text style={styles.clientName}>{item.client_name}</Text>
         <Text style={styles.totalText}>Total: ${parseFloat(item.total_amount).toFixed(2)}</Text>
         
-        {/* Etiqueta de Estado */}
-        <View style={[styles.badge, 
-            { backgroundColor: item.status === 'pending' ? '#fff3e0' : '#e8f5e9' }
-        ]}>
-            <Text style={{
-                color: item.status === 'pending' ? '#ef6c00' : '#2e7d32', 
-                fontWeight: 'bold', fontSize: 12
-            }}>
-                {item.status === 'pending' ? 'PENDIENTE DE PAGO' : 'PAGADO'}
+        <View style={[styles.badge, { backgroundColor: item.status === 'completed' ? '#e8f5e9' : '#fff3e0' }]}>
+            <Text style={{color: item.status === 'completed' ? '#2e7d32' : '#ef6c00', fontWeight: 'bold', fontSize: 12}}>
+                {item.status.toUpperCase()}
             </Text>
         </View>
     </TouchableOpacity>
@@ -165,7 +193,6 @@ export default function GenerarPagoScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#333" />
@@ -174,7 +201,6 @@ export default function GenerarPagoScreen() {
         <View style={{width: 24}}/>
       </View>
 
-      {/* BUSCADOR */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
             <Ionicons name="search" size={20} color="#666" />
@@ -187,7 +213,6 @@ export default function GenerarPagoScreen() {
         </View>
       </View>
 
-      {/* LISTA */}
       {loading ? (
           <ActivityIndicator size="large" color="#2e7d32" style={{marginTop: 50}} />
       ) : (
@@ -196,124 +221,148 @@ export default function GenerarPagoScreen() {
             keyExtractor={item => item.id.toString()}
             renderItem={renderItem}
             contentContainerStyle={styles.listContent}
-            ListEmptyComponent={
-                <Text style={styles.emptyText}>No hay órdenes pendientes.</Text>
-            }
+            ListEmptyComponent={<Text style={styles.emptyText}>No hay órdenes.</Text>}
           />
       )}
 
       {/* --- MODAL DE COBRO --- */}
       <Modal visible={!!selectedOrder} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-            <KeyboardAvoidingView 
-                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                style={styles.modalContent}
-            >
+            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalContent}>
                 {selectedOrder && (
                     <ScrollView>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Cobrar Orden #{selectedOrder.id}</Text>
+                            <Text style={styles.modalTitle}>Orden #{selectedOrder.id}</Text>
                             <TouchableOpacity onPress={() => setSelectedOrder(null)}>
                                 <Ionicons name="close" size={24} color="#666" />
                             </TouchableOpacity>
                         </View>
 
-                        {/* INFO DE LA ORDEN */}
+                        {/* INFO DE LA ORDEN Y SALDOS */}
                         <View style={styles.infoBox}>
                             <Text style={styles.clientLabel}>Cliente:</Text>
                             <Text style={styles.clientValue}>{selectedOrder.client_name}</Text>
                             
                             <View style={styles.balanceRow}>
                                 <View>
-                                    <Text style={styles.balanceLabel}>Total:</Text>
+                                    <Text style={styles.balanceLabel}>Total Orden:</Text>
                                     <Text style={styles.totalValue}>${parseFloat(selectedOrder.total_amount).toFixed(2)}</Text>
                                 </View>
                                 <View style={{alignItems: 'flex-end'}}>
                                     <Text style={styles.balanceLabel}>Por Cobrar:</Text>
-                                    {/* Usamos el pending_balance calculado o el total si no hay pagos previos */}
-                                    <Text style={styles.pendingValue}>
-                                        ${selectedOrder.pending_balance 
-                                            ? selectedOrder.pending_balance.toFixed(2) 
-                                            : parseFloat(selectedOrder.total_amount).toFixed(2)}
-                                    </Text>
+                                    {/* USAMOS EL SALDO CALCULADO DEL ENDPOINT NUEVO */}
+                                    {loadingHistory ? (
+                                        <ActivityIndicator size="small" color="#d32f2f" />
+                                    ) : (
+                                        <Text style={[styles.pendingValue, pendingBalance <= 0 && {color: '#2e7d32'}]}>
+                                            ${pendingBalance.toFixed(2)}
+                                        </Text>
+                                    )}
                                 </View>
                             </View>
                         </View>
 
-                        {/* HISTORIAL DE ABONOS (Visualización) */}
+                        {/* HISTORIAL DE ABONOS (TABLA) */}
                         <Text style={styles.sectionTitle}>Historial de Abonos</Text>
-                        <View style={styles.historyBox}>
-                             {/* NOTA: Como el endpoint de 'lista' no suele traer el array de pagos, 
-                                 aquí validamos si existe. Si no, mostramos mensaje */}
-                             {selectedOrder.payments && selectedOrder.payments.length > 0 ? (
-                                selectedOrder.payments.map((p: any, index: number) => (
-                                    <View key={index} style={styles.paymentRow}>
-                                        <Text style={styles.payDate}>{new Date(p.created_at).toLocaleDateString()}</Text>
-                                        <Text style={styles.payMethod}>
-                                            {PAYMENT_METHODS.find(m => m.id === p.method)?.label || p.method}
-                                        </Text>
-                                        <Text style={styles.payAmount}>${parseFloat(p.amount).toFixed(2)}</Text>
+                        
+                        <View style={styles.table}>
+                             {/* Encabezados de la Tabla */}
+                             <View style={styles.tableHeader}>
+                                <Text style={[styles.th, {flex: 1}]}>Fecha</Text>
+                                <Text style={[styles.th, {flex: 1.5}]}>Método</Text>
+                                <Text style={[styles.th, {flex: 1, textAlign: 'right'}]}>Monto</Text>
+                             </View>
+
+                            <ScrollView 
+                                style={styles.tableBody} 
+                                nestedScrollEnabled={true} // VITAL para Android
+                             >
+                                 {loadingHistory ? (
+                                     <ActivityIndicator color="#2e7d32" style={{padding: 20}} />
+                                 ) : paymentHistory.length > 0 ? (
+                                    paymentHistory.map((p: any, index: number) => (
+                                        <View key={index} style={[styles.tableRow, index % 2 !== 0 && styles.tableRowAlt]}>
+                                            <View style={{flex: 1}}>
+                                                <Text style={styles.td}>{new Date(p.payment_date).toLocaleDateString()}</Text>
+                                                <Text style={styles.tdSmall}>{new Date(p.payment_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</Text>
+                                            </View>
+                                            <View style={{flex: 1.5}}>
+                                                <Text style={styles.tdBold}>{PAYMENT_METHODS.find(m => m.id === p.method)?.label.replace(/[^a-zA-Z ]/g, "") || p.method}</Text>
+                                                <Text style={styles.tdSmall} numberOfLines={1}>Recibió: {p.received_by?.split(' ')[0] || 'Sistema'}</Text>
+                                            </View>
+                                            <Text style={[styles.tdAmount, {flex: 1}]}>${parseFloat(p.amount).toFixed(2)}</Text>
+                                        </View>
+                                    ))
+                                 ) : (
+                                    <View style={styles.emptyRow}>
+                                        <Text style={styles.noPayments}>Sin abonos registrados.</Text>
                                     </View>
-                                ))
-                             ) : (
-                                <Text style={styles.noPayments}>No hay abonos registrados en esta vista.</Text>
-                             )}
+                                 )}
+                             </ScrollView>
                         </View>
 
                         <View style={styles.divider} />
 
-                        {/* FORMULARIO DE PAGO */}
-                        <Text style={styles.sectionTitle}>Nuevo Pago</Text>
-                        
-                        <Text style={styles.label}>Monto a cobrar:</Text>
-                        <TextInput 
-                            style={styles.inputAmount}
-                            placeholder="$0.00"
-                            keyboardType="numeric"
-                            value={amount}
-                            onChangeText={setAmount}
-                        />
+                        {/* FORMULARIO DE PAGO (SOLO SI HAY SALDO) */}
+                        {pendingBalance > 0.01 ? (
+                            <>
+                                <Text style={styles.sectionTitle}>Nuevo Abono</Text>
+                                
+                                <Text style={styles.label}>Monto:</Text>
+                                <TextInput 
+                                    style={styles.inputAmount}
+                                    placeholder="$0.00"
+                                    keyboardType="numeric"
+                                    value={amount}
+                                    onChangeText={setAmount}
+                                />
 
-                        <Text style={styles.label}>Método de Pago:</Text>
-                        <View style={styles.methodsContainer}>
-                            {PAYMENT_METHODS.map((m) => (
+                                <Text style={styles.label}>Método:</Text>
+                                <View style={styles.methodsContainer}>
+                                    {PAYMENT_METHODS.map((m) => (
+                                        <TouchableOpacity 
+                                            key={m.id}
+                                            style={[styles.methodBtn, method === m.id && styles.methodBtnActive]}
+                                            onPress={() => setMethod(m.id)}
+                                        >
+                                            <Text style={[styles.methodText, method === m.id && styles.methodTextActive]}>
+                                                {m.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+
+                                <Text style={styles.label}>Notas:</Text>
+                                <TextInput 
+                                    style={styles.inputNotes}
+                                    placeholder="Referencia..."
+                                    value={notes}
+                                    onChangeText={setNotes}
+                                />
+
                                 <TouchableOpacity 
-                                    key={m.id}
-                                    style={[styles.methodBtn, method === m.id && styles.methodBtnActive]}
-                                    onPress={() => setMethod(m.id)}
+                                    style={[styles.payButton, processing && {opacity: 0.7}]}
+                                    onPress={submitPayment}
+                                    disabled={processing}
                                 >
-                                    <Text style={[styles.methodText, method === m.id && styles.methodTextActive]}>
-                                        {m.label}
-                                    </Text>
+                                    {processing ? (
+                                        <ActivityIndicator color="#fff" />
+                                    ) : (
+                                        <Text style={styles.payButtonText}>REGISTRAR COBRO</Text>
+                                    )}
                                 </TouchableOpacity>
-                            ))}
-                        </View>
-
-                        <Text style={styles.label}>Notas (Opcional):</Text>
-                        <TextInput 
-                            style={styles.inputNotes}
-                            placeholder="Referencia, folio, etc..."
-                            value={notes}
-                            onChangeText={setNotes}
-                        />
-
-                        <TouchableOpacity 
-                            style={[styles.payButton, processing && {opacity: 0.7}]}
-                            onPress={submitPayment}
-                            disabled={processing}
-                        >
-                            {processing ? (
-                                <ActivityIndicator color="#fff" />
-                            ) : (
-                                <Text style={styles.payButtonText}>REGISTRAR COBRO</Text>
-                            )}
-                        </TouchableOpacity>
+                            </>
+                        ) : (
+                            <View style={styles.paidContainer}>
+                                <Ionicons name="checkmark-circle" size={40} color="#2e7d32" />
+                                <Text style={styles.paidText}>¡Orden Pagada Completamente!</Text>
+                            </View>
+                        )}
                     </ScrollView>
                 )}
             </KeyboardAvoidingView>
         </View>
       </Modal>
-
     </SafeAreaView>
   );
 }
@@ -324,12 +373,12 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: 'bold', color: '#2e7d32' },
   backBtn: { padding: 5 },
 
-  // Search
+  
+
   searchContainer: { padding: 15, backgroundColor: '#fff', paddingBottom: 10 },
   searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0f0f0', borderRadius: 10, paddingHorizontal: 10, height: 45 },
   inputSearch: { flex: 1, marginLeft: 10, fontSize: 16 },
 
-  // List
   listContent: { padding: 15 },
   emptyText: { textAlign: 'center', marginTop: 50, color: '#888' },
 
@@ -341,7 +390,6 @@ const styles = StyleSheet.create({
   totalText: { fontSize: 18, fontWeight: 'bold', color: '#2e7d32' },
   badge: { alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, marginTop: 5 },
 
-  // MODAL STYLES
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, height: '90%', padding: 20 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
@@ -355,13 +403,66 @@ const styles = StyleSheet.create({
   totalValue: { fontSize: 16, fontWeight: 'bold', color: '#333' },
   pendingValue: { fontSize: 18, fontWeight: 'bold', color: '#d32f2f' },
 
+  // ... estilos anteriores ...
+
   sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 10 },
-  historyBox: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 10, maxHeight: 100 },
-  paymentRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 },
+
+  // ESTILOS NUEVOS DE TABLA
+  table: {
+    borderWidth: 1,
+    borderColor: '#eee',
+    borderRadius: 8,
+    overflow: 'hidden', // Asegura que las esquinas redondeadas se respeten
+    marginBottom: 10,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#f0f0f0',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  th: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#555',
+    textTransform: 'uppercase',
+  },
+  tableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f9f9f9',
+    backgroundColor: '#fff',
+  },
+  tableRowAlt: {
+    backgroundColor: '#fafafa', // Color cebra para filas alternas
+  },
+  emptyRow: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  tableBody: {
+    maxHeight: 200, // <--- ESTO ES EL LÍMITE (aprox 4 o 5 filas)
+  },
+  
+  // Celdas
+  td: { fontSize: 13, color: '#333' },
+  tdBold: { fontSize: 13, fontWeight: '600', color: '#333' },
+  tdSmall: { fontSize: 10, color: '#999', marginTop: 2 },
+  tdAmount: { fontSize: 13, fontWeight: 'bold', color: '#2e7d32', textAlign: 'right' },
+  
+  noPayments: { fontSize: 12, color: '#999', fontStyle: 'italic' },
+  historyBox: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 10, maxHeight: 150 },
+  paymentRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10, borderBottomWidth: 1, borderBottomColor: '#f9f9f9', paddingBottom: 5 },
   payDate: { fontSize: 12, color: '#888' },
-  payMethod: { fontSize: 12, color: '#333' },
-  payAmount: { fontSize: 12, fontWeight: 'bold', color: '#2e7d32' },
-  noPayments: { fontSize: 12, color: '#999', fontStyle: 'italic', textAlign: 'center' },
+  payUser: { fontSize: 11, color: '#aaa' },
+  payMethod: { fontSize: 11, color: '#666' },
+  payAmount: { fontSize: 14, fontWeight: 'bold', color: '#2e7d32' },
+  
 
   divider: { height: 1, backgroundColor: '#eee', marginVertical: 20 },
 
@@ -378,4 +479,7 @@ const styles = StyleSheet.create({
 
   payButton: { backgroundColor: '#2e7d32', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 30, marginBottom: 20 },
   payButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 18 },
+
+  paidContainer: { alignItems: 'center', marginTop: 30, padding: 20, backgroundColor: '#e8f5e9', borderRadius: 12 },
+  paidText: { color: '#2e7d32', fontWeight: 'bold', fontSize: 16, marginTop: 10 }
 });

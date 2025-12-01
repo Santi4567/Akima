@@ -1,0 +1,32 @@
+{
+  "cli": {
+    "version": ">= 7.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://52.14.208.243",
+        "EXPO_PUBLIC_APP_NAME": "ALKIMIA"
+      }
+    },
+    "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://52.14.208.243",
+        "EXPO_PUBLIC_APP_NAME": "ALKIMIA"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

@@ -57,7 +57,7 @@ const PERMISSIONS = {
   EDIT_ORDER_STATUS: 'edit.order.status',
   CANCEL_ORDER: 'cancel.order',
   VIEW_OWN_ORDERS: 'view.own.order',
-  VIEW_ALL_ORDER: 'view.all.order',
+  VIEW_ALL_ORDERS: 'view.all.order',
   
   // Devoluciones (Returns)
   ISSUE_REFUND: 'issue.refund',
@@ -128,7 +128,7 @@ const PERMISSION_GROUPS = {
     PERMISSIONS.EDIT_ORDER_STATUS,
     PERMISSIONS.CANCEL_ORDER,
     PERMISSIONS.VIEW_OWN_ORDERS,
-    PERMISSIONS.VIEW_ALL_ORDER,
+    PERMISSIONS.VIEW_ALL_ORDERS,
   ],
   RETURNS: [
     PERMISSIONS.ISSUE_REFUND,
