@@ -228,6 +228,9 @@ curl -X GET http://localhost:3000/api/products/8/inventory-logs "Authorization: 
     curl -X GET http://localhost:3000/api/orders -H "Authorization: Bearer <TU_TOKEN_JWT>"
     ```
 
+  ## buscar order
+  curl -X GET "http://localhost:3000/api/orders/search?q=Ana" -H "Authorization: Bearer <TU_TOKEN_JWT>"
+
   ## Actualizar Estado del Pedido (edit.order.status)
     ```shell
     curl -X PUT http://localhost:3000/api/orders/1/status -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT_ALMACEN>" -d '{"status": "processing"}'

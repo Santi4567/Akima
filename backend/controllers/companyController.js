@@ -110,4 +110,23 @@ const updateCompanyInfo = async (req, res) => {
     }
 };
 
-module.exports = { getCompanyInfo, updateCompanyInfo };
+const getImageCompany = async (req, res) => {
+    let connection;
+    try {
+        connection = await getConnection();
+        const [rows] = await connection.execute('SELECT logo_path FROM company_info WHERE id = 1');
+        
+        if (rows.length === 0) {
+            return res.status(200).json({ success: true, data: {} }); // Retornar vacío si no se ha configurado
+        }
+
+        res.status(200).json({ success: true, data: rows[0] });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
+module.exports = { getCompanyInfo, updateCompanyInfo, getImageCompany};

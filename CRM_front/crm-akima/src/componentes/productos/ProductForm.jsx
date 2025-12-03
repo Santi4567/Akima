@@ -8,22 +8,29 @@ const CATEGORIES_ENDPOINT = `${API_URL}/api/categories`;
 const SUPPLIERS_ENDPOINT = `${API_URL}/api/suppliers`;
 
 export const ProductForm = ({ initialData, onClose, onSuccess, onError }) => {
-  // --- Estados del Formulario (SIN STOCK) ---
+  // --- Estados del Formulario ---
   const [formData, setFormData] = useState({
-    name: '', sku: '', barcode: '', description: '',
-    price: '', cost_price: '', 
-    // stock_quantity eliminado de aquí (se gestiona en Inventario)
-    product_type: 'product', status: 'active',
-    category_id: '', supplier_id: '',
-    weight: '', height: '', width: '', depth: ''
+    name: '', 
+    sku: '', 
+    barcode: '', 
+    description: '',
+    location: '', // <--- NUEVO CAMPO AGREGADO AL ESTADO
+    price: '', 
+    cost_price: '', 
+    product_type: 'product', 
+    status: 'active',
+    category_id: '', 
+    supplier_id: '',
+    weight: '', 
+    height: '', 
+    width: '', 
+    depth: ''
   });
 
-  // Estado para Custom Fields (Array de { title, description })
   const [customFields, setCustomFields] = useState([]);
-
   const [categories, setCategories] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
-  const [existingAttributes, setExistingAttributes] = useState([]); // Para autocompletar
+  const [existingAttributes, setExistingAttributes] = useState([]); 
 
   const [catSearch, setCatSearch] = useState('');
   const [supSearch, setSupSearch] = useState('');
@@ -31,11 +38,11 @@ export const ProductForm = ({ initialData, onClose, onSuccess, onError }) => {
   const [showSupDrop, setShowSupDrop] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeAttributeIndex, setActiveAttributeIndex] = useState(null); // Para saber qué dropdown mostrar
+  const [activeAttributeIndex, setActiveAttributeIndex] = useState(null); 
 
   const isEditing = !!initialData;
 
-  // --- Carga de Datos Iniciales ---
+  // --- Carga de Datos Auxiliares ---
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -51,7 +58,6 @@ export const ProductForm = ({ initialData, onClose, onSuccess, onError }) => {
         const supData = await supRes.json();
         if (supData.success) setSuppliers(supData.data);
 
-        // Extraer atributos únicos de productos existentes para el autocompletado
         const prodData = await prodRes.json();
         if (prodData.success) {
           const allAttrs = new Set();
@@ -69,7 +75,7 @@ export const ProductForm = ({ initialData, onClose, onSuccess, onError }) => {
     fetchData();
   }, []);
 
-  // --- Inicializar Formulario ---
+  // --- Inicializar Formulario (Editar) ---
   useEffect(() => {
     if (isEditing) {
       setFormData({
@@ -77,6 +83,7 @@ export const ProductForm = ({ initialData, onClose, onSuccess, onError }) => {
         sku: initialData.sku || '',
         barcode: initialData.barcode || '',
         description: initialData.description || '',
+        location: initialData.location || '', // <--- CARGAMOS LA UBICACIÓN SI EXISTE
         price: initialData.price || '',
         cost_price: initialData.cost_price || '',
         product_type: initialData.product_type || 'product',
@@ -92,7 +99,6 @@ export const ProductForm = ({ initialData, onClose, onSuccess, onError }) => {
       if (initialData.category_name) setCatSearch(initialData.category_name);
       if (initialData.supplier_name) setSupSearch(initialData.supplier_name);
 
-      // Parsear Custom Fields
       if (initialData.custom_fields) {
         let parsedFields = {};
         if (typeof initialData.custom_fields === 'string') {
@@ -100,7 +106,6 @@ export const ProductForm = ({ initialData, onClose, onSuccess, onError }) => {
         } else {
           parsedFields = initialData.custom_fields;
         }
-        // Convertir Objeto -> Array para la UI
         const fieldsArray = Object.entries(parsedFields).map(([key, value]) => ({
           title: key, description: value
         }));
@@ -111,10 +116,8 @@ export const ProductForm = ({ initialData, onClose, onSuccess, onError }) => {
     }
   }, [initialData, isEditing]);
 
-  // --- Manejadores Custom Fields ---
-  const addCustomField = () => {
-    setCustomFields([...customFields, { title: '', description: '' }]);
-  };
+  // --- Manejadores ---
+  const addCustomField = () => setCustomFields([...customFields, { title: '', description: '' }]);
   
   const removeCustomField = (index) => {
     const newFields = [...customFields];
@@ -126,23 +129,20 @@ export const ProductForm = ({ initialData, onClose, onSuccess, onError }) => {
     const newFields = [...customFields];
     newFields[index][field] = value;
     setCustomFields(newFields);
-    // Si escribe en titulo, ocultamos sugerencias al cambiar de foco
     if (field === 'title') setActiveAttributeIndex(null);
   };
 
-  // --- Submit ---
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
-    // Convertir Array -> Objeto JSON
     const customFieldsObj = {};
     customFields.forEach(field => {
       if (field.title.trim()) customFieldsObj[field.title] = field.description;
     });
 
     const payload = {
-      ...formData,
+      ...formData, // <--- ESTO INCLUYE AUTOMÁTICAMENTE 'location'
       price: parseFloat(formData.price),
       cost_price: parseFloat(formData.cost_price),
       category_id: parseInt(formData.category_id),
@@ -152,7 +152,6 @@ export const ProductForm = ({ initialData, onClose, onSuccess, onError }) => {
       width: parseFloat(formData.width || 0),
       depth: parseFloat(formData.depth || 0),
       custom_fields: customFieldsObj,
-      // Stock no se envía o se envía 0 si es obligatorio en BD
       stock_quantity: isEditing ? undefined : 0 
     };
 
@@ -212,7 +211,20 @@ export const ProductForm = ({ initialData, onClose, onSuccess, onError }) => {
              <label className="block text-sm font-medium text-gray-700">Código de Barras</label>
              <input type="text" value={formData.barcode} onChange={e => setFormData({...formData, barcode: e.target.value})} className="mt-1 block w-full p-2 border border-gray-300 rounded-md" />
           </div>
-          <div className="md:col-span-2">
+          
+          {/* --- NUEVO INPUT DE UBICACIÓN --- */}
+          <div>
+             <label className="block text-sm font-medium text-gray-700">Ubicación en Almacén</label>
+             <input 
+               type="text" 
+               placeholder="Ej: Pasillo A-12"
+               value={formData.location} 
+               onChange={e => setFormData({...formData, location: e.target.value})} 
+               className="mt-1 block w-full p-2 border border-gray-300 rounded-md" 
+             />
+          </div>
+
+          <div className="md:col-span-3">
              <label className="block text-sm font-medium text-gray-700">Descripción</label>
              <input type="text" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="mt-1 block w-full p-2 border border-gray-300 rounded-md" />
           </div>
@@ -303,8 +315,6 @@ export const ProductForm = ({ initialData, onClose, onSuccess, onError }) => {
           <div className="space-y-3">
             {customFields.map((field, index) => (
               <div key={index} className="flex gap-4 items-start">
-                
-                {/* Input de TÍTULO (Key) con Autocomplete */}
                 <div className="relative w-1/2">
                    <input 
                     type="text" placeholder="Ej: Color, Voltaje..."
@@ -313,7 +323,6 @@ export const ProductForm = ({ initialData, onClose, onSuccess, onError }) => {
                     onFocus={() => setActiveAttributeIndex(index)}
                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                    />
-                   {/* Dropdown de sugerencias */}
                    {activeAttributeIndex === index && existingAttributes.length > 0 && (
                      <ul className="absolute z-30 w-full bg-white border mt-1 max-h-32 overflow-y-auto shadow-lg">
                        {existingAttributes
@@ -332,8 +341,6 @@ export const ProductForm = ({ initialData, onClose, onSuccess, onError }) => {
                      </ul>
                    )}
                 </div>
-
-                {/* Input de DESCRIPCIÓN (Value) */}
                 <div className="w-1/2">
                    <input 
                     type="text" placeholder="Ej: Rojo, 220V..."
@@ -342,8 +349,6 @@ export const ProductForm = ({ initialData, onClose, onSuccess, onError }) => {
                     className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                    />
                 </div>
-
-                {/* Botón Eliminar Fila */}
                 <button type="button" onClick={() => removeCustomField(index)} 
                   className="p-2 text-red-500 hover:bg-red-100 rounded-full">
                   <XMarkIcon className="h-5 w-5" />

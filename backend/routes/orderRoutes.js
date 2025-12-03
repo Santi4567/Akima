@@ -12,7 +12,8 @@ const {
     cancelOrder,
     getOrderItems,
     addOrderItem, 
-    removeOrderItem
+    removeOrderItem,
+    searchOrders
 } = require('../controllers/orderController');
 
 // Crear un nuevo pedido
@@ -30,6 +31,14 @@ router.get(
     verifyToken,
     requirePermission(PERMISSIONS.VIEW_OWN_ORDERS), // El controlador decide si muestra 'todos'
     getOrders
+);
+// GET /api/orders/search?q=101
+// =================================================================
+router.get(
+    '/search',
+    verifyToken,
+    requirePermission(PERMISSIONS.VIEW_OWN_ORDERS), // Permiso mínimo
+    searchOrders
 );
 
 // Actualizar el ESTADO de un pedido (Almacén)

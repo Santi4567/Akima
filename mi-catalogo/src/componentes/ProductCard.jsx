@@ -70,16 +70,6 @@ export const ProductCard = ({ product }) => {
               {formatPrice(product.price)}
             </span>
           </div>
-          
-          {/* Botón "+" que también lleva al detalle */}
-          <Link 
-            to={`/producto/${product.id}`}
-            className="bg-green-950 text-white p-3 rounded-full hover:bg-green-800 transition-colors shadow-md transform active:scale-95"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-          </Link>
         </div>
 
       </div>

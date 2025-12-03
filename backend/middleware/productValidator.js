@@ -6,7 +6,7 @@ const PRODUCT_SCHEMA = {
     allowedFields: [
         'sku', 'barcode', 'name', 'description', 'price', 'cost_price', 
         'product_type', 'status', 'category_id', 'supplier_id',
-        'weight', 'height', 'width', 'depth', 'custom_fields'
+        'weight', 'height', 'width', 'depth', 'custom_fields','location'
     ],
     fieldRules: {
         sku: { type: 'string', maxLength: 100, required: true },
@@ -23,7 +23,8 @@ const PRODUCT_SCHEMA = {
         height: { type: 'number' },
         width: { type: 'number' },
         depth: { type: 'number' },
-        custom_fields: { type: 'object' } // JSON fields are objects
+        custom_fields: { type: 'object' }, // JSON fields are objects
+        location: { type: 'string', maxLength: 255 }
     }
 };
 

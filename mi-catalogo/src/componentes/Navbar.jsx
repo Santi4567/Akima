@@ -1,14 +1,37 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  // Estado para almacenar la URL completa del logo
+  const [logoUrl, setLogoUrl] = useState(''); 
 
-  // Lógica del botón directo en el componente
+  const API_URL = import.meta.env.VITE_API_URL;
+
+  // --- FUNCIÓN PARA OBTENER EL LOGO ---
+  useEffect(() => {
+    const fetchLogo = async () => {
+      try {
+        const response = await fetch(`${API_URL}/api/company/public`);
+        const json = await response.json();
+
+        if (json.success && json.data.logo_path) {
+          // Construye la URL completa: http://localhost:3000/uploads/company/logo-....jpeg
+          const fullLogoPath = `${API_URL}${json.data.logo_path}`;
+          setLogoUrl(fullLogoPath);
+        }
+      } catch (error) {
+        console.error("Error al obtener el logo:", error);
+      }
+    };
+    fetchLogo();
+  }, [API_URL]); // Se ejecuta una sola vez al montar el componente
+
+  // Lógica del botón activo
   const getLinkClass = ({ isActive }) => 
     `px-6 py-2 rounded-full font-bold text-sm tracking-wide transition-all duration-300 ${
       isActive 
-        ? "bg-green-900 text-white shadow-lg scale-105" // ACTIVO: Verde 950 directo
+        ? "bg-green-950 text-white shadow-lg scale-105" // ACTIVO: Verde 950 directo
         : "text-gray-600 hover:text-green-950 hover:bg-green-50" // INACTIVO
     }`;
 
@@ -17,15 +40,28 @@ export const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-24">
           
-          {/* LOGO ALKIMIA */}
+          {/* LOGO ALKIMIA (IMAGEN DINÁMICA) */}
           <div className="flex items-center gap-3">
-            {/* Círculo del logo con Green-950 directo */}
-            <div className="w-10 h-10 rounded-full bg-green-950 flex items-center justify-center shadow-md text-white">
-              <span className="text-xl">⚗️</span>
-            </div>
-            {/* Texto del logo con Green-950 directo */}
-            <Link to="/" className="text-3xl font-black text-green-950 tracking-tighter font-serif">
-              Alkimia
+            
+            <Link to="/" className="flex items-center gap-3">
+              {/* Reemplazamos el div con emoji por la imagen del logo */}
+              {logoUrl ? (
+                <img 
+                  src={logoUrl} 
+                  alt="Logo de Alkimia" 
+                  className="h-10 w-auto object-contain" // Ajusta h-10 según el tamaño deseado
+                />
+              ) : (
+                // Muestra un placeholder o el texto si el logo aún no carga
+                <div className="w-10 h-10 rounded-full bg-green-950 flex items-center justify-center shadow-md text-white">
+                   <span className="text-xl">⚗️</span>
+                </div>
+              )}
+              
+              {/* Texto del logo */}
+              <span className="text-3xl font-black text-green-950 tracking-tighter font-serif">
+                Alkimia
+              </span>
             </Link>
           </div>
 
@@ -44,7 +80,7 @@ export const Navbar = () => {
             </NavLink>
           </nav>
 
-          {/* BOTÓN HAMBURGUESA */}
+          {/* BOTÓN HAMBURGUESA Y MENÚ MÓVIL (Sin cambios) */}
           <div className="md:hidden flex items-center">
             <button onClick={() => setIsOpen(!isOpen)} className="text-green-950 p-2">
               <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">

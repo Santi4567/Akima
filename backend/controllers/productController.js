@@ -8,13 +8,14 @@ const path = require('path');
 
 /**
  * Crear un nuevo producto
+ * (ACTUALIZADO: Incluye el campo 'location')
  */
 const createProduct = async (req, res) => {
     let connection;
     try {
         const productData = req.body;
 
-        // 1. Sanitización de todos los campos
+        // 1. Sanitización (Igual que antes)
         for (const key in productData) {
             if (typeof productData[key] === 'string') {
                 productData[key] = sanitizeInput(productData[key]);
@@ -28,7 +29,7 @@ const createProduct = async (req, res) => {
             productData.custom_fields = JSON.stringify(sanitizedCustomFields);
         }
 
-        // 2. Detección de patrones maliciosos post-sanitización
+        // 2. Detección de patrones maliciosos (Igual que antes)
         for (const key in productData) {
             if (typeof productData[key] === 'string' && key !== 'custom_fields' && containsSQLInjection(productData[key])) {
                 return res.status(400).json({ success: false, error: 'INPUT_MALICIOSO', message: `El campo '${key}' contiene patrones no permitidos.` });
@@ -37,7 +38,7 @@ const createProduct = async (req, res) => {
 
         connection = await getConnection();
         
-        // 3. Validaciones de negocio
+        // 3. Validaciones de negocio (Igual que antes)
         const { category_id, supplier_id, sku, name } = productData;
         if (category_id) {
             const [category] = await connection.execute('SELECT id FROM categories WHERE id = ?', [category_id]);
@@ -56,21 +57,22 @@ const createProduct = async (req, res) => {
         // 4. Inserción en la base de datos
         const initialStock = 0; 
 
-        // INSERTAR
-        // Asegúrate de incluir 'stock_quantity' en el INSERT con el valor 0
+        // INSERTAR - AQUI ESTAN LOS CAMBIOS
+        // Se agregó 'location' a la lista de columnas y un '?' extra
         const [result] = await connection.execute(
             `INSERT INTO products (
                 sku, name, description, price, cost_price, 
                 stock_quantity, status, category_id, supplier_id,
-                weight, height, width, depth, custom_fields
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                weight, height, width, depth, custom_fields,
+                location 
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 productData.sku,
                 productData.name,
                 productData.description,
                 productData.price,
                 productData.cost_price,
-                initialStock, // <--- Aquí va el 0 forzado
+                initialStock,
                 productData.status || 'draft',
                 productData.category_id,
                 productData.supplier_id,
@@ -78,7 +80,8 @@ const createProduct = async (req, res) => {
                 productData.height,
                 productData.width,
                 productData.depth,
-                productData.custom_fields // (Recuerda que esto ya se procesó a string JSON arriba)
+                productData.custom_fields,
+                productData.location || null // <--- Nuevo valor
             ]
         );
 
@@ -98,6 +101,7 @@ const createProduct = async (req, res) => {
 
 /**
  * Actualizar un producto
+ * (NO REQUIERE CAMBIOS de código, detecta 'location' automáticamente si está en el body)
  */
 const updateProduct = async (req, res) => {
     let connection;
@@ -112,11 +116,10 @@ const updateProduct = async (req, res) => {
         // 1. Sanitización y Filtrado de Campos
         const sanitizedUpdates = {};
         
-        // Lista negra explícita: Campos que NO se pueden tocar desde aquí
+        // Asegúrate de que 'location' NO esté aquí para que pase
         const forbiddenFields = ['id', 'created_at', 'updated_at', 'stock_quantity'];
 
         for (const key in updates) {
-            // Si el campo está prohibido (como stock_quantity), lo saltamos
             if (forbiddenFields.includes(key)) continue;
 
             const value = updates[key];
@@ -124,14 +127,11 @@ const updateProduct = async (req, res) => {
             // Manejo especial para custom_fields (JSON)
             if (key === 'custom_fields') {
                 if (typeof value === 'object') {
-                    // Si viene como objeto, lo sanitizamos y convertimos a string
                     if (jsonObjectContainsSQLInjection(value)) {
                         return res.status(400).json({ success: false, error: 'INPUT_MALICIOSO', message: 'JSON malicioso.' });
                     }
                     sanitizedUpdates[key] = JSON.stringify(sanitizeJsonObject(value));
                 } else {
-                    // Si viene como string, asumimos que ya viene listo (o lo rechazamos)
-                    // Para seguridad, mejor exigir objeto o intentar parsear/sanitizar
                     continue; 
                 }
             } 
@@ -149,7 +149,6 @@ const updateProduct = async (req, res) => {
             }
         }
 
-        // Si después de filtrar no queda nada (ej. solo enviaron stock_quantity), error
         if (Object.keys(sanitizedUpdates).length === 0) {
             return res.status(400).json({ success: false, message: 'Ningún campo válido para actualizar (El stock no se edita aquí).' });
         }
@@ -171,6 +170,7 @@ const updateProduct = async (req, res) => {
         }
 
         // 4. Construir Query Dinámica
+        // Como 'location' está en sanitizedUpdates, se agregará automáticamente aquí: "location = ?"
         const fields = Object.keys(sanitizedUpdates).map(field => `${field} = ?`).join(', ');
         const values = [...Object.values(sanitizedUpdates), productId];
 

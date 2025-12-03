@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // Agregamos useEffect
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { 
@@ -8,9 +8,11 @@ import {
   UserCircleIcon
 } from '@heroicons/react/24/outline';
 
-// --- Logo ---
-const Logo = () => (
-  <svg className="h-8 w-auto text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+const API_URL = import.meta.env.VITE_API_URL;
+
+// --- Logo SVG (Fallback) ---
+const LogoSVG = () => (
+  <svg className="h-10 w-auto text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1.5-1.5m1.5 1.5l1.5-1.5m0 0l1.5 1.5m-1.5-1.5l-1.5 1.5m-3-3l3 3m0 0l3-3m-3 3v-6m0 6h-3.75m3.75 0h3.75M9 12.75l3 3m0 0l3-3m-3 3v-6m0 6H6m3 0h3" />
   </svg>
 );
@@ -24,32 +26,42 @@ const navLinks = [
   { name: 'Órdenes', href: '/ordenes', requireGroup: 'ORDERS' },
   { name: 'Visitas', href: '/visitas', requireGroup: 'VISITS' },
   { name: 'Usuarios', href: '/usuarios', requireGroup: 'USERS' },
-  // CAMBIO AQUÍ: Agregamos la propiedad 'onlyAdmin'
   { name: 'Finanzas', href: '/finanzas', onlyAdmin: true }, 
 ];
 
 export const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  // Traemos 'hasGroupAccess' y 'hasPermission' pero la lógica fuerte la haremos aquí
+  const [logoPath, setLogoPath] = useState(null); // Estado para el logo
+  
   const { user, logout, hasGroupAccess, hasPermission } = useAuth();
+
+  // --- 1. CARGAR LOGO AL INICIAR ---
+  useEffect(() => {
+    const fetchCompanyLogo = async () => {
+      try {
+        // Petición pública, no suele requerir credenciales estrictas, 
+        // pero usaremos 'include' por si acaso tu backend valida cookies de sesión.
+        const res = await fetch(`${API_URL}/api/company/public`, { credentials: 'include' });
+        const data = await res.json();
+        
+        if (data.success && data.data?.logo_path) {
+          setLogoPath(data.data.logo_path);
+        }
+      } catch (error) {
+        console.error("Error cargando logo de empresa", error);
+      }
+    };
+    
+    fetchCompanyLogo();
+  }, []);
 
   // --- Lógica de Visibilidad Robusta ---
   const canShowLink = (item) => {
-    // 1. Validación estricta para Finanzas (Solo rol 'admin')
-    if (item.onlyAdmin) {
-      return user?.rol === 'admin';
-    }
-
-    // 2. Si es Admin, ¡VE TODO LO DEMÁS! (Esto soluciona que no te aparezca nada)
-    if (user?.rol === 'admin') {
-      return true;
-    }
-
-    // 3. Validaciones para el resto de mortales (Vendedores, Gerentes, etc.)
+    if (item.onlyAdmin) return user?.rol === 'admin';
+    if (user?.rol === 'admin') return true;
     if (item.requireGroup) return hasGroupAccess(item.requireGroup);
     if (item.specificPermission) return hasPermission(item.specificPermission);
-    
-    return true; // Home (sin restricciones) se muestra siempre
+    return true; 
   };
 
   // --- Clases Tailwind ---
@@ -63,13 +75,24 @@ export const Header = () => {
 
   return (
     <nav className="bg-white shadow-sm sticky top-0 z-50">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-4">
         <div className="flex h-16 justify-between">
           
           {/* Logo */}
           <div className="flex items-center">
-            <Link to="/home" className="flex-shrink-0 flex items-center gap-2">
-              <Logo />
+            <Link to="/home" className="flex-shrink-0 flex items-center gap-3">
+              
+              {/* RENDERIZADO CONDICIONAL DEL LOGO */}
+              {logoPath ? (
+                <img 
+                  src={`${API_URL}${logoPath}`} 
+                  alt="Logo Empresa" 
+                  className="h-10 w-auto object-contain" // Ajusta la altura si es necesario
+                />
+              ) : (
+                <LogoSVG />
+              )}
+
               <span className="hidden sm:block font-bold text-xl text-gray-800">Alkima CRM</span>
             </Link>
           </div>
@@ -77,7 +100,6 @@ export const Header = () => {
           {/* Menú Desktop */}
           <div className="hidden lg:ml-6 lg:flex lg:items-center lg:space-x-4">
             {navLinks.map((item) => (
-              // Usamos la función canShowLink antes de renderizar
               canShowLink(item) && (
                 <NavLink
                   key={item.name}

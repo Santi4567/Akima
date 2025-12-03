@@ -35,9 +35,12 @@ const upload = multer({
 const { verifyToken } = require('../middleware/auth');
 const { requirePermission, PERMISSIONS } = require('../utils/permissions');
 const { validateCompanyPayload } = require('../middleware/companyValidator');
-const { getCompanyInfo, updateCompanyInfo } = require('../controllers/companyController');
+const { getCompanyInfo, updateCompanyInfo, getImageCompany } = require('../controllers/companyController');
 
 // --- Rutas ---
+
+// Ver imagen del logo
+router.get('/public', getImageCompany);
 
 // Ver Info (Público para usuarios logueados)
 router.get('/', verifyToken, getCompanyInfo);

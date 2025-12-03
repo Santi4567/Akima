@@ -502,6 +502,70 @@ const removeOrderItem = async (req, res) => {
     }
 };
 
+/**
+ * [PROTEGIDO] Buscar Órdenes
+ * Busca por: ID de orden, Nombre del Cliente o Apellido.
+ * Respeta la visibilidad por rol (Own vs All).
+ */
+const searchOrders = async (req, res) => {
+    let connection;
+    try {
+        const { q } = req.query;
+        const currentUser = req.user;
+
+        if (!q) {
+            return res.status(400).json({ success: false, message: 'Ingresa un término de búsqueda "q".' });
+        }
+
+        const searchTerm = sanitizeInput(q);
+        if (containsSQLInjection(searchTerm)) {
+            return res.status(400).json({ success: false, error: 'INPUT_MALICIOSO' });
+        }
+
+        connection = await getConnection();
+
+        // 1. Consulta Base (Igual que getOrders)
+        const baseQuery = `
+            SELECT 
+                o.*,
+                CONCAT(c.first_name, ' ', c.last_name) AS client_name,
+                u.Nombre AS user_name
+            FROM orders o
+            INNER JOIN clients c ON o.client_id = c.id
+            INNER JOIN users u ON o.user_id = u.ID
+        `;
+
+        // 2. Filtros de Búsqueda (ID exacto o Nombre parcial)
+        const searchCondition = `(o.id LIKE ? OR c.first_name LIKE ? OR c.last_name LIKE ?)`;
+        const searchParams = [`%${searchTerm}%`, `%${searchTerm}%`, `%${searchTerm}%`];
+
+        let finalQuery;
+        let finalParams = [...searchParams];
+
+        // 3. Aplicar Seguridad por Rol
+        const rolesWithFullAccess = ['admin', 'gerente', 'administracion'];
+
+        if (rolesWithFullAccess.includes(currentUser.rol)) {
+            // Admin: Busca en todo
+            finalQuery = `${baseQuery} WHERE ${searchCondition} ORDER BY o.created_at DESC LIMIT 20`;
+        } else {
+            // Vendedor: Busca solo en SU historial + La condición de búsqueda
+            finalQuery = `${baseQuery} WHERE o.user_id = ? AND ${searchCondition} ORDER BY o.created_at DESC LIMIT 20`;
+            // El user_id va PRIMERO en los parámetros
+            finalParams.unshift(currentUser.userId);
+        }
+
+        const [orders] = await connection.execute(finalQuery, finalParams);
+        res.status(200).json({ success: true, data: orders });
+
+    } catch (error) {
+        console.error('Error en buscador de órdenes:', error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
 module.exports = {
     createOrder,
     getOrders,
@@ -509,6 +573,7 @@ module.exports = {
     cancelOrder,
     getOrderItems,
     addOrderItem,   
-    removeOrderItem
+    removeOrderItem,
+    searchOrders
     
 };

@@ -143,21 +143,6 @@ export const Home = () => {
           </p>
         </div>
       </div>
-      
-      {/* ======================================= */}
-      {/* 3. SUGERENCIA: Sección de Productos Destacados */}
-      {/* ======================================= */}
-      <div className="py-16 bg-gray-50 border-t border-gray-200">
-        <div className="max-w-7xl mx-auto px-4">
-            <h2 className="text-3xl font-black text-green-950 mb-6 text-center font-serif">
-                Fertilizantes Recomendados
-            </h2>
-            <p className="text-center text-gray-600 mb-10">
-                (Aquí implementaremos la sección de Productos Destacados en el siguiente paso)
-            </p>
-            {/* Aquí iría el componente de Productos Destacados */}
-        </div>
-      </div>
 
     </div>
   );
