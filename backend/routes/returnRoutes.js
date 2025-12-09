@@ -32,7 +32,7 @@ router.get(
     '/',
     verifyToken,
     // CAMBIO: Ahora solo pide permiso de ver órdenes
-    requirePermission(PERMISSIONS.VIEW_ALL_ORDER), 
+    requirePermission(PERMISSIONS.VIEW_ALL_ORDERS), 
     getReturns
 );
 
@@ -41,7 +41,7 @@ router.get(
     '/:id',
     verifyToken,
     // CAMBIO: Ahora solo pide permiso de ver órdenes
-    requirePermission(PERMISSIONS.VIEW_ALL_ORDER), 
+    requirePermission(PERMISSIONS.VIEW_ALL_ORDERS), 
     getReturnById
 );
 

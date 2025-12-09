@@ -4,28 +4,30 @@ import {
   CurrencyDollarIcon, 
   CubeIcon, 
   ExclamationTriangleIcon,
-  MagnifyingGlassIcon 
+  MagnifyingGlassIcon,
+  NoSymbolIcon 
 } from '@heroicons/react/24/outline';
 import { Notification } from '../Notification';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export const ReturnsForm = ({ onClose, initialData }) => { 
   const [step, setStep] = useState(initialData ? 2 : 1); 
   const [orderId, setOrderId] = useState(initialData?.id || '');
-  const [orderSummary, setOrderSummary] = useState(null);
   const [notification, setNotification] = useState({ type: '', message: '' });
 
+  // --- CORRECCIÓN: Verificar usando SOLO el endpoint de items ---
   const handleVerifyOrder = async (e) => {
     e.preventDefault();
     if(!orderId) return;
     
     try {
+      // Usamos el endpoint de items como validación de existencia
       const res = await fetch(`${API_URL}/api/orders/${orderId}/items`, { credentials: 'include' });
       const data = await res.json();
       
       if(data.success) {
-        setOrderSummary(data.data); 
+        // Si hay éxito, la orden existe. Pasamos al siguiente paso.
         setStep(2);
         setNotification({ type: '', message: '' });
       } else {
@@ -70,7 +72,6 @@ export const ReturnsForm = ({ onClose, initialData }) => {
       {step === 2 && (
         <ReturnLogic 
             orderId={orderId} 
-            preloadedItems={orderSummary}
             onClose={onClose} 
             onSuccess={() => onClose()}
         />
@@ -79,31 +80,104 @@ export const ReturnsForm = ({ onClose, initialData }) => {
   );
 };
 
-// --- COMPONENTE INTERNO CON LA LÓGICA ---
-const ReturnLogic = ({ orderId, preloadedItems, onClose, onSuccess }) => {
+// --- COMPONENTE INTERNO CON LA LÓGICA DE CÁLCULO ---
+const ReturnLogic = ({ orderId, onClose, onSuccess }) => {
   const [returnType, setReturnType] = useState('items'); 
   const [reason, setReason] = useState('');
   const [status, setStatus] = useState('completed'); 
   
-  const [orderItems, setOrderItems] = useState(preloadedItems || []);
+  // Datos calculados
+  const [processedItems, setProcessedItems] = useState([]); // Items con info de disponibilidad
+  const [maxRefundableAmount, setMaxRefundableAmount] = useState(0);
+  const [isFullyRefunded, setIsFullyRefunded] = useState(false); // Bandera de bloqueo
+  
+  // Formulario
   const [selectedItems, setSelectedItems] = useState({}); 
   const [totalRefunded, setTotalRefunded] = useState('');
 
-  const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
+  const [loadingSubmit, setLoadingSubmit] = useState(false);
   const [error, setError] = useState('');
 
+  // --- CÁLCULO DE DISPONIBILIDAD (AUDITORÍA) ---
   useEffect(() => {
-    if (!preloadedItems || preloadedItems.length === 0) {
-        const fetchOrderItems = async () => {
+    const auditOrder = async () => {
+        setLoadingData(true);
         try {
-            const res = await fetch(`${API_URL}/api/orders/${orderId}/items`, { credentials: 'include' });
-            const data = await res.json();
-            if (data.success) setOrderItems(data.data);
-        } catch (err) { console.error(err); }
-        };
-        fetchOrderItems();
-    }
-  }, [orderId, preloadedItems]);
+            // 1. Obtener Items Originales de la Orden
+            const resItems = await fetch(`${API_URL}/api/orders/${orderId}/items`, { credentials: 'include' });
+            const dataItems = await resItems.json();
+            if(!dataItems.success) throw new Error("No se pudieron cargar los items.");
+            const originalItems = dataItems.data;
+
+            // 2. Calcular el Total Original de la Orden (Suma de subtotales)
+            const originalTotalAmount = originalItems.reduce((acc, item) => acc + parseFloat(item.subtotal), 0);
+
+            // 3. Obtener Devoluciones Previas (Solo las completadas afectan el saldo)
+            const resReturns = await fetch(`${API_URL}/api/returns`, { credentials: 'include' });
+            const dataReturns = await resReturns.json();
+            
+            // Filtramos devoluciones de ESTA orden que estén COMPLETADAS
+            const prevReturns = dataReturns.success 
+                ? dataReturns.data.filter(r => r.order_id === parseInt(orderId) && r.status === 'completed')
+                : [];
+
+            // 4. Obtener Detalles de cada Devolución Previa
+            const detailsPromises = prevReturns.map(r => 
+                fetch(`${API_URL}/api/returns/${r.id}`, { credentials: 'include' }).then(res => res.json())
+            );
+            const detailsResponses = await Promise.all(detailsPromises);
+            
+            // 5. Mapear qué se ha devuelto ya
+            const returnedSkuMap = {}; 
+            let totalMoneyRefundedPrev = 0;
+
+            detailsResponses.forEach(res => {
+                if(res.success && res.data) {
+                    const rma = res.data;
+                    totalMoneyRefundedPrev += parseFloat(rma.total_refunded || 0);
+                    
+                    if(rma.items && Array.isArray(rma.items)) {
+                        rma.items.forEach(item => {
+                            returnedSkuMap[item.sku] = (returnedSkuMap[item.sku] || 0) + item.quantity;
+                        });
+                    }
+                }
+            });
+
+            // 6. Construir la lista final de items procesados
+            const finalItems = originalItems.map(item => {
+                const alreadyReturned = returnedSkuMap[item.sku] || 0;
+                return {
+                    ...item,
+                    alreadyReturned: alreadyReturned,
+                    available: Math.max(0, item.quantity - alreadyReturned)
+                };
+            });
+
+            setProcessedItems(finalItems);
+
+            // 7. Calcular saldo monetario disponible
+            const remainingMoney = Math.max(0, originalTotalAmount - totalMoneyRefundedPrev);
+            setMaxRefundableAmount(remainingMoney);
+
+            // 8. Verificar si ya no queda nada
+            const totalAvailableItems = finalItems.reduce((acc, i) => acc + i.available, 0);
+            // Consideramos "totalmente reembolsado" si no hay items Y queda muy poco dinero (margen de error de centavos)
+            if (totalAvailableItems === 0 && remainingMoney < 0.1) {
+                setIsFullyRefunded(true);
+            }
+
+        } catch (err) {
+            console.error(err);
+            setError("Error calculando el historial de la orden.");
+        } finally {
+            setLoadingData(false);
+        }
+    };
+
+    if(orderId) auditOrder();
+  }, [orderId]);
 
   const handleItemChange = (orderItemId, val, maxQty) => {
     const qty = parseInt(val) || 0;
@@ -118,13 +192,12 @@ const ReturnLogic = ({ orderId, preloadedItems, onClose, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setLoadingSubmit(true);
     setError('');
 
     try {
-      // --- CORRECCIÓN AQUÍ: Convertimos orderId a Entero ---
       const payload = {
-        order_id: parseInt(orderId), // <--- ¡IMPORTANTE!
+        order_id: parseInt(orderId),
         reason: reason,
         status: status
       };
@@ -133,15 +206,15 @@ const ReturnLogic = ({ orderId, preloadedItems, onClose, onSuccess }) => {
         const itemsPayload = Object.entries(selectedItems)
           .filter(([_, qty]) => qty > 0)
           .map(([id, qty]) => ({
-            order_item_id: parseInt(id), // Aseguramos entero también aquí
-            quantity: qty // Ya es entero por handleItemChange
+            order_item_id: parseInt(id),
+            quantity: qty
           }));
 
         if (itemsPayload.length === 0) throw new Error("Selecciona al menos un producto.");
         payload.items = itemsPayload;
-
       } else {
         if (!totalRefunded || parseFloat(totalRefunded) <= 0) throw new Error("El monto debe ser mayor a 0.");
+        if (parseFloat(totalRefunded) > maxRefundableAmount) throw new Error(`El monto excede el saldo disponible ($${maxRefundableAmount.toFixed(2)})`);
         payload.total_refunded = parseFloat(totalRefunded);
       }
 
@@ -164,9 +237,29 @@ const ReturnLogic = ({ orderId, preloadedItems, onClose, onSuccess }) => {
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      setLoadingSubmit(false);
     }
   };
+
+  if (loadingData) return <div className="p-8 text-center text-gray-500">Auditando orden...</div>;
+
+  // --- PANTALLA DE BLOQUEO SI YA NO HAY NADA ---
+  if (isFullyRefunded) {
+    return (
+        <div className="bg-white p-8 rounded-lg shadow-md border border-gray-200 text-center">
+            <div className="inline-flex bg-gray-100 p-4 rounded-full mb-4">
+                <NoSymbolIcon className="h-10 w-10 text-gray-400" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-800 mb-2">Orden Completamente Reembolsada</h2>
+            <p className="text-gray-600 mb-6">
+                Este pedido (Orden #{orderId}) ya no tiene productos ni saldo disponible para devolver. 
+            </p>
+            <button onClick={onClose} className="bg-gray-800 text-white px-6 py-2 rounded-md hover:bg-gray-900">
+                Cerrar
+            </button>
+        </div>
+    );
+  }
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
@@ -183,6 +276,7 @@ const ReturnLogic = ({ orderId, preloadedItems, onClose, onSuccess }) => {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         
+        {/* SELECTOR TIPO */}
         <div className="grid grid-cols-2 gap-4">
           <button
             type="button"
@@ -218,30 +312,41 @@ const ReturnLogic = ({ orderId, preloadedItems, onClose, onSuccess }) => {
           />
         </div>
 
+        {/* --- CONTENIDO DINÁMICO --- */}
         {returnType === 'items' ? (
           <div className="border rounded-md overflow-hidden">
+            <div className="bg-yellow-50 px-4 py-2 border-b border-yellow-200 text-xs text-yellow-800">
+                Solo se muestran items con cantidad disponible mayor a 0.
+            </div>
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Producto</th>
-                  <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Comprado</th>
-                  <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Devolver</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Original</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-red-500 uppercase">Ya Devuelto</th>
+                  <th className="px-4 py-2 text-center text-xs font-bold text-green-600 uppercase">Disponible</th>
+                  <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Devolver Ahora</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {orderItems.map(item => (
-                  <tr key={item.id}>
+                {processedItems.map(item => (
+                  <tr key={item.id} className={item.available === 0 ? 'bg-gray-50 opacity-60' : ''}>
                     <td className="px-4 py-2 text-sm text-gray-900">
                       {item.product_name}
                       <div className="text-xs text-gray-500">${item.unit_price}</div>
                     </td>
                     <td className="px-4 py-2 text-center text-sm text-gray-500">{item.quantity}</td>
+                    <td className="px-4 py-2 text-center text-sm text-red-500 font-medium">-{item.alreadyReturned}</td>
+                    <td className="px-4 py-2 text-center text-sm text-green-600 font-bold">{item.available}</td>
                     <td className="px-4 py-2 text-center">
                       <input
-                        type="number" min="0" max={item.quantity}
-                        className="w-16 border rounded text-center p-1"
+                        type="number" 
+                        min="0" 
+                        max={item.available} // IMPORTANTE: Máximo limitado al disponible calculado
+                        disabled={item.available === 0}
+                        className="w-16 border rounded text-center p-1 disabled:bg-gray-200"
                         value={selectedItems[item.id] || 0}
-                        onChange={(e) => handleItemChange(item.id, e.target.value, item.quantity)}
+                        onChange={(e) => handleItemChange(item.id, e.target.value, item.available)}
                       />
                     </td>
                   </tr>
@@ -258,12 +363,16 @@ const ReturnLogic = ({ orderId, preloadedItems, onClose, onSuccess }) => {
               </div>
               <input
                 type="number" step="0.01" required
+                max={maxRefundableAmount} // IMPORTANTE: Validación HTML5
                 className="block w-full rounded-md border-gray-300 pl-7 p-2 border focus:ring-green-500 focus:border-green-500"
                 placeholder="0.00"
                 value={totalRefunded}
                 onChange={(e) => setTotalRefunded(e.target.value)}
               />
             </div>
+            <p className="mt-1 text-sm text-gray-500">
+                Máximo disponible para reembolso monetario: <span className="font-bold text-green-600">${maxRefundableAmount.toFixed(2)}</span>
+            </p>
           </div>
         )}
 
@@ -281,13 +390,13 @@ const ReturnLogic = ({ orderId, preloadedItems, onClose, onSuccess }) => {
         <div className="flex justify-end gap-3 pt-4 border-t">
           <button 
             type="button"
-            onClick={onClose} // Importante: Añadido para cancelar
+            onClick={onClose} 
             className="px-4 py-2 border rounded-md text-gray-700 hover:bg-gray-50"
           >
             Cancelar
           </button>
-          <button type="submit" disabled={loading} className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 shadow-sm">
-            {loading ? 'Procesando...' : 'Generar Devolución'}
+          <button type="submit" disabled={loadingSubmit} className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 shadow-sm">
+            {loadingSubmit ? 'Procesando...' : 'Generar Devolución'}
           </button>
         </div>
 

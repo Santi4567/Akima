@@ -162,25 +162,7 @@ export const ReturnsList = ({ onCreate, onViewDetails }) => {
                           <EyeIcon className="h-5 w-5" />
                         </button>
 
-                        <HasPermission required="edit.return.status">
-                          {rma.status === 'pending' && (
-                            <>
-                              <div className="h-4 w-px bg-gray-300 mx-1"></div>
-                              <button 
-                                onClick={() => handleUpdateStatus(rma.id, 'completed')}
-                                className="text-green-600 hover:text-green-800 transition-colors" title="Aprobar"
-                              >
-                                <CheckCircleIcon className="h-6 w-6" />
-                              </button>
-                              <button 
-                                onClick={() => handleUpdateStatus(rma.id, 'cancelled')}
-                                className="text-red-600 hover:text-red-800 transition-colors" title="Rechazar"
-                              >
-                                <XCircleIcon className="h-6 w-6" />
-                              </button>
-                            </>
-                          )}
-                        </HasPermission>
+                        
                       </div>
                     </td>
                   </tr>

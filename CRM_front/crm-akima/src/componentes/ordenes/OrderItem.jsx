@@ -2,22 +2,19 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { 
-  ArrowLeftIcon, 
-  TrashIcon, 
-  PlusIcon, 
-  CurrencyDollarIcon, 
-  ArrowUturnLeftIcon,
-  BanknotesIcon,
-  CreditCardIcon,
-  DocumentTextIcon,
-  CheckCircleIcon,
-  XCircleIcon
+  ArrowLeftIcon, TrashIcon, PlusIcon, CurrencyDollarIcon, 
+  ArrowUturnLeftIcon, BanknotesIcon, DocumentTextIcon,
+  CheckCircleIcon, XCircleIcon, ShoppingCartIcon, ArchiveBoxXMarkIcon,
+  CreditCardIcon, EyeIcon
 } from '@heroicons/react/24/solid';
 import { useAuth } from '../../context/AuthContext';
 import { HasPermission } from '../HasPermission';
 import { Notification } from '../Notification';
 
-const API_URL = import.meta.env.VITE_API_URL;
+// Importamos el detalle de devolución para la navegación profunda
+import { ReturnDetails } from './ReturnDetails';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export const OrderItems = ({ order, onClose }) => {
   // --- ESTADOS GLOBALES ---
@@ -25,11 +22,15 @@ export const OrderItems = ({ order, onClose }) => {
   const [notification, setNotification] = useState({ type: '', message: '' });
   const { hasPermission } = useAuth();
 
+  // --- ESTADO PARA NAVEGACIÓN PROFUNDA (Drill-down) ---
+  const [selectedReturnId, setSelectedReturnId] = useState(null);
+
   // --- ESTADOS DE DATOS ---
   const [items, setItems] = useState([]);
   const [orderStatus, setOrderStatus] = useState(order.status);
   const [payments, setPayments] = useState([]);
   const [returns, setReturns] = useState([]);
+  const [returnDetails, setReturnDetails] = useState([]); // Para cálculos financieros precisos
 
   // --- ESTADOS DE FORMULARIOS ---
   const [productSearch, setProductSearch] = useState('');
@@ -42,23 +43,7 @@ export const OrderItems = ({ order, onClose }) => {
   const [isPaying, setIsPaying] = useState(false);
 
   // ==========================================
-  // 1. CÁLCULOS FINANCIEROS (Centralizados)
-  // ==========================================
-  const totalOrder = items.reduce((acc, item) => acc + parseFloat(item.subtotal), 0);
-  
-  const totalRefunds = returns
-      .filter(r => r.status === 'completed' && r.total_refunded)
-      .reduce((acc, r) => acc + parseFloat(r.total_refunded), 0);
-  
-  const totalPaid = payments.reduce((acc, p) => acc + parseFloat(p.amount), 0);
-  
-  // Lo que realmente debe pagar el cliente (Orden - Devoluciones)
-  const netTotal = totalOrder - totalRefunds;
-  // Lo que falta por pagar
-  const balanceDue = netTotal - totalPaid;
-
-  // ==========================================
-  // 2. CARGA DE DATOS
+  // 1. CARGA DE DATOS
   // ==========================================
   
   const fetchItems = useCallback(async () => {
@@ -83,8 +68,20 @@ export const OrderItems = ({ order, onClose }) => {
       const res = await fetch(`${API_URL}/api/returns`, { credentials: 'include' });
       const data = await res.json();
       if (data.success) {
+        // 1. Filtramos las de esta orden
         const orderReturns = data.data.filter(r => r.order_id === order.id);
         setReturns(orderReturns);
+
+        // 2. Cargamos el detalle de cada una para saber EXACTAMENTE qué items se devolvieron
+        // Esto es necesario para el resumen financiero "inteligente"
+        const detailsPromises = orderReturns.map(r => 
+            fetch(`${API_URL}/api/returns/${r.id}`, { credentials: 'include' }).then(res => res.json())
+        );
+        const detailsResponses = await Promise.all(detailsPromises);
+        const details = detailsResponses
+            .filter(r => r.success)
+            .map(r => r.data);
+        setReturnDetails(details);
       }
     } catch (error) { console.error(error); }
   }, [order.id]);
@@ -96,7 +93,33 @@ export const OrderItems = ({ order, onClose }) => {
   }, [fetchItems, fetchPayments, fetchReturns]);
 
   // ==========================================
-  // 3. ACCIONES (Estado, Items, Pagos)
+  // 2. CÁLCULOS FINANCIEROS (RESUMEN)
+  // ==========================================
+  
+  // A. Total Orden Original
+  const totalOrder = items.reduce((acc, item) => acc + parseFloat(item.subtotal), 0);
+  
+  // B. Total Reembolsado en DINERO (Ajustes manuales aprobados)
+  const totalMoneyRefunds = returnDetails
+      .filter(r => r.status === 'completed' && !r.items?.length && r.total_refunded)
+      .reduce((acc, r) => acc + parseFloat(r.total_refunded), 0);
+
+  // C. Total Reembolsado en ITEMS (Devoluciones físicas aprobadas)
+  const returnedItemsList = returnDetails
+      .filter(r => r.status === 'completed' && r.items?.length > 0)
+      .flatMap(r => r.items);
+  const totalItemRefunds = returnedItemsList.reduce((acc, item) => acc + parseFloat(item.subtotal_refunded), 0);
+
+  // D. Pagos
+  const totalPaid = payments.reduce((acc, p) => acc + parseFloat(p.amount), 0);
+  
+  // E. Neto y Saldo
+  const netTotal = totalOrder - totalItemRefunds - totalMoneyRefunds;
+  const balanceDue = netTotal - totalPaid;
+
+
+  // ==========================================
+  // 3. ACCIONES DE ORDEN (Estado, Cancelar)
   // ==========================================
 
   const changeStatus = async (newStatus) => {
@@ -134,7 +157,10 @@ export const OrderItems = ({ order, onClose }) => {
     } catch (e) { setNotification({ type: 'error', message: 'Error de red' }); }
   };
 
-  // --- Agregar Items ---
+  // ==========================================
+  // 4. ACCIONES DE ITEMS (Agregar, Eliminar)
+  // ==========================================
+
   useEffect(() => {
     if(productSearch.length > 1) {
       fetch(`${API_URL}/api/products/search?q=${productSearch}`, { credentials: 'include' })
@@ -184,7 +210,10 @@ export const OrderItems = ({ order, onClose }) => {
     } catch(e) { setNotification({ type: 'error', message: 'Error de red' }); }
   };
 
-  // --- Registrar Pago ---
+  // ==========================================
+  // 5. ACCIONES DE PAGO
+  // ==========================================
+
   const handleCreatePayment = async (e) => {
     e.preventDefault();
     setIsPaying(true);
@@ -220,14 +249,28 @@ export const OrderItems = ({ order, onClose }) => {
 
 
   // ==========================================
-  // RENDERIZADO
+  // RENDERIZADO PRINCIPAL
   // ==========================================
 
+  // --- MODO: VISTA DETALLE DE DEVOLUCIÓN ---
+  if (selectedReturnId) {
+    return (
+      <ReturnDetails 
+        returnId={selectedReturnId}
+        onClose={() => {
+            setSelectedReturnId(null); // Volver a la vista de orden
+            fetchReturns(); // Recargar devoluciones para ver cambios de estado
+        }}
+      />
+    );
+  }
+
+  // --- MODO: VISTA NORMAL DE ORDEN ---
   return (
     <div className="space-y-6">
       <Notification type={notification.type} message={notification.message} onClose={() => setNotification({type:'', message:''})} />
       
-      {/* --- HEADER --- */}
+      {/* HEADER */}
       <div className="flex items-center justify-between border-b pb-4">
         <div className="flex items-center gap-4">
           <button onClick={onClose} className="p-2 text-gray-600 hover:bg-gray-100 rounded-full"><ArrowLeftIcon className="h-6 w-6" /></button>
@@ -246,29 +289,21 @@ export const OrderItems = ({ order, onClose }) => {
                 {orderStatus}
             </span>
             <HasPermission required="edit.order.status">
-                {orderStatus === 'pending' && (
-                    <button onClick={() => changeStatus('processing')} className="bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600">Procesar</button>
-                )}
-                {orderStatus === 'processing' && (
-                    <button onClick={() => changeStatus('shipped')} className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">Enviar</button>
-                )}
-                {orderStatus === 'shipped' && (
-                    <button onClick={() => changeStatus('completed')} className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">Completar</button>
-                )}
+                {orderStatus === 'pending' && <button onClick={() => changeStatus('processing')} className="bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600">Procesar</button>}
+                {orderStatus === 'processing' && <button onClick={() => changeStatus('shipped')} className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">Enviar</button>}
+                {orderStatus === 'shipped' && <button onClick={() => changeStatus('completed')} className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700">Completar</button>}
             </HasPermission>
             <HasPermission required="cancel.order">
-                {(orderStatus === 'pending' || orderStatus === 'processing') && (
-                    <button onClick={cancelOrder} className="bg-red-100 text-red-700 px-3 py-1 rounded text-sm hover:bg-red-200 ml-2">Cancelar</button>
-                )}
+                {(orderStatus === 'pending' || orderStatus === 'processing') && <button onClick={cancelOrder} className="bg-red-100 text-red-700 px-3 py-1 rounded text-sm hover:bg-red-200 ml-2">Cancelar</button>}
             </HasPermission>
         </div>
       </div>
 
-      {/* --- TABS --- */}
+      {/* TABS */}
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
           <button onClick={() => setActiveTab('items')} className={`pb-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'items' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
-            <DocumentTextIcon className="h-5 w-5" /> Productos
+            <DocumentTextIcon className="h-5 w-5" /> Estado de Cuenta
           </button>
           <HasPermission required="view.payments">
             <button onClick={() => setActiveTab('payments')} className={`pb-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${activeTab === 'payments' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
@@ -281,29 +316,37 @@ export const OrderItems = ({ order, onClose }) => {
         </nav>
       </div>
 
-      {/* ================= PESTAÑA: PRODUCTOS ================= */}
+      {/* ================= PESTAÑA 1: PRODUCTOS / ESTADO DE CUENTA ================= */}
       {activeTab === 'items' && (
-        <div className="space-y-6">
-            <div className="bg-white shadow rounded-lg overflow-hidden border border-gray-200">
+        <div className="space-y-8">
+            
+            {/* 1.1 ORDEN ORIGINAL */}
+            <div className="bg-white shadow-sm rounded-lg border border-gray-200">
+                <div className="bg-gray-50 px-4 py-2 border-b flex justify-between items-center">
+                    <h3 className="font-bold text-gray-700 flex items-center gap-2">
+                        <ShoppingCartIcon className="h-5 w-5 text-blue-600"/> Pedido Original
+                    </h3>
+                    <span className="text-sm font-bold text-gray-900">${totalOrder.toFixed(2)}</span>
+                </div>
                 <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-white">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Producto</th>
-                            <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Cant.</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Subtotal</th>
-                            <th className="px-6 py-3"></th>
+                            <th className="px-6 py-2 text-left text-xs font-medium text-gray-500 uppercase">Producto</th>
+                            <th className="px-6 py-2 text-center text-xs font-medium text-gray-500 uppercase">Cant.</th>
+                            <th className="px-6 py-2 text-right text-xs font-medium text-gray-500 uppercase">Subtotal</th>
+                            <th className="px-6 py-2"></th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="divide-y divide-gray-100">
                         {items.map((item) => (
                         <tr key={item.id}>
-                            <td className="px-6 py-4 text-sm font-medium text-gray-900">{item.product_name}</td>
-                            <td className="px-6 py-4 text-sm text-center">{item.quantity}</td>
-                            <td className="px-6 py-4 text-sm font-bold text-gray-900 text-right">${item.subtotal}</td>
-                            <td className="px-6 py-4 text-right">
+                            <td className="px-6 py-3 text-sm text-gray-900">{item.product_name} <span className="text-xs text-gray-400 block">{item.sku}</span></td>
+                            <td className="px-6 py-3 text-sm text-center">{item.quantity}</td>
+                            <td className="px-6 py-3 text-sm text-right">${item.subtotal}</td>
+                            <td className="px-6 py-3 text-right">
                                 {(orderStatus === 'pending' || orderStatus === 'processing') && (
                                     <HasPermission required="edit.order.content">
-                                        <button onClick={() => deleteItem(item.id)} className="text-red-500 hover:text-red-700"><TrashIcon className="h-5 w-5" /></button>
+                                        <button onClick={() => deleteItem(item.id)} className="text-red-400 hover:text-red-600"><TrashIcon className="h-4 w-4" /></button>
                                     </HasPermission>
                                 )}
                             </td>
@@ -311,74 +354,115 @@ export const OrderItems = ({ order, onClose }) => {
                         ))}
                     </tbody>
                 </table>
+                {/* Formulario Agregar */}
+                {(orderStatus === 'pending' || orderStatus === 'processing') && (
+                    <HasPermission required="edit.order.content">
+                        <div className="p-3 bg-blue-50 border-t flex gap-2 items-center">
+                            <div className="relative flex-grow">
+                                <input 
+                                    type="text" placeholder="Buscar producto..." className="w-full p-1 border rounded text-sm"
+                                    value={productSearch} onChange={e => { setProductSearch(e.target.value); setShowProductList(true); }}
+                                    onBlur={() => setTimeout(() => setShowProductList(false), 200)}
+                                />
+                                {showProductList && products.length > 0 && (
+                                    <ul className="absolute z-10 bg-white border mt-1 max-h-40 overflow-y-auto shadow-lg bottom-12 w-full">
+                                        {products.map(p => (
+                                            <li key={p.id} onClick={() => { setSelectedProduct(p); setProductSearch(p.name); }} className="p-2 hover:bg-gray-100 cursor-pointer text-sm">
+                                                {p.name} (${p.price})
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                            <input type="number" min="1" value={newItemQty} onChange={e => setNewItemQty(parseInt(e.target.value)||1)} className="w-16 p-1 border rounded text-sm" />
+                            <button onClick={handleAddItem} disabled={!selectedProduct} className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">Agregar</button>
+                        </div>
+                    </HasPermission>
+                )}
             </div>
 
-            {/* RESUMEN FINANCIERO (USANDO VARIABLES CALCULADAS) */}
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 flex flex-col items-end gap-2">
-                <div className="w-full md:w-1/2 lg:w-1/3 space-y-2 text-sm">
-                    <div className="flex justify-between text-gray-600">
-                        <span>Subtotal Productos:</span>
-                        <span className="font-medium">${totalOrder.toFixed(2)}</span>
+            {/* 1.2 PRODUCTOS DEVUELTOS (RESTAS) */}
+            {returnedItemsList.length > 0 && (
+                <div className="bg-red-50 shadow-sm rounded-lg border border-red-200">
+                    <div className="bg-red-100 px-4 py-2 border-b border-red-200 flex justify-between items-center">
+                        <h3 className="font-bold text-red-800 flex items-center gap-2">
+                            <ArchiveBoxXMarkIcon className="h-5 w-5"/> Devoluciones de Mercancía
+                        </h3>
+                        <span className="text-sm font-bold text-red-800">-${totalItemRefunds.toFixed(2)}</span>
                     </div>
-                    {totalRefunds > 0 && (
-                        <div className="flex justify-between text-red-600">
-                            <span>(-) Devoluciones Aprobadas:</span>
-                            <span className="font-medium">-${totalRefunds.toFixed(2)}</span>
+                    <table className="min-w-full divide-y divide-red-200">
+                        <thead className="bg-red-50">
+                            <tr>
+                                <th className="px-6 py-2 text-left text-xs font-medium text-red-500 uppercase">Producto Devuelto</th>
+                                <th className="px-6 py-2 text-center text-xs font-medium text-red-500 uppercase">Cant.</th>
+                                <th className="px-6 py-2 text-right text-xs font-medium text-red-500 uppercase">Abonado</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-red-200">
+                            {returnedItemsList.map((item, idx) => (
+                                <tr key={idx}>
+                                    <td className="px-6 py-2 text-sm text-red-900">{item.product_name}</td>
+                                    <td className="px-6 py-2 text-sm text-center text-red-900">{item.quantity}</td>
+                                    <td className="px-6 py-2 text-sm text-right text-red-900">-${item.subtotal_refunded}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+
+            {/* 1.3 AJUSTES MONETARIOS (RESTAS) */}
+            {totalMoneyRefunds > 0 && (
+                <div className="bg-yellow-50 shadow-sm rounded-lg border border-yellow-200 px-4 py-3 flex justify-between items-center">
+                    <div className="flex items-center gap-2 text-yellow-800 font-bold">
+                        <CurrencyDollarIcon className="h-5 w-5"/>
+                        Ajustes / Reembolsos Manuales
+                    </div>
+                    <span className="font-bold text-red-600">-${totalMoneyRefunds.toFixed(2)}</span>
+                </div>
+            )}
+
+            {/* 1.4 RESUMEN FINAL */}
+            <div className="flex justify-end mt-4">
+                <div className="w-full md:w-1/2 bg-gray-50 p-4 rounded-lg border border-gray-300">
+                    <div className="flex justify-between text-gray-600 mb-1">
+                        <span>Total Orden Original:</span>
+                        <span>${totalOrder.toFixed(2)}</span>
+                    </div>
+                    {(totalItemRefunds > 0 || totalMoneyRefunds > 0) && (
+                        <div className="flex justify-between text-red-600 mb-1">
+                            <span>(-) Total Devoluciones y Ajustes:</span>
+                            <span>-${(totalItemRefunds + totalMoneyRefunds).toFixed(2)}</span>
                         </div>
                     )}
-                    <div className="flex justify-between text-gray-800 font-bold border-t border-gray-300 pt-2">
-                        <span>Total Neto:</span>
+                    <div className="flex justify-between text-gray-900 font-bold text-lg border-t border-gray-300 pt-2 mb-2">
+                        <span>Total Neto a Pagar:</span>
                         <span>${netTotal.toFixed(2)}</span>
                     </div>
-                    <div className="flex justify-between text-green-600">
-                        <span>(-) Pagado:</span>
-                        <span className="font-medium">-${totalPaid.toFixed(2)}</span>
+                    
+                    <div className="flex justify-between text-green-700 mb-1 border-t border-gray-200 pt-2">
+                        <span>(-) Abonos Recibidos:</span>
+                        <span>-${totalPaid.toFixed(2)}</span>
                     </div>
-                    <div className={`flex justify-between text-lg font-bold border-t-2 pt-2 ${balanceDue > 0.01 ? 'text-red-600' : 'text-green-700'}`}>
-                        <span>{balanceDue > 0.01 ? 'Saldo Pendiente:' : 'Saldo Liquidado:'}</span>
+
+                    <div className={`flex justify-between text-xl font-extrabold border-t-2 border-gray-400 pt-2 mt-2 ${balanceDue > 0.01 ? 'text-red-600' : 'text-green-600'}`}>
+                        <span>{balanceDue > 0.01 ? 'SALDO PENDIENTE:' : 'SALDO LIQUIDADO:'}</span>
                         <span>${Math.max(0, balanceDue).toFixed(2)}</span>
                     </div>
                 </div>
             </div>
-            
-            {/* Formulario Agregar (Condicional) */}
-            {(orderStatus === 'pending' || orderStatus === 'processing') && (
-                <HasPermission required="edit.order.content">
-                    <div className="bg-blue-50 p-4 rounded border border-blue-200 flex gap-2 items-center mt-4">
-                        <div className="relative flex-grow">
-                            <input 
-                                type="text" placeholder="Buscar producto..." className="w-full p-2 border rounded text-sm"
-                                value={productSearch}
-                                onChange={e => { setProductSearch(e.target.value); setShowProductList(true); }}
-                                onBlur={() => setTimeout(() => setShowProductList(false), 200)}
-                            />
-                            {showProductList && products.length > 0 && (
-                                <ul className="absolute z-10 w-full bg-white border mt-1 max-h-40 overflow-y-auto shadow-lg bottom-full mb-1">
-                                    {products.map(p => (
-                                        <li key={p.id} onClick={() => { setSelectedProduct(p); setProductSearch(p.name); }} className="p-2 hover:bg-gray-100 cursor-pointer text-sm">
-                                            {p.name} (${p.price})
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </div>
-                        <input type="number" min="1" value={newItemQty} onChange={e => setNewItemQty(parseInt(e.target.value)||1)} className="w-20 p-2 border rounded text-sm" />
-                        <button onClick={handleAddItem} disabled={!selectedProduct} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">Agregar</button>
-                    </div>
-                </HasPermission>
-            )}
+
         </div>
       )}
 
-      {/* ================= PESTAÑA: PAGOS (CON SALDO) ================= */}
+      {/* ================= PESTAÑA 2: PAGOS ================= */}
       {activeTab === 'payments' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
-            {/* FORMULARIO DE ABONO */}
+            {/* Formulario de Abono */}
             <div className="md:col-span-1">
                 <HasPermission required="add.payment">
                     <div className="bg-green-50 p-4 rounded-lg border border-green-200 shadow-sm sticky top-4">
-                        {/* RESUMEN DE DEUDA EN EL FORMULARIO */}
                         <div className="mb-4 pb-4 border-b border-green-200 text-center">
                             <p className="text-xs text-green-800 uppercase font-bold">Saldo Pendiente</p>
                             <p className={`text-2xl font-bold ${balanceDue > 0.01 ? 'text-red-600' : 'text-green-600'}`}>
@@ -393,7 +477,7 @@ export const OrderItems = ({ order, onClose }) => {
                             <div>
                                 <label className="block text-xs font-bold text-green-700 mb-1">Monto a Abonar ($)</label>
                                 <input 
-                                    type="number" step="0.01" required min="0.01" max={balanceDue + 0.01} // Validar que no pague de más (opcional)
+                                    type="number" step="0.01" required min="0.01" max={balanceDue + 0.01}
                                     className="w-full p-2 border border-green-300 rounded focus:ring-2 focus:ring-green-500"
                                     value={paymentForm.amount}
                                     onChange={e => setPaymentForm({...paymentForm, amount: e.target.value})}
@@ -421,17 +505,17 @@ export const OrderItems = ({ order, onClose }) => {
                                 />
                             </div>
                             <button 
-                                type="submit" disabled={isPaying || balanceDue <= 0}
+                                type="submit" disabled={isPaying || balanceDue <= 0.01}
                                 className="w-full bg-green-600 text-white py-2 rounded font-bold hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
                             >
-                                {balanceDue <= 0 ? 'Pagado' : (isPaying ? 'Procesando...' : 'Abonar')}
+                                {balanceDue <= 0.01 ? 'Pagado' : (isPaying ? 'Procesando...' : 'Abonar')}
                             </button>
                         </form>
                     </div>
                 </HasPermission>
             </div>
 
-            {/* TABLA HISTORIAL */}
+            {/* Tabla Historial Pagos */}
             <div className="md:col-span-2 bg-white rounded-lg shadow border border-gray-200">
                 <div className="p-4 border-b bg-gray-50">
                     <h3 className="font-bold text-gray-700">Historial de Pagos</h3>
@@ -453,7 +537,7 @@ export const OrderItems = ({ order, onClose }) => {
                                 payments.map(pay => (
                                     <tr key={pay.id}>
                                         <td className="px-4 py-2 text-sm text-gray-600">
-                                            {new Date(pay.payment_date).toLocaleDateString()} <small>{new Date(pay.payment_date).toLocaleTimeString()}</small>
+                                            {new Date(pay.payment_date).toLocaleDateString()}
                                         </td>
                                         <td className="px-4 py-2 text-sm capitalize flex items-center gap-1">
                                             {pay.method === 'card' ? <CreditCardIcon className="h-4 w-4 text-blue-500"/> : <BanknotesIcon className="h-4 w-4 text-green-600"/>}
@@ -471,7 +555,7 @@ export const OrderItems = ({ order, onClose }) => {
         </div>
       )}
 
-      {/* ================= PESTAÑA: DEVOLUCIONES ================= */}
+      {/* ================= PESTAÑA 3: DEVOLUCIONES ================= */}
       {activeTab === 'returns' && (
         <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
             <table className="min-w-full divide-y divide-gray-200">
@@ -482,11 +566,12 @@ export const OrderItems = ({ order, onClose }) => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Motivo</th>
                         <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Estado</th>
                         <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
+                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Ver</th>
                     </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                     {returns.length === 0 ? (
-                        <tr><td colSpan="5" className="p-8 text-center text-gray-500 italic">No hay devoluciones asociadas a esta orden.</td></tr>
+                        <tr><td colSpan="6" className="p-8 text-center text-gray-500 italic">No hay devoluciones asociadas a esta orden.</td></tr>
                     ) : (
                         returns.map(rma => (
                             <tr key={rma.id} className="hover:bg-gray-50">
@@ -503,6 +588,15 @@ export const OrderItems = ({ order, onClose }) => {
                                 </td>
                                 <td className="px-6 py-4 text-right font-bold text-gray-800">
                                     {rma.total_refunded ? `$${rma.total_refunded}` : 'Items'}
+                                </td>
+                                <td className="px-6 py-4 text-right">
+                                    <button 
+                                        onClick={() => setSelectedReturnId(rma.id)} 
+                                        className="text-blue-600 hover:text-blue-800 p-1 rounded-full hover:bg-blue-50 transition-colors"
+                                        title="Ver detalles completos"
+                                    >
+                                        <EyeIcon className="h-5 w-5" />
+                                    </button>
                                 </td>
                             </tr>
                         ))

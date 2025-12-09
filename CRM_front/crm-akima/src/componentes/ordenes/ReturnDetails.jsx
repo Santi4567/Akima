@@ -1,35 +1,78 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeftIcon, CubeIcon, CurrencyDollarIcon, UserIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
+import { 
+  ArrowLeftIcon, 
+  CubeIcon, 
+  CurrencyDollarIcon, 
+  UserIcon, 
+  EnvelopeIcon 
+} from '@heroicons/react/24/outline';
+import { 
+  CheckCircleIcon, 
+  XCircleIcon,
+  ArrowUturnLeftIcon // Icono para revertir
+} from '@heroicons/react/24/solid'; 
 import { Notification } from '../Notification';
+import { useAuth } from '../../context/AuthContext'; 
+import { HasPermission } from '../HasPermission';   
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 export const ReturnDetails = ({ returnId, onClose }) => {
   const [details, setDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notification, setNotification] = useState({ type: '', message: '' });
+  const { hasPermission } = useAuth(); 
 
-  // Cargar Detalles
-  useEffect(() => {
-    const fetchDetails = async () => {
-      try {
-        const res = await fetch(`${API_URL}/api/returns/${returnId}`, { credentials: 'include' });
-        const data = await res.json();
-        
-        if (data.success) {
-          setDetails(data.data);
-        } else {
-          setNotification({ type: 'error', message: data.message || 'Error al cargar detalles.' });
-        }
-      } catch (error) {
-        setNotification({ type: 'error', message: 'Error de conexión.' });
-      } finally {
-        setLoading(false);
+  // --- 1. Cargar Detalles ---
+  const fetchDetails = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/returns/${returnId}`, { credentials: 'include' });
+      const data = await res.json();
+      
+      if (data.success) {
+        setDetails(data.data);
+      } else {
+        setNotification({ type: 'error', message: data.message || 'Error al cargar detalles.' });
       }
-    };
+    } catch (error) {
+      setNotification({ type: 'error', message: 'Error de conexión.' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     if (returnId) fetchDetails();
   }, [returnId]);
+
+  // --- 2. Función para Actualizar Estado ---
+  const handleUpdateStatus = async (newStatus) => {
+    let actionText = '';
+    if (newStatus === 'completed') actionText = 'APROBAR y COMPLETAR';
+    if (newStatus === 'cancelled') actionText = 'CANCELAR / ANULAR';
+    
+    if (!window.confirm(`¿Estás seguro de ${actionText} esta devolución? Esta acción afectará el inventario/caja.`)) return;
+
+    try {
+      const res = await fetch(`${API_URL}/api/returns/${returnId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status: newStatus })
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setNotification({ type: 'success', message: data.message });
+        fetchDetails(); // Recargar para ver el nuevo estado
+      } else {
+        setNotification({ type: 'error', message: data.message || data.error });
+      }
+    } catch (error) {
+      setNotification({ type: 'error', message: 'Error al intentar actualizar el estado.' });
+    }
+  };
 
   if (loading) return <div className="p-8 text-center text-gray-500">Cargando detalles...</div>;
   if (!details) return <div className="p-8 text-center text-red-500">No se encontró la información.</div>;
@@ -59,9 +102,50 @@ export const ReturnDetails = ({ returnId, onClose }) => {
             <p className="text-sm text-gray-500">Orden Original: <span className="font-mono font-bold">#{details.order_id}</span></p>
           </div>
         </div>
-        <span className={`px-3 py-1 rounded-full text-sm font-bold uppercase ${getStatusColor(details.status)}`}>
-          {details.status}
-        </span>
+
+        <div className="flex items-center gap-4">
+            
+            {/* --- ZONA DE ACCIONES (Header) --- */}
+            <HasPermission required="edit.return.status">
+                <div className="flex gap-2">
+                    
+                    {/* CASO A: PENDIENTE -> Aprobar o Rechazar */}
+                    {details.status === 'pending' && (
+                        <>
+                            <button 
+                                onClick={() => handleUpdateStatus('completed')}
+                                className="flex items-center gap-1 bg-green-600 text-white px-3 py-1 rounded shadow hover:bg-green-700 text-sm font-bold transition-colors"
+                            >
+                                <CheckCircleIcon className="h-5 w-5" /> Aprobar
+                            </button>
+                            <button 
+                                onClick={() => handleUpdateStatus('cancelled')}
+                                className="flex items-center gap-1 bg-white border border-red-200 text-red-600 px-3 py-1 rounded shadow-sm hover:bg-red-50 text-sm font-medium transition-colors"
+                            >
+                                <XCircleIcon className="h-5 w-5" /> Rechazar
+                            </button>
+                        </>
+                    )}
+
+                    {/* CASO B: COMPLETADA -> Cancelar (Revertir) */}
+                    {details.status === 'completed' && (
+                        <button 
+                            onClick={() => handleUpdateStatus('cancelled')}
+                            className="flex items-center gap-1 bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200 text-sm font-medium transition-colors border border-red-200"
+                            title="Anular esta devolución y revertir inventario/saldo"
+                        >
+                            <ArrowUturnLeftIcon className="h-4 w-4" /> Cancelar / Revertir
+                        </button>
+                    )}
+
+                </div>
+            </HasPermission>
+
+            {/* Etiqueta de Estado */}
+            <span className={`px-3 py-1 rounded-full text-sm font-bold uppercase ${getStatusColor(details.status)}`}>
+                {details.status}
+            </span>
+        </div>
       </div>
 
       {/* Tarjetas de Información */}

@@ -111,8 +111,48 @@ CREATE TABLE `company_info` (
 LOCK TABLES `company_info` WRITE;
 /*!40000 ALTER TABLE `company_info` DISABLE KEYS */;
 INSERT INTO `company_info` VALUES
-(1,'Alkima s.a',NULL,NULL,NULL,'5512345678',NULL,NULL,'/uploads/company/logo-1764265850186-310136002.png','2025-11-27 17:50:50');
+(1,'Alkima s.a','','','','5512345678','','','/uploads/company/logo-1764796694678-110960877.jpeg','2025-12-03 21:18:14');
 /*!40000 ALTER TABLE `company_info` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `inventory_logs`
+--
+
+DROP TABLE IF EXISTS `inventory_logs`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `inventory_logs` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `product_id` bigint(20) unsigned NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `type` enum('add','subtract','set') NOT NULL,
+  `quantity` int(11) NOT NULL,
+  `previous_stock` int(11) NOT NULL,
+  `new_stock` int(11) NOT NULL,
+  `reason` text NOT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `product_id` (`product_id`),
+  KEY `user_id` (`user_id`),
+  CONSTRAINT `inventory_logs_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `inventory_logs_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`ID`)
+) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `inventory_logs`
+--
+
+LOCK TABLES `inventory_logs` WRITE;
+/*!40000 ALTER TABLE `inventory_logs` DISABLE KEYS */;
+INSERT INTO `inventory_logs` VALUES
+(1,11,8,'add',50,-79,-29,'Recepción de pedido de proveedor #XP-900','2025-11-28 20:51:39'),
+(2,11,8,'add',20,-29,-9,'reabastecimiento de producto','2025-11-28 20:58:15'),
+(3,10,8,'subtract',2,-18,-20,'aplastamiento','2025-11-28 20:58:31'),
+(4,10,8,'subtract',2,-20,-22,'se danaron','2025-11-28 20:59:08'),
+(5,11,8,'add',100,-9,91,'Reabastecimiento de mercancia','2025-11-28 21:24:54');
+/*!40000 ALTER TABLE `inventory_logs` ENABLE KEYS */;
 UNLOCK TABLES;
 
 --
@@ -134,7 +174,7 @@ CREATE TABLE `order_items` (
   KEY `product_id` (`product_id`),
   CONSTRAINT `order_items_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
   CONSTRAINT `order_items_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -154,7 +194,9 @@ INSERT INTO `order_items` VALUES
 (15,11,11,'Fertilizante',100,12312.00),
 (18,12,10,'Teclado Mecánico RGB TKL',7,1899.99),
 (20,13,10,'Teclado Mecánico RGB TKL',3,1899.99),
-(21,13,11,'Fertilizante',1,12312.00);
+(21,13,11,'Fertilizante',1,12312.00),
+(22,12,11,'Fertilizante',1,12312.00),
+(23,14,10,'Teclado Mecánico RGB TKL',1,1899.99);
 /*!40000 ALTER TABLE `order_items` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -174,12 +216,13 @@ CREATE TABLE `orders` (
   `shipping_address` text DEFAULT NULL,
   `notes` text DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `processing_id` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `client_id` (`client_id`),
   KEY `user_id` (`user_id`),
   CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`),
   CONSTRAINT `orders_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=15 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -189,13 +232,14 @@ CREATE TABLE `orders` (
 LOCK TABLES `orders` WRITE;
 /*!40000 ALTER TABLE `orders` DISABLE KEYS */;
 INSERT INTO `orders` VALUES
-(7,7,8,'cancelled',0.00,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-11-20 03:28:19'),
-(8,7,8,'cancelled',1269199.80,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-11-20 03:29:38'),
-(9,7,8,'shipped',1269199.80,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-11-20 03:35:01'),
-(10,7,8,'cancelled',1269199.80,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-11-20 03:35:09'),
-(11,7,8,'completed',1269199.80,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-11-20 03:35:17'),
-(12,7,8,'pending',13299.93,'lomas 5 de mayo','llegar antes de las 3, cierran por dia festivo','2025-11-20 05:47:16'),
-(13,7,8,'completed',18011.97,'lomas 5','no ir en domingos','2025-11-20 05:56:48');
+(7,7,8,'cancelled',0.00,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-11-20 03:28:19',NULL),
+(8,7,8,'cancelled',1269199.80,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-11-20 03:29:38',NULL),
+(9,7,8,'shipped',1269199.80,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-11-20 03:35:01',NULL),
+(10,7,8,'cancelled',1269199.80,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-11-20 03:35:09',NULL),
+(11,7,8,'completed',1269199.80,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-11-20 03:35:17',NULL),
+(12,7,8,'processing',25611.93,'lomas 5 de mayo','llegar antes de las 3, cierran por dia festivo','2025-11-20 05:47:16',NULL),
+(13,7,8,'completed',18011.97,'lomas 5','no ir en domingos','2025-11-20 05:56:48',NULL),
+(14,7,8,'pending',1899.99,'lomas 5','','2025-12-09 03:39:02',NULL);
 /*!40000 ALTER TABLE `orders` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -253,7 +297,7 @@ CREATE TABLE `product_images` (
   PRIMARY KEY (`id`),
   KEY `product_id` (`product_id`),
   CONSTRAINT `product_images_ibfk_1` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -263,8 +307,10 @@ CREATE TABLE `product_images` (
 LOCK TABLES `product_images` WRITE;
 /*!40000 ALTER TABLE `product_images` DISABLE KEYS */;
 INSERT INTO `product_images` VALUES
-(11,10,'/uploads/products/1763534637787-545346856.webp',NULL,0,1,'2025-11-19 06:43:57'),
-(12,10,'/uploads/products/1763534641103-701193795.webp',NULL,1,0,'2025-11-19 06:44:01');
+(13,11,'/uploads/products/1764300128270-717043387.webp',NULL,0,1,'2025-11-28 03:22:08'),
+(14,11,'/uploads/products/1764300131144-102157722.webp',NULL,1,0,'2025-11-28 03:22:11'),
+(15,10,'/uploads/products/1764300143364-40421326.webp',NULL,0,1,'2025-11-28 03:22:23'),
+(16,10,'/uploads/products/1764300147315-967846859.webp',NULL,1,0,'2025-11-28 03:22:27');
 /*!40000 ALTER TABLE `product_images` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -293,6 +339,7 @@ CREATE TABLE `products` (
   `width` decimal(8,2) DEFAULT NULL,
   `depth` decimal(8,2) DEFAULT NULL,
   `custom_fields` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`custom_fields`)),
+  `location` varchar(255) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`),
@@ -312,8 +359,8 @@ CREATE TABLE `products` (
 LOCK TABLES `products` WRITE;
 /*!40000 ALTER TABLE `products` DISABLE KEYS */;
 INSERT INTO `products` VALUES
-(10,'TEC-RGB-TKL-001','7501234567890','Teclado Mecánico RGB TKL','Teclado mecánico Tenkeyless con switches azules y retroiluminación RGB personalizable.',1899.99,1200.00,-18,'product','active',7,4,0.85,4.50,36.00,14.00,'{\"tipo_switch\":\"Blue Gateron\",\"formato\":\"TKL (Tenkeyless)\",\"conexion\":\"USB-C\"}','2025-11-18 18:48:32','2025-11-20 05:56:48'),
-(11,'5688sx','1232131','Fertilizante','fertilzante para campo',12312.00,1211.00,-79,'product','active',8,4,34.00,10.00,14.00,45.00,'{\"color\":\"verde\"}','2025-11-18 19:07:49','2025-11-20 05:57:49');
+(10,'TEC-RGB-TKL-001','7501234567890','Teclado Mecánico RGB TKL','Teclado mecánico Tenkeyless con switches azules y retroiluminación RGB personalizable.',1899.99,1200.00,-23,'product','active',7,4,0.85,4.50,36.00,14.00,'{\"tipo_switch\":\"Blue Gateron\",\"formato\":\"TKL (Tenkeyless)\",\"conexion\":\"USB-C\"}',NULL,'2025-11-18 18:48:32','2025-12-09 03:39:02'),
+(11,'5688sx','1232131','Fertilizante','fertilzante para campo',12312.00,1211.00,90,'product','active',8,4,34.00,10.00,14.00,45.00,'{\"color\":\"verde\"}','pasillo 2 estante 3','2025-11-18 19:07:49','2025-12-03 20:52:10');
 /*!40000 ALTER TABLE `products` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -337,7 +384,7 @@ CREATE TABLE `return_items` (
   KEY `order_item_id` (`order_item_id`),
   CONSTRAINT `return_items_ibfk_1` FOREIGN KEY (`return_id`) REFERENCES `returns` (`id`) ON DELETE CASCADE,
   CONSTRAINT `return_items_ibfk_2` FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -348,7 +395,16 @@ LOCK TABLES `return_items` WRITE;
 /*!40000 ALTER TABLE `return_items` DISABLE KEYS */;
 INSERT INTO `return_items` VALUES
 (6,12,14,10,'Teclado Mecánico RGB TKL',2,1899.99),
-(7,12,15,11,'Fertilizante',2,12312.00);
+(7,12,15,11,'Fertilizante',2,12312.00),
+(8,13,12,10,'Teclado Mecánico RGB TKL',3,1899.99),
+(9,13,13,11,'Fertilizante',3,12312.00),
+(10,14,12,10,'Teclado Mecánico RGB TKL',2,1899.99),
+(11,14,13,11,'Fertilizante',2,12312.00),
+(12,15,23,10,'Teclado Mecánico RGB TKL',1,1899.99),
+(13,16,12,10,'Teclado Mecánico RGB TKL',2,1899.99),
+(14,16,13,11,'Fertilizante',2,12312.00),
+(15,19,14,10,'Teclado Mecánico RGB TKL',2,1899.99),
+(16,19,15,11,'Fertilizante',2,12312.00);
 /*!40000 ALTER TABLE `return_items` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -375,7 +431,7 @@ CREATE TABLE `returns` (
   CONSTRAINT `returns_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`),
   CONSTRAINT `returns_ibfk_2` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`),
   CONSTRAINT `returns_ibfk_3` FOREIGN KEY (`user_id`) REFERENCES `users` (`ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -386,7 +442,14 @@ LOCK TABLES `returns` WRITE;
 /*!40000 ALTER TABLE `returns` DISABLE KEYS */;
 INSERT INTO `returns` VALUES
 (11,11,7,8,'producto con descuento',200.00,'2025-11-26 23:12:34','completed'),
-(12,11,7,8,'sin stock',28423.98,'2025-11-27 00:39:31','completed');
+(12,11,7,8,'sin stock',28423.98,'2025-11-27 00:39:31','completed'),
+(13,10,7,8,'sin stock',42635.97,'2025-12-09 03:41:03','completed'),
+(14,10,7,8,'sin stock',28423.98,'2025-12-09 03:41:27','completed'),
+(15,14,7,8,'sin stock',1899.99,'2025-12-09 03:41:52','completed'),
+(16,10,7,8,'sDASD',28423.98,'2025-12-09 03:43:15','cancelled'),
+(17,10,7,8,'2222',222.00,'2025-12-09 03:55:43','cancelled'),
+(18,11,7,8,'descuento',10000.00,'2025-12-09 04:12:03','completed'),
+(19,11,7,8,'ddf',28423.98,'2025-12-09 04:19:52','pending');
 /*!40000 ALTER TABLE `returns` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -511,7 +574,7 @@ CREATE TABLE `website_banners` (
   `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -521,8 +584,10 @@ CREATE TABLE `website_banners` (
 LOCK TABLES `website_banners` WRITE;
 /*!40000 ALTER TABLE `website_banners` DISABLE KEYS */;
 INSERT INTO `website_banners` VALUES
-(5,'/uploads/banners/banner-1764268358600-620513561.jpeg',NULL,NULL,2,1,'2025-11-27 18:32:38'),
-(6,'/uploads/banners/banner-1764268366029-98763635.jpeg',NULL,NULL,1,1,'2025-11-27 18:32:46');
+(8,'/uploads/banners/banner-1764299579008-581663965.jpeg',NULL,NULL,2,1,'2025-11-28 03:12:59'),
+(9,'/uploads/banners/banner-1764299585665-411200848.jpg',NULL,NULL,3,1,'2025-11-28 03:13:05'),
+(10,'/uploads/banners/banner-1764299591258-850383775.webp',NULL,NULL,4,1,'2025-11-28 03:13:11'),
+(11,'/uploads/banners/banner-1764299743757-733648481.webp',NULL,NULL,1,1,'2025-11-28 03:15:43');
 /*!40000 ALTER TABLE `website_banners` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -535,4 +600,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-11-27 14:21:00
+-- Dump completed on 2025-12-08 22:39:01
