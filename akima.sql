@@ -111,7 +111,7 @@ CREATE TABLE `company_info` (
 LOCK TABLES `company_info` WRITE;
 /*!40000 ALTER TABLE `company_info` DISABLE KEYS */;
 INSERT INTO `company_info` VALUES
-(1,'Alkima s.a',NULL,NULL,NULL,'5512345678',NULL,NULL,'/uploads/company/logo-1764265850186-310136002.png','2025-11-27 17:50:50');
+(1,'Alkima s.a','','','','5512345678','','','/uploads/company/logo-1764796694678-110960877.jpeg','2025-12-03 21:18:14');
 /*!40000 ALTER TABLE `company_info` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -174,7 +174,7 @@ CREATE TABLE `order_items` (
   KEY `product_id` (`product_id`),
   CONSTRAINT `order_items_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
   CONSTRAINT `order_items_ibfk_2` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -194,7 +194,10 @@ INSERT INTO `order_items` VALUES
 (15,11,11,'Fertilizante',100,12312.00),
 (18,12,10,'Teclado Mecánico RGB TKL',7,1899.99),
 (20,13,10,'Teclado Mecánico RGB TKL',3,1899.99),
-(21,13,11,'Fertilizante',1,12312.00);
+(21,13,11,'Fertilizante',1,12312.00),
+(22,12,11,'Fertilizante',1,12312.00),
+(23,14,10,'Teclado Mecánico RGB TKL',1,1899.99),
+(24,15,10,'Teclado Mecánico RGB TKL',3,1899.99);
 /*!40000 ALTER TABLE `order_items` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -214,12 +217,15 @@ CREATE TABLE `orders` (
   `shipping_address` text DEFAULT NULL,
   `notes` text DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `processing_id` int(11) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `client_id` (`client_id`),
   KEY `user_id` (`user_id`),
+  KEY `fk_orders_processing_user` (`processing_id`),
+  CONSTRAINT `fk_orders_processing_user` FOREIGN KEY (`processing_id`) REFERENCES `users` (`ID`),
   CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`),
   CONSTRAINT `orders_ibfk_2` FOREIGN KEY (`user_id`) REFERENCES `users` (`ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=16 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -229,13 +235,15 @@ CREATE TABLE `orders` (
 LOCK TABLES `orders` WRITE;
 /*!40000 ALTER TABLE `orders` DISABLE KEYS */;
 INSERT INTO `orders` VALUES
-(7,7,8,'cancelled',0.00,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-11-20 03:28:19'),
-(8,7,8,'cancelled',1269199.80,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-11-20 03:29:38'),
-(9,7,8,'shipped',1269199.80,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-11-20 03:35:01'),
-(10,7,8,'cancelled',1269199.80,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-11-20 03:35:09'),
-(11,7,8,'completed',1269199.80,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-11-20 03:35:17'),
-(12,7,8,'pending',13299.93,'lomas 5 de mayo','llegar antes de las 3, cierran por dia festivo','2025-11-20 05:47:16'),
-(13,7,8,'completed',18011.97,'lomas 5','no ir en domingos','2025-11-20 05:56:48');
+(7,7,8,'cancelled',0.00,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-11-20 03:28:19',NULL),
+(8,7,8,'cancelled',1269199.80,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-11-20 03:29:38',NULL),
+(9,7,8,'shipped',1269199.80,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-11-20 03:35:01',NULL),
+(10,7,8,'cancelled',1269199.80,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-11-20 03:35:09',NULL),
+(11,7,8,'completed',1269199.80,'Av. Siempre Viva 742, Springfield','Entregar solo por las tardes.','2025-11-20 03:35:17',NULL),
+(12,7,8,'processing',25611.93,'lomas 5 de mayo','llegar antes de las 3, cierran por dia festivo','2025-11-20 05:47:16',NULL),
+(13,7,8,'completed',18011.97,'lomas 5','no ir en domingos','2025-11-20 05:56:48',NULL),
+(14,7,8,'pending',1899.99,'lomas 5','','2025-12-09 03:39:02',NULL),
+(15,7,8,'completed',5699.97,'lomas 5','','2025-12-10 04:47:57',NULL);
 /*!40000 ALTER TABLE `orders` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -260,7 +268,7 @@ CREATE TABLE `payments` (
   KEY `fk_payments_user` (`user_id`),
   CONSTRAINT `fk_payments_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`ID`),
   CONSTRAINT `payments_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -271,7 +279,8 @@ LOCK TABLES `payments` WRITE;
 /*!40000 ALTER TABLE `payments` DISABLE KEYS */;
 INSERT INTO `payments` VALUES
 (1,11,8,500.00,'2025-11-26 19:17:48','cash',NULL,'Pago parcial en mostrador'),
-(2,11,8,10000.00,'2025-11-26 20:05:36','cash',NULL,'pago mostrador');
+(2,11,8,10000.00,'2025-11-26 20:05:36','cash',NULL,'pago mostrador'),
+(3,15,8,500.00,'2025-12-09 22:53:11','cash',NULL,'pago en mostrador');
 /*!40000 ALTER TABLE `payments` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -335,6 +344,7 @@ CREATE TABLE `products` (
   `width` decimal(8,2) DEFAULT NULL,
   `depth` decimal(8,2) DEFAULT NULL,
   `custom_fields` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`custom_fields`)),
+  `location` varchar(255) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`),
@@ -354,8 +364,8 @@ CREATE TABLE `products` (
 LOCK TABLES `products` WRITE;
 /*!40000 ALTER TABLE `products` DISABLE KEYS */;
 INSERT INTO `products` VALUES
-(10,'TEC-RGB-TKL-001','7501234567890','Teclado Mecánico RGB TKL','Teclado mecánico Tenkeyless con switches azules y retroiluminación RGB personalizable.',1899.99,1200.00,-22,'product','active',7,4,0.85,4.50,36.00,14.00,'{\"tipo_switch\":\"Blue Gateron\",\"formato\":\"TKL (Tenkeyless)\",\"conexion\":\"USB-C\"}','2025-11-18 18:48:32','2025-11-28 20:59:08'),
-(11,'5688sx','1232131','Fertilizante','fertilzante para campo',12312.00,1211.00,91,'product','active',8,4,34.00,10.00,14.00,45.00,'{\"color\":\"verde\"}','2025-11-18 19:07:49','2025-11-28 21:24:54');
+(10,'TEC-RGB-TKL-001','7501234567890','Teclado Mecánico RGB TKL','Teclado mecánico Tenkeyless con switches azules y retroiluminación RGB personalizable.',1899.99,1200.00,-26,'product','active',7,4,0.85,4.50,36.00,14.00,'{\"tipo_switch\":\"Blue Gateron\",\"formato\":\"TKL (Tenkeyless)\",\"conexion\":\"USB-C\"}',NULL,'2025-11-18 18:48:32','2025-12-10 04:47:57'),
+(11,'5688sx','1232131','Fertilizante','fertilzante para campo',12312.00,1211.00,90,'product','active',8,4,34.00,10.00,14.00,45.00,'{\"color\":\"verde\"}','pasillo 2 estante 3','2025-11-18 19:07:49','2025-12-03 20:52:10');
 /*!40000 ALTER TABLE `products` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -379,7 +389,7 @@ CREATE TABLE `return_items` (
   KEY `order_item_id` (`order_item_id`),
   CONSTRAINT `return_items_ibfk_1` FOREIGN KEY (`return_id`) REFERENCES `returns` (`id`) ON DELETE CASCADE,
   CONSTRAINT `return_items_ibfk_2` FOREIGN KEY (`order_item_id`) REFERENCES `order_items` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -390,7 +400,17 @@ LOCK TABLES `return_items` WRITE;
 /*!40000 ALTER TABLE `return_items` DISABLE KEYS */;
 INSERT INTO `return_items` VALUES
 (6,12,14,10,'Teclado Mecánico RGB TKL',2,1899.99),
-(7,12,15,11,'Fertilizante',2,12312.00);
+(7,12,15,11,'Fertilizante',2,12312.00),
+(8,13,12,10,'Teclado Mecánico RGB TKL',3,1899.99),
+(9,13,13,11,'Fertilizante',3,12312.00),
+(10,14,12,10,'Teclado Mecánico RGB TKL',2,1899.99),
+(11,14,13,11,'Fertilizante',2,12312.00),
+(12,15,23,10,'Teclado Mecánico RGB TKL',1,1899.99),
+(13,16,12,10,'Teclado Mecánico RGB TKL',2,1899.99),
+(14,16,13,11,'Fertilizante',2,12312.00),
+(15,19,14,10,'Teclado Mecánico RGB TKL',2,1899.99),
+(16,19,15,11,'Fertilizante',2,12312.00),
+(17,20,24,10,'Teclado Mecánico RGB TKL',1,1899.99);
 /*!40000 ALTER TABLE `return_items` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -417,7 +437,7 @@ CREATE TABLE `returns` (
   CONSTRAINT `returns_ibfk_1` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`),
   CONSTRAINT `returns_ibfk_2` FOREIGN KEY (`client_id`) REFERENCES `clients` (`id`),
   CONSTRAINT `returns_ibfk_3` FOREIGN KEY (`user_id`) REFERENCES `users` (`ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -428,7 +448,16 @@ LOCK TABLES `returns` WRITE;
 /*!40000 ALTER TABLE `returns` DISABLE KEYS */;
 INSERT INTO `returns` VALUES
 (11,11,7,8,'producto con descuento',200.00,'2025-11-26 23:12:34','completed'),
-(12,11,7,8,'sin stock',28423.98,'2025-11-27 00:39:31','completed');
+(12,11,7,8,'sin stock',28423.98,'2025-11-27 00:39:31','completed'),
+(13,10,7,8,'sin stock',42635.97,'2025-12-09 03:41:03','completed'),
+(14,10,7,8,'sin stock',28423.98,'2025-12-09 03:41:27','completed'),
+(15,14,7,8,'sin stock',1899.99,'2025-12-09 03:41:52','completed'),
+(16,10,7,8,'sDASD',28423.98,'2025-12-09 03:43:15','cancelled'),
+(17,10,7,8,'2222',222.00,'2025-12-09 03:55:43','cancelled'),
+(18,11,7,8,'descuento',10000.00,'2025-12-09 04:12:03','completed'),
+(19,11,7,8,'ddf',28423.98,'2025-12-09 04:19:52','pending'),
+(20,15,7,8,'sin stock',1899.99,'2025-12-10 04:51:46','completed'),
+(21,15,7,8,'descuento de fin de mes',200.00,'2025-12-10 04:52:39','completed');
 /*!40000 ALTER TABLE `returns` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -579,4 +608,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-11-28 15:34:14
+-- Dump completed on 2025-12-11 18:39:31

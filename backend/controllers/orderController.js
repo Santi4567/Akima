@@ -135,10 +135,12 @@ const getOrders = async (req, res) => {
             SELECT 
                 o.*,
                 CONCAT(c.first_name, ' ', c.last_name) AS client_name,
-                u.Nombre AS user_name
+                seller.Nombre AS user_name,          -- El Vendedor (user_id)
+                processor.Nombre AS processor_name   -- El Almacenista (processing_id)
             FROM orders o
             INNER JOIN clients c ON o.client_id = c.id
-            INNER JOIN users u ON o.user_id = u.ID
+            INNER JOIN users seller ON o.user_id = seller.ID  -- Primer join con users (Vendedor)
+            LEFT JOIN users processor ON o.processing_id = processor.ID -- Segundo join (Almacén)
         `;
 
         // 2. Lógica de Permisos para filtrar los resultados
@@ -169,17 +171,18 @@ const getOrders = async (req, res) => {
  * Validaciones de flujo:
  * 1. Un pedido 'completed' está bloqueado y no cambia.
  * 2. Un pedido 'shipped' no puede regresar a 'processing' o 'pending'.
+ * (ACTUALIZADO: Registra quién inició el procesamiento)
  */
 const updateOrderStatus = async (req, res) => {
     let connection;
     try {
         const { id } = req.params;
-        const { status: newStatus } = req.body; // Renombramos para claridad
+        const { status: newStatus } = req.body;
+        const currentUser = req.user; // <--- Necesitamos saber quién es
 
         connection = await getConnection();
 
-        // 1. OBTENER EL ESTADO ACTUAL
-        // Necesitamos saber cómo está el pedido hoy para saber si el cambio es válido
+        // 1. Obtener estado actual
         const [orders] = await connection.execute('SELECT status FROM orders WHERE id = ?', [id]);
 
         if (orders.length === 0) {
@@ -188,47 +191,41 @@ const updateOrderStatus = async (req, res) => {
 
         const currentStatus = orders[0].status;
 
-        // 2. VALIDACIONES DE LÓGICA DE NEGOCIO
-
-        // Regla A: Si ya está 'completed', es inmutable (candado final)
+        // 2. Validaciones de flujo (Igual que antes)
         if (currentStatus === 'completed') {
-            return res.status(409).json({ 
-                success: false, 
-                error: 'ESTADO_INMUTABLE',
-                message: 'El pedido ya ha sido completado y no se puede modificar su estado.' 
-            });
+            return res.status(409).json({ success: false, error: 'ESTADO_INMUTABLE', message: 'El pedido ya está completado.' });
         }
-
-        // Regla B: Si ya está 'shipped', no puede retroceder
-        // Bloqueamos si intentan ir a 'processing' o 'pending'
-        if (currentStatus === 'shipped' && (newStatus === 'processing' || newStatus === 'pending')) {
-            return res.status(409).json({ 
-                success: false, 
-                error: 'RETROCESO_NO_PERMITIDO',
-                message: `No se puede regresar un pedido de '${currentStatus}' a '${newStatus}'.` 
-            });
-        }
-
-        // (Opcional) Regla C: Si ya está 'cancelled', tampoco debería moverse
         if (currentStatus === 'cancelled') {
-             return res.status(409).json({ 
-                success: false, 
-                error: 'PEDIDO_CANCELADO',
-                message: 'El pedido está cancelado y no puede cambiar de estado.' 
-            });
+             return res.status(409).json({ success: false, error: 'PEDIDO_CANCELADO', message: 'El pedido está cancelado.' });
+        }
+        if (currentStatus === 'shipped' && (newStatus === 'processing' || newStatus === 'pending')) {
+            return res.status(409).json({ success: false, error: 'RETROCESO_NO_PERMITIDO', message: 'No se puede regresar el estado.' });
         }
 
-        // 3. EJECUTAR LA ACTUALIZACIÓN
-        // Si pasó las validaciones, procedemos con el cambio
-        await connection.execute(
-            'UPDATE orders SET status = ? WHERE id = ?',
-            [newStatus, id]
-        );
+        // =================================================================
+        // 3. LÓGICA DE ASIGNACIÓN DE RESPONSABLE (processing_id)
+        // =================================================================
+        let sql;
+        let params;
+
+        // Si el pedido "empieza" a procesarse (pasa de pending -> processing)
+        if (currentStatus === 'pending' && newStatus === 'processing') {
+            sql = 'UPDATE orders SET status = ?, processing_id = ? WHERE id = ?';
+            params = [newStatus, currentUser.userId, id];
+        } else {
+            // Cualquier otro cambio de estado (shipped, completed, etc.)
+            // Solo actualizamos el estado, respetando quién lo procesó originalmente
+            sql = 'UPDATE orders SET status = ? WHERE id = ?';
+            params = [newStatus, id];
+        }
+
+        // 4. Ejecutar
+        await connection.execute(sql, params);
 
         res.status(200).json({ success: true, message: `Pedido actualizado a estado: ${newStatus}` });
 
     } catch (error) {
-        console.error('Error al actualizar estado de pedido:', error);
+        console.error('Error al actualizar estado:', error);
         res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
     } finally {
         if (connection) connection.release();
