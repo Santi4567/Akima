@@ -12,17 +12,13 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://52.14.208.243",
+        "EXPO_PUBLIC_API_URL": "https://alkimia.click",
         "EXPO_PUBLIC_APP_NAME": "ALKIMIA"
       }
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
-      },
-      "env": {
-        "EXPO_PUBLIC_API_URL": "http://52.14.208.243",
-        "EXPO_PUBLIC_APP_NAME": "ALKIMIA"
       }
     }
   },

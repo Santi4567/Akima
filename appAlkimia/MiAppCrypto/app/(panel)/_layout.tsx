@@ -52,7 +52,8 @@ export default function PanelLayout() {
           ),
         }}
       />
-      {/* 4 PAGOS */}
+      
+      {/* 4. PAGOS (Cobrar) */}
       <Tabs.Screen
         name="pagos"
         options={{
@@ -63,7 +64,7 @@ export default function PanelLayout() {
         }}
       />
 
-      {/* 4. AJUSTES */}
+      {/* 5. AJUSTES */}
       <Tabs.Screen
         name="configuracion"
         options={{
@@ -75,12 +76,13 @@ export default function PanelLayout() {
       />
 
 
-      {/* Registramos la nueva pantalla pero la ocultamos del menú */}
+      {/* --- PANTALLAS OCULTAS (HREF: NULL) --- */}
+      
       <Tabs.Screen
         name="nueva-orden"
         options={{
-          href: null, // No sale botón en el menú
-          tabBarStyle: { display: 'none' }, // Oculta la barra al entrar aquí (más espacio para teclado)
+          href: null, 
+          tabBarStyle: { display: 'none' }, 
         }}
       />
 
@@ -91,6 +93,7 @@ export default function PanelLayout() {
           tabBarStyle: { display: 'none' } 
         }} 
       />
+      
       <Tabs.Screen 
         name="clientes" 
         options={{ 
@@ -103,25 +106,34 @@ export default function PanelLayout() {
         name="historial-ordenes" 
         options={{ href: null, tabBarStyle: { display: 'none' } }} 
       />
-      {/* Pagos */}
-       <Tabs.Screen 
+      
+      <Tabs.Screen 
          name="generar-pago" 
          options={{ href: null, tabBarStyle: { display: 'none' } }} 
        />
+       
        <Tabs.Screen 
         name="inventario" 
         options={{ href: null, tabBarStyle: { display: 'none' } }} 
       />
+      
+      {/* AQUÍ ESTABA EL ERROR: Solo declaramos despacho una vez */}
       <Tabs.Screen 
         name="despacho" 
         options={{ href: null, tabBarStyle: { display: 'none' } }} 
       />
+      
       <Tabs.Screen 
         name="productos" 
         options={{ 
           href: null, 
           tabBarStyle: { display: 'none' } 
         }} 
+      />
+      
+      <Tabs.Screen 
+        name="surtido" 
+        options={{ href: null, tabBarStyle: { display: 'none' } }} 
       />
 
     </Tabs>
