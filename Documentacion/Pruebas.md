@@ -2,19 +2,9 @@
 
     curl -X POST http://localhost:3000/api/users/login -H "Content-Type: application/json" -d '{ "Correo": "admin@test.com", "Passwd": "test123"}'
 
-    curl -X POST http://localhost:3000/api/users/login -H "Content-Type: application/json" -d '{ "Correo": "gerente@test.com", "Passwd": "test123"}'
-
-    curl -X POST http://localhost:3000/api/users/login -H "Content-Type: application/json" -d '{ "Correo": "vendedor@test.com"", "Passwd": "test123"}'
-    
-    curl -X POST http://localhost:3000/api/users/login -H "Content-Type: application/json" -d '{ "Correo": "administracion@test.com", "Passwd": "test123"}'
-
 # Registrer
     curl -X POST http://localhost:3000/api/users/register -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"Nombre": "Admin F", "Correo": "admin@test.com", "Passwd": "test123"}'
-
-    curl -X POST http://localhost:3000/api/users/register -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"Nombre": "Juan Flores", "Correo": "gerente@test.com"","Passwd":"test123"}'
-    curl -X POST http://localhost:3000/api/users/register -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"Nombre": "vendedor Flores","Correo": "vendedor@test.com"","Passwd": "test123"}'
-
-    curl -X POST http://localhost:3000/api/users/register -H "Content-Type: application/json" -H "Authorization: Bearer <TU_TOKEN_JWT>" -d '{"Nombre": "adm Flores","Correo": "administracion@test.com","Passwd": "test123"}'
+    
 
 curl -v -X POST http://localhost:3000/api/users -H "Authorization: Bearer <TU_TOKEN_DE_ADMIN>" -H "Content-Type: application/json" -d '{"Nombre": "Nuevo Vendedor","Correo": "vendedor2@akima.com","Passwd": "password123","rol": "vendedor","Estado": 1,"phone": "5512345678","address": "Calle Ventas 101","sex": "M"}'
 
@@ -305,19 +295,51 @@ curl -X DELETE http://localhost:3000/api/products/images/7 -H "Authorization: Be
     curl -X GET http://localhost:3000/api/payments -H "Authorization: Bearer <TU_TOKEN_JWT>"
 
 # Finanzas 
-  ## Total de cuentas
-  curl -v -X GET http://localhost:3000/api/finance/dashboard -H "Authorization: Bearer  <TU_TOKEN_JWT>"
+. Dashboard Financiero (Ver datos de Hoy)
+Bash
 
-  {"success":true,"data":{"gross_sales":2569711.5,"net_income":10500,"accounts_receivable":2559211.5,"total_refunds":28623.98}}
-  ## Productos mas vendidos 
-  curl -v -X GET http://localhost:3000/api/finance/reports/top-products -H "Authorization: Bearer  <TU_TOKEN_JWT>"
-  {"success":true,"data":[{"product_name":"Fertilizante","total_sold":"201","total_revenue":"2474712.00"},{"product_name":"Teclado Mecánico RGB TKL","total_sold":"50","total_revenue":"94999.50"}]}
-  ## Productos menos vendidos 
-  curl -v -X GET http://localhost:3000/api/finance/reports/least-sold -H "Authorization: Bearer  <TU_TOKEN_JWT>"
-  {"success":true,"data":[{"product_name":"Teclado Mecánico RGB TKL","total_sold":"50"},{"product_name":"Fertilizante","total_sold":"201"}]}
+curl -X GET "http://localhost:3000/api/finance/dashboard?period=today" \
+-b cookies.txt 
 
-  ## Mejor cliente
-    curl -X GET http://localhost:3000/api/clients/reports/best -H "Authorization: Bearer  <TU_TOKEN_JWT>"
+2. Productos Más Vendidos (Ver datos de este Año)
+Bash
+
+curl -X GET "http://localhost:3000/api/finance/reports/top-products?period=year" \
+-b cookies.txt 
+
+3. Productos Menos Vendidos (Ver datos Históricos)
+Si no le pones period, trae el histórico completo por defecto.
+
+Bash
+
+curl -X GET "http://localhost:3000/api/finance/reports/least-sold" \
+-b cookies.txt 
+
+4. Gráfica de Ventas (Ver el Mes actual día por día)
+Este es el que usarás para "pintar" la gráfica de líneas.
+
+Bash
+
+curl -X GET "http://localhost:3000/api/finance/reports/sales-chart?period=month" \
+-b cookies.txt 
+
+5. Ver una fecha es especifico
+
+curl -X GET "http://localhost:3000/api/finance/dashboard?period=2025-12-25" \
+-b cookies.txt 
+6. Ver quién me debe dinero de las ventas de ESTE MES:
+
+Bash
+
+curl -X GET "http://localhost:3000/api/finance/reports/debts?period=month" \
+-b cookies.txt 
+
+7. Ver todo el dinero que entró HOY (Corte de Caja):
+
+Bash
+
+curl -X GET "http://localhost:3000/api/finance/reports/income?period=today" \
+-b cookies.txt 
 
 
 # Datos empresa 
