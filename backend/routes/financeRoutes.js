@@ -1,26 +1,36 @@
-// routes/financeRoutes.js
 const express = require('express');
 const router = express.Router();
+
+// Importamos middlewares
 const { verifyToken } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/auth'); // <--- Usamos tu función vieja confiable
+
 const { 
     getFinanceDashboard, 
     getTopSellingProducts, 
-    getLeastSellingProducts 
+    getLeastSellingProducts,
+    getSalesOverTime 
 } = require('../controllers/financeController');
 
-// Todas estas rutas requieren estar logueado
+// ==========================================
+// MIDDLEWARES GLOBALES
+// ==========================================
+
+// 1. Login obligatorio
 router.use(verifyToken);
 
-// 1. Dashboard General (KPIs)
-// GET /api/finance/dashboard
+// 2. Solo Admin (Tu función directa)
+// Esto protege todo lo de abajo sin necesidad de configurar permisos extra
+router.use(requireAdmin);
+
+
+// ==========================================
+// RUTAS
+// ==========================================
+
 router.get('/dashboard', getFinanceDashboard);
-
-// 2. Reporte: Más Vendidos
-// GET /api/finance/reports/top-products
 router.get('/reports/top-products', getTopSellingProducts);
-
-// 3. Reporte: Menos Vendidos
-// GET /api/finance/reports/least-sold
 router.get('/reports/least-sold', getLeastSellingProducts);
+router.get('/reports/sales-chart', getSalesOverTime);
 
 module.exports = router;
