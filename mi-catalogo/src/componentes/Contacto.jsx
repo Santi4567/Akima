@@ -5,13 +5,15 @@ import React from 'react';
 // ===============================================
 
 const CONTACT_INFO = {
-  phone: "+52 55 1234 5678",
-  email: "contacto@alkimia.com.mx",
-  address: "Av. Paseo de la Reforma 296, Juárez, 06600 Ciudad de México, CDMX",
+  phone: "+52 442 191 4041",
+  phone2: "+52 442 347 9091",
+  email: "mmontero@organicosdecalidad.com",
+  email2: "Facturacion@organicosdecalidad.com",
+  address: "Blvrd Peña Flor 1102, Parque Industrial Novatec Business Park, 76116 Santiago de Querétaro, Qro.",
   // Coordenadas para el mapa (ejemplo: Torre Mayor, CDMX)
-  latitude: 19.4239857,
-  longitude: -99.167265,
-  googleMapsUrl: "https://maps.app.goo.gl/TUq1WJc1hX9n5Zk77", // URL de la ubicación
+  latitude: 20.63979857257922, 
+  longitude: -100.49634726589235,
+  googleMapsUrl: "https://maps.app.goo.gl/sJqU4hKo12FBjaWq9", // URL de la ubicación
 };
 
 // ===============================================
@@ -44,6 +46,7 @@ export const Contacto = () => {
               Llámanos
             </h2>
             <p className="text-lg text-gray-700 font-semibold">{CONTACT_INFO.phone}</p>
+            <p className="text-lg text-gray-700 font-semibold">{CONTACT_INFO.phone2}</p>
           </a>
 
           {/* Tarjeta de Correo */}
@@ -53,6 +56,7 @@ export const Contacto = () => {
               Envíanos un Email
             </h2>
             <p className="text-lg text-gray-700 font-semibold">{CONTACT_INFO.email}</p>
+            <p className="text-lg text-gray-700 font-semibold">{CONTACT_INFO.email2}</p>
           </a>
           
           {/* Tarjeta de Dirección */}

@@ -28,6 +28,7 @@ const companyRoutes = require('./routes/companyRoutes');
 const contentRoutes = require('./routes/contentRoutes');
 //const gmailRoutes = require('./routes/gmailRoutes');
 const { errorHandler } = require('./middleware/errorHandler');
+const pdfRoutes = require('./routes/pdfRoutes');
 
 
 const app = express();
@@ -54,6 +55,7 @@ app.use('/api/finance', financeRoutes);//Finanzas
 app.use('/api/company', companyRoutes); //info de la compania 
 app.use('/api/content/banners', contentRoutes); //baner de imagenes
 //app.use('/api/gmail', gmailRoutes); // APIGmail
+app.use('/api/pdf', pdfRoutes);
 
 // HACER PÚBLICA LA CARPETA DE UPLOADS
 // Esto permite acceder a http://localhost:3000/uploads/products/foto.jpg

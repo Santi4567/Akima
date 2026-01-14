@@ -27,7 +27,7 @@ curl -v -X POST http://localhost:3000/api/users -H "Authorization: Bearer <TU_TO
     curl -v -X GET http://localhost:3000/api/users -H "Authorization: Bearer <TU_TOKEN_JWT>"
 
   ## Eliminar usuarios
-  curl -v -X DELETE http://localhost:3000/api/users/15 -H "Authorization: Bearer <TU_TOKEN_JWT>"
+  curl -v -X DELETE http://localhost:3000/api/users/15 
 
   ## Buscar usuarios
   curl -v -X GET "http://localhost:3000/api/users/search?q=Juan" -H "Authorization: Bearer <TU_TOKEN_JWT>"
