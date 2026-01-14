@@ -253,9 +253,93 @@ const getLeastSellingProducts = async (req, res) => {
     }
 };
 
+/**
+ * [NUEVO] Reporte de Deuda (Cuentas por Cobrar)
+ * Muestra las órdenes que tienen saldo pendiente > 0 en el periodo seleccionado.
+ */
+const getDebtsReport = async (req, res) => {
+    let connection;
+    try {
+        const { period } = req.query;
+        const { start, end } = getDateRange(period);
+
+        connection = await getConnection();
+
+        // Lógica:
+        // 1. Traemos la orden y el cliente.
+        // 2. Sumamos sus pagos (LEFT JOIN).
+        // 3. Filtramos (HAVING) solo las que el 'pagado' sea menor al 'total'.
+        const sql = `
+            SELECT 
+                o.id as order_id,
+                CONCAT(c.first_name, ' ', c.last_name) as client_name,
+                o.total_amount,
+                COALESCE(SUM(p.amount), 0) as total_paid,
+                (o.total_amount - COALESCE(SUM(p.amount), 0)) as pending_balance,
+                o.created_at as order_date
+            FROM orders o
+            JOIN clients c ON o.client_id = c.id
+            LEFT JOIN payments p ON o.id = p.order_id
+            WHERE o.status != 'cancelled' 
+            AND o.created_at BETWEEN ? AND ?  -- Filtramos por fecha de creación del pedido
+            GROUP BY o.id
+            HAVING pending_balance > 0        -- ¡El truco! Solo mostramos si debe algo
+            ORDER BY pending_balance DESC     -- Los que deben más, arriba
+        `;
+
+        const [debts] = await connection.execute(sql, [start, end]);
+        res.json({ success: true, period: period || 'all_time', data: debts });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
+
+/**
+ * [NUEVO] Reporte de Entrada de Dinero (Ingresos Detallados)
+ * Muestra cada pago individual recibido (Efectivo, Transferencia, etc.)
+ */
+const getIncomeReport = async (req, res) => {
+    let connection;
+    try {
+        const { period } = req.query;
+        const { start, end } = getDateRange(period);
+
+        connection = await getConnection();
+
+        const sql = `
+            SELECT 
+                p.id as payment_id,
+                p.amount,
+                p.method,     -- cash, transfer, card...
+                p.payment_date,
+                o.id as order_id,
+                CONCAT(c.first_name, ' ', c.last_name) as client_name
+            FROM payments p
+            JOIN orders o ON p.order_id = o.id
+            JOIN clients c ON o.client_id = c.id
+            WHERE p.payment_date BETWEEN ? AND ?  -- Filtramos por fecha del PAGO (no del pedido)
+            ORDER BY p.payment_date DESC
+        `;
+
+        const [income] = await connection.execute(sql, [start, end]);
+        res.json({ success: true, period: period || 'all_time', data: income });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ success: false, error: 'ERROR_SERVIDOR' });
+    } finally {
+        if (connection) connection.release();
+    }
+};
 module.exports = {
     getFinanceDashboard,
     getTopSellingProducts,
      getLeastSellingProducts, 
-    getSalesOverTime // <--- Nuevo export
+    getSalesOverTime,
+    getDebtsReport,   // <--- Nuevo
+    getIncomeReport
 };
