@@ -360,4 +360,16 @@ curl -X PUT http://localhost:3000/api/company -H "Authorization: Bearer <TU_TOKE
    curl -X GET "http://localhost:3000/api/products/catalog/search?q=teclado"
 
 
-   
+# Pdfs
+
+curl -X POST http://localhost:3000/api/pdf/orders/101 \
+-b cookies.txt \
+-H "Content-Type: application/json" \
+-d '{ "reportType": "simple" }' \
+--output nota_cliente.pdf
+
+curl -X POST http://localhost:3000/api/pdf/orders/101 \
+-b cookies.txt \
+-H "Content-Type: application/json" \
+-d '{ "reportType": "full" }' \
+--output estado_cuenta.pdf

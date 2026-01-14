@@ -5,7 +5,7 @@ import {
   ArrowLeftIcon, TrashIcon, PlusIcon, CurrencyDollarIcon, 
   ArrowUturnLeftIcon, BanknotesIcon, DocumentTextIcon,
   CheckCircleIcon, XCircleIcon, ShoppingCartIcon, ArchiveBoxXMarkIcon,
-  CreditCardIcon, EyeIcon
+  CreditCardIcon, EyeIcon, PrinterIcon, ClipboardDocumentListIcon // <-- Iconos nuevos
 } from '@heroicons/react/24/solid';
 import { useAuth } from '../../context/AuthContext';
 import { HasPermission } from '../HasPermission';
@@ -41,6 +41,7 @@ export const OrderItems = ({ order, onClose }) => {
 
   const [paymentForm, setPaymentForm] = useState({ amount: '', method: 'cash', notes: '' });
   const [isPaying, setIsPaying] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false); // Estado para loading de impresión
 
   // ==========================================
   // 1. CARGA DE DATOS
@@ -73,7 +74,6 @@ export const OrderItems = ({ order, onClose }) => {
         setReturns(orderReturns);
 
         // 2. Cargamos el detalle de cada una para saber EXACTAMENTE qué items se devolvieron
-        // Esto es necesario para el resumen financiero "inteligente"
         const detailsPromises = orderReturns.map(r => 
             fetch(`${API_URL}/api/returns/${r.id}`, { credentials: 'include' }).then(res => res.json())
         );
@@ -96,30 +96,25 @@ export const OrderItems = ({ order, onClose }) => {
   // 2. CÁLCULOS FINANCIEROS (RESUMEN)
   // ==========================================
   
-  // A. Total Orden Original
   const totalOrder = items.reduce((acc, item) => acc + parseFloat(item.subtotal), 0);
   
-  // B. Total Reembolsado en DINERO (Ajustes manuales aprobados)
   const totalMoneyRefunds = returnDetails
       .filter(r => r.status === 'completed' && !r.items?.length && r.total_refunded)
       .reduce((acc, r) => acc + parseFloat(r.total_refunded), 0);
 
-  // C. Total Reembolsado en ITEMS (Devoluciones físicas aprobadas)
   const returnedItemsList = returnDetails
       .filter(r => r.status === 'completed' && r.items?.length > 0)
       .flatMap(r => r.items);
   const totalItemRefunds = returnedItemsList.reduce((acc, item) => acc + parseFloat(item.subtotal_refunded), 0);
 
-  // D. Pagos
   const totalPaid = payments.reduce((acc, p) => acc + parseFloat(p.amount), 0);
   
-  // E. Neto y Saldo
   const netTotal = totalOrder - totalItemRefunds - totalMoneyRefunds;
   const balanceDue = netTotal - totalPaid;
 
 
   // ==========================================
-  // 3. ACCIONES DE ORDEN (Estado, Cancelar)
+  // 3. ACCIONES DE ORDEN (Estado, Cancelar, IMPRIMIR)
   // ==========================================
 
   const changeStatus = async (newStatus) => {
@@ -155,6 +150,34 @@ export const OrderItems = ({ order, onClose }) => {
         setNotification({ type: 'error', message: data.message });
       }
     } catch (e) { setNotification({ type: 'error', message: 'Error de red' }); }
+  };
+
+  // --- NUEVA FUNCIÓN DE IMPRESIÓN ---
+  const handlePrint = async (reportType) => {
+    setIsPrinting(true);
+    try {
+        const response = await fetch(`${API_URL}/api/pdf/orders/${order.id}`, {
+            method: 'POST', // Usamos POST como especificaste
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ reportType }) // 'simple' o 'full'
+        });
+
+        if (!response.ok) throw new Error('Error al generar el documento PDF');
+
+        // Convertimos la respuesta binaria (Blob) en una URL local
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        // Abrimos el PDF en una pestaña nueva
+        window.open(url, '_blank');
+
+    } catch (error) {
+        console.error(error);
+        setNotification({ type: 'error', message: 'No se pudo generar el PDF.' });
+    } finally {
+        setIsPrinting(false);
+    }
   };
 
   // ==========================================
@@ -252,26 +275,26 @@ export const OrderItems = ({ order, onClose }) => {
   // RENDERIZADO PRINCIPAL
   // ==========================================
 
-  // --- MODO: VISTA DETALLE DE DEVOLUCIÓN ---
   if (selectedReturnId) {
     return (
       <ReturnDetails 
         returnId={selectedReturnId}
         onClose={() => {
-            setSelectedReturnId(null); // Volver a la vista de orden
-            fetchReturns(); // Recargar devoluciones para ver cambios de estado
+            setSelectedReturnId(null); 
+            fetchReturns(); 
         }}
       />
     );
   }
 
-  // --- MODO: VISTA NORMAL DE ORDEN ---
   return (
     <div className="space-y-6">
       <Notification type={notification.type} message={notification.message} onClose={() => setNotification({type:'', message:''})} />
       
-      {/* HEADER */}
-      <div className="flex items-center justify-between border-b pb-4">
+      {/* HEADER: DATOS, IMPRESIÓN Y ESTADO */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between border-b pb-4 gap-4">
+        
+        {/* Lado Izquierdo: Info Básica */}
         <div className="flex items-center gap-4">
           <button onClick={onClose} className="p-2 text-gray-600 hover:bg-gray-100 rounded-full"><ArrowLeftIcon className="h-6 w-6" /></button>
           <div>
@@ -279,7 +302,31 @@ export const OrderItems = ({ order, onClose }) => {
             <p className="text-gray-500 text-sm">Cliente: {order.client_name}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+
+        {/* Lado Derecho: Acciones */}
+        <div className="flex flex-wrap items-center gap-3">
+            
+            {/* --- BOTONES DE IMPRESIÓN --- */}
+            <div className="flex gap-2 mr-2 border-r pr-4 border-gray-300">
+                <button 
+                    onClick={() => handlePrint('simple')} 
+                    disabled={isPrinting}
+                    className="flex items-center gap-1 bg-gray-100 text-gray-700 px-3 py-1 rounded shadow-sm hover:bg-gray-200 text-sm border border-gray-300 transition-colors"
+                    title="Imprimir Nota para Cliente"
+                >
+                    <PrinterIcon className="h-4 w-4"/> Nota
+                </button>
+                <button 
+                    onClick={() => handlePrint('full')} 
+                    disabled={isPrinting}
+                    className="flex items-center gap-1 bg-gray-100 text-gray-700 px-3 py-1 rounded shadow-sm hover:bg-gray-200 text-sm border border-gray-300 transition-colors"
+                    title="Imprimir Estado de Cuenta Detallado"
+                >
+                    <ClipboardDocumentListIcon className="h-4 w-4"/> Detalle
+                </button>
+            </div>
+
+            {/* --- ESTADO Y BOTONES DE FLUJO --- */}
             <span className={`px-3 py-1 rounded-full text-sm font-bold uppercase ${
                 orderStatus === 'completed' ? 'bg-green-100 text-green-800' :
                 orderStatus === 'shipped' ? 'bg-blue-100 text-blue-800' :
@@ -381,7 +428,7 @@ export const OrderItems = ({ order, onClose }) => {
                 )}
             </div>
 
-            {/* 1.2 PRODUCTOS DEVUELTOS (RESTAS) */}
+            {/* 1.2 PRODUCTOS DEVUELTOS */}
             {returnedItemsList.length > 0 && (
                 <div className="bg-red-50 shadow-sm rounded-lg border border-red-200">
                     <div className="bg-red-100 px-4 py-2 border-b border-red-200 flex justify-between items-center">
@@ -411,7 +458,7 @@ export const OrderItems = ({ order, onClose }) => {
                 </div>
             )}
 
-            {/* 1.3 AJUSTES MONETARIOS (RESTAS) */}
+            {/* 1.3 AJUSTES MONETARIOS */}
             {totalMoneyRefunds > 0 && (
                 <div className="bg-yellow-50 shadow-sm rounded-lg border border-yellow-200 px-4 py-3 flex justify-between items-center">
                     <div className="flex items-center gap-2 text-yellow-800 font-bold">
@@ -459,7 +506,6 @@ export const OrderItems = ({ order, onClose }) => {
       {activeTab === 'payments' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
-            {/* Formulario de Abono */}
             <div className="md:col-span-1">
                 <HasPermission required="add.payment">
                     <div className="bg-green-50 p-4 rounded-lg border border-green-200 shadow-sm sticky top-4">
@@ -515,7 +561,6 @@ export const OrderItems = ({ order, onClose }) => {
                 </HasPermission>
             </div>
 
-            {/* Tabla Historial Pagos */}
             <div className="md:col-span-2 bg-white rounded-lg shadow border border-gray-200">
                 <div className="p-4 border-b bg-gray-50">
                     <h3 className="font-bold text-gray-700">Historial de Pagos</h3>
