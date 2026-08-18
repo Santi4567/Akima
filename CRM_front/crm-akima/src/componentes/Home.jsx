@@ -13,7 +13,7 @@ export const Home = () => {
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'web', 'settings'
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-10">
+    <div className="pb-10">
       
       {/* 1. HEADER GLOBAL (Siempre visible) */}
       <div className="bg-white shadow-sm border-b">

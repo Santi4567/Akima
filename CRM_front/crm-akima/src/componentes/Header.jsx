@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'; // Agregamos useEffect
+import { useState, useEffect } from 'react';
 import { NavLink, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { 
@@ -12,9 +12,9 @@ const API_URL = import.meta.env.VITE_API_URL;
 
 // --- Logo SVG (Fallback) ---
 const LogoSVG = () => (
-  <svg className="h-10 w-auto text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1.5-1.5m1.5 1.5l1.5-1.5m0 0l1.5 1.5m-1.5-1.5l-1.5 1.5m-3-3l3 3m0 0l3-3m-3 3v-6m0 6h-3.75m3.75 0h3.75M9 12.75l3 3m0 0l3-3m-3 3v-6m0 6H6m3 0h3" />
-  </svg>
+  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500 shadow-lg shadow-emerald-500/30 text-white font-black text-lg">
+    A
+  </div>
 );
 
 // --- Definición de Links ---
@@ -31,16 +31,13 @@ const navLinks = [
 
 export const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [logoPath, setLogoPath] = useState(null); // Estado para el logo
+  const [logoPath, setLogoPath] = useState(null); 
   
   const { user, logout, hasGroupAccess, hasPermission } = useAuth();
 
-  // --- 1. CARGAR LOGO AL INICIAR ---
   useEffect(() => {
     const fetchCompanyLogo = async () => {
       try {
-        // Petición pública, no suele requerir credenciales estrictas, 
-        // pero usaremos 'include' por si acaso tu backend valida cookies de sesión.
         const res = await fetch(`${API_URL}/api/company/public`, { credentials: 'include' });
         const data = await res.json();
         
@@ -55,7 +52,6 @@ export const Header = () => {
     fetchCompanyLogo();
   }, []);
 
-  // --- Lógica de Visibilidad Robusta ---
   const canShowLink = (item) => {
     if (item.onlyAdmin) return user?.rol === 'admin';
     if (user?.rol === 'admin') return true;
@@ -64,47 +60,42 @@ export const Header = () => {
     return true; 
   };
 
-  // --- Clases Tailwind ---
-  const activeClassName = "bg-green-100 text-green-700 rounded-md px-3 py-2 text-sm font-medium";
-  const inactiveClassName = "text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-md px-3 py-2 text-sm font-medium";
-  const getNavLinkClass = ({ isActive }) => isActive ? activeClassName : inactiveClassName;
+  // --- Nuevas Clases Tailwind (Dark SaaS Theme) ---
+  const activeClassName = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg px-3.5 py-2 text-sm font-semibold transition-all shadow-sm";
+  const inactiveClassName = "text-slate-300 hover:bg-slate-800/60 hover:text-white rounded-lg px-3.5 py-2 text-sm font-medium transition-all";
 
-  const mobileActiveClass = "bg-green-100 text-green-700 block rounded-md px-3 py-2 text-base font-medium";
-  const mobileInactiveClass = "text-gray-700 hover:bg-gray-100 hover:text-gray-900 block rounded-md px-3 py-2 text-base font-medium";
-  const getMobileNavLinkClass = ({ isActive }) => isActive ? mobileActiveClass : mobileInactiveClass;
+  const mobileActiveClass = "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 block rounded-lg px-4 py-3 text-base font-semibold shadow-sm";
+  const mobileInactiveClass = "text-slate-300 hover:bg-slate-800/60 hover:text-white block rounded-lg px-4 py-3 text-base font-medium transition-all";
 
   return (
-    <nav className="bg-white shadow-sm sticky top-0 z-50">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-4">
+    <nav className="bg-slate-950 border-b border-slate-800 shadow-sm sticky top-0 z-50 selection:bg-emerald-500 selection:text-white">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 justify-between">
           
-          {/* Logo */}
+          {/* Logo y Branding */}
           <div className="flex items-center">
-            <Link to="/home" className="flex-shrink-0 flex items-center gap-3">
-              
-              {/* RENDERIZADO CONDICIONAL DEL LOGO */}
+            <Link to="/home" className="flex-shrink-0 flex items-center gap-3 transition-transform hover:scale-105 duration-200">
               {logoPath ? (
                 <img 
                   src={`${API_URL}${logoPath}`} 
                   alt="Logo Empresa" 
-                  className="h-10 w-auto object-contain" // Ajusta la altura si es necesario
+                  className="h-9 w-auto object-contain drop-shadow-md" 
                 />
               ) : (
                 <LogoSVG />
               )}
-
-              <span className="hidden sm:block font-bold text-xl text-gray-800">Alkima CRM</span>
+              <span className="hidden sm:block font-bold text-xl tracking-tight text-white">Alkima CRM</span>
             </Link>
           </div>
 
           {/* Menú Desktop */}
-          <div className="hidden lg:ml-6 lg:flex lg:items-center lg:space-x-4">
+          <div className="hidden lg:ml-8 lg:flex lg:items-center lg:space-x-2">
             {navLinks.map((item) => (
               canShowLink(item) && (
                 <NavLink
                   key={item.name}
                   to={item.href}
-                  className={getNavLinkClass}
+                  className={({ isActive }) => isActive ? activeClassName : inactiveClassName}
                 >
                   {item.name}
                 </NavLink>
@@ -112,25 +103,36 @@ export const Header = () => {
             ))}
           </div>
 
-          {/* Usuario y Logout */}
-          <div className="hidden lg:ml-4 lg:flex lg:items-center">
-            <span className="text-sm font-medium text-gray-700">
-              Hola, {user?.nombre || 'Usuario'}
-            </span>
+          {/* Área de Usuario y Logout */}
+          <div className="hidden lg:ml-6 lg:flex lg:items-center lg:gap-4">
+            <div className="flex items-center gap-2 border-l border-slate-800 pl-6">
+              <div className="flex flex-col items-end">
+                <span className="text-sm font-semibold text-slate-200 leading-tight">
+                  {user?.nombre || 'Usuario'}
+                </span>
+                <span className="text-xs text-slate-500 capitalize leading-tight">
+                  {user?.rol || 'Rol'}
+                </span>
+              </div>
+              <div className="h-9 w-9 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700">
+                <UserCircleIcon className="h-6 w-6 text-emerald-500" />
+              </div>
+            </div>
+
             <button
               onClick={logout}
               title="Cerrar Sesión"
-              className="ml-4 flex-shrink-0 rounded-full bg-white p-1 text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+              className="ml-2 flex-shrink-0 rounded-lg p-2 text-slate-400 hover:bg-red-500/10 hover:text-red-400 focus:outline-none focus:ring-2 focus:ring-red-500/50 transition-all duration-200"
             >
-              <ArrowRightOnRectangleIcon className="h-6 w-6" aria-hidden="true" />
+              <ArrowRightOnRectangleIcon className="h-5 w-5" aria-hidden="true" />
             </button>
           </div>
 
-          {/* Botón Móvil */}
+          {/* Botón Hamburguesa (Móvil) */}
           <div className="flex items-center lg:hidden">
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-green-500"
+              className="inline-flex items-center justify-center rounded-lg p-2.5 text-slate-400 hover:bg-slate-800 hover:text-white focus:outline-none focus:ring-2 focus:ring-inset focus:ring-emerald-500 transition-colors"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
               {mobileMenuOpen ? (
@@ -144,16 +146,16 @@ export const Header = () => {
         </div>
       </div>
 
-      {/* Menú Móvil */}
+      {/* Menú Móvil Desplegable */}
       {mobileMenuOpen && (
-        <div className="lg:hidden" id="mobile-menu">
-            <div className="space-y-1 px-2 pt-2 pb-3">
+        <div className="lg:hidden animate-fadeIn border-t border-slate-800 bg-slate-900" id="mobile-menu">
+            <div className="space-y-1.5 px-4 pt-4 pb-3">
               {navLinks.map((item) => (
                 canShowLink(item) && (
                   <NavLink
                     key={item.name}
                     to={item.href}
-                    className={getMobileNavLinkClass}
+                    className={({ isActive }) => isActive ? mobileActiveClass : mobileInactiveClass}
                     onClick={() => setMobileMenuOpen(false)}
                   >
                     {item.name}
@@ -162,21 +164,24 @@ export const Header = () => {
               ))}
             </div>
 
-          <div className="border-t border-gray-200 pt-4 pb-3">
+          <div className="border-t border-slate-800 pt-4 pb-6">
             <div className="flex items-center px-5">
               <div className="flex-shrink-0">
-                <UserCircleIcon className="h-10 w-10 text-gray-400" />
+                <div className="h-10 w-10 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700">
+                  <UserCircleIcon className="h-6 w-6 text-emerald-500" />
+                </div>
               </div>
               <div className="ml-3">
-                <div className="text-base font-medium text-gray-800">{user?.nombre}</div>
-                <div className="text-sm font-medium text-gray-500">{user?.correo}</div>
+                <div className="text-base font-semibold text-white">{user?.nombre}</div>
+                <div className="text-sm font-medium text-emerald-400">{user?.correo}</div>
               </div>
             </div>
-            <div className="mt-3 space-y-1 px-2">
+            <div className="mt-4 space-y-1 px-4">
               <button
                 onClick={() => { logout(); setMobileMenuOpen(false); }}
-                className="block w-full text-left rounded-md px-3 py-2 text-base font-medium text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                className="flex w-full items-center gap-2 rounded-lg px-4 py-3 text-base font-medium text-red-400 hover:bg-red-500/10 transition-colors"
               >
+                <ArrowRightOnRectangleIcon className="h-5 w-5" />
                 Cerrar Sesión
               </button>
             </div>

@@ -161,9 +161,6 @@ export const LoginPage = () => {
                 >
                   Contraseña
                 </label>
-                <a href="#" className="text-xs text-emerald-400 hover:text-emerald-300 hover:underline">
-                  ¿La olvidaste?
-                </a>
               </div>
               <div className="relative">
                 <input
