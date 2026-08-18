@@ -29,7 +29,11 @@ const contentRoutes = require('./routes/contentRoutes');
 //const gmailRoutes = require('./routes/gmailRoutes');
 const { errorHandler } = require('./middleware/errorHandler');
 const pdfRoutes = require('./routes/pdfRoutes');
-
+//Arte ascii
+const figlet = require('figlet');
+const chalk = require('chalk');
+const boxen = require('boxen');
+const ora = require('ora');
 
 const app = express();
 
@@ -67,8 +71,29 @@ app.use(errorHandler);
 
 // Iniciar servidor
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor corriendo en el puerto ${PORT}`);
+
+app.listen(PORT, async () => {
+  console.log(chalk.cyan(figlet.textSync('ALKIMIA CRM', { horizontalLayout: 'full' })));
+
+  const spinner = ora({ text: 'Inicializando servidor...', color: 'cyan' }).start();
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  spinner.succeed(chalk.green('Servidor listo'));
+
+  const info = boxen(
+    `${chalk.bold('🚀 Puerto:')}   ${chalk.yellow(PORT)}\n` +
+    `${chalk.bold('📦 Versión:')}  ${chalk.yellow('1.5')}\n` +
+    `${chalk.bold('🌎 Entorno:')}  ${chalk.yellow(process.env.NODE_ENV || 'development')}`,
+    {
+      padding: 1,
+      margin: 1,
+      borderColor: 'cyan',
+      borderStyle: 'round',
+      title: 'Alkimia CRM',
+      titleAlignment: 'center'
+    }
+  );
+
+  console.log(info);
 });
 
 module.exports = app;

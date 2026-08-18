@@ -32,6 +32,7 @@ const {
 
 router.post('/login', login);
 
+///////////////////////////////////////////
 // CREAR USUARIO (Ahora es protegido y requiere permiso)
 router.post(
     '/', 

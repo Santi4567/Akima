@@ -11,9 +11,9 @@ const mysql = require('mysql2/promise');
 
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'akima_user',
+  user: process.env.DB_USER || 'alkimia_user',
   password: process.env.DB_PASSWORD || 'fAvfeMnjOcVceeVo',
-  database: process.env.DB_NAME || 'akima'
+  database: process.env.DB_NAME || 'AlkimiaCRM'
 };
 
 // Pool de conexiones para mejor rendimiento
