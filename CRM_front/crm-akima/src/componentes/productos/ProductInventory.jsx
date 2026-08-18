@@ -14,355 +14,311 @@ import { HasPermission } from '../HasPermission';
 import { Notification } from '../Notification';
 import { PERMISSIONS } from '../../config/permissions';
 
-// IMPORTAR EL NUEVO MODAL
 import { InventoryLogsModal } from './InventoryLogsModal';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const PRODUCTS_ENDPOINT = `${API_URL}/api/products`;
 
 export const ProductInventory = () => {
-  // --- Estados de Datos ---
   const [products, setProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]); // Nuevo estado para filtrado local
+  const [filteredProducts, setFilteredProducts] = useState([]); 
   const [isLoading, setIsLoading] = useState(true);
   
-  // --- Filtros y Búsqueda ---
   const [searchTerm, setSearchTerm] = useState('');
-  const [stockFilter, setStockFilter] = useState('all'); // 'all', 'positive', 'negative'
+  const [stockFilter, setStockFilter] = useState('all'); 
   
-  // --- Estados de Selección y Movimiento ---
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [moveType, setMoveType] = useState('add'); 
   const [quantity, setQuantity] = useState('');
   const [reason, setReason] = useState('');
   
-  // --- Estado del Modal de Historial ---
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [historyTarget, setHistoryTarget] = useState(null); // null = General, {id, name} = Producto específico
-
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [notification, setNotification] = useState({ type: '', message: '' });
   
+  const [showLogsModal, setShowLogsModal] = useState(false);
+  const [logsProductId, setLogsProductId] = useState(null); 
+  const [logsProductName, setLogsProductName] = useState('');
+
   const { hasAnyPermission } = useAuth();
 
-  // --- 1. CARGA DE PRODUCTOS ---
-  const fetchProducts = useCallback(async (query = '') => {
+  const fetchProducts = useCallback(async () => {
     setIsLoading(true);
     try {
-      const url = query ? `${PRODUCTS_ENDPOINT}/search?q=${query}` : PRODUCTS_ENDPOINT;
-      const response = await fetch(url, { credentials: 'include' });
-      const data = await response.json();
-      
+      const res = await fetch(PRODUCTS_ENDPOINT, { credentials: 'include' });
+      const data = await res.json();
       if (data.success) {
         setProducts(data.data);
-      } else {
-        setProducts([]); 
+        setFilteredProducts(data.data);
       }
     } catch (error) {
-      setNotification({ type: 'error', message: 'Error de conexión al cargar inventario.' });
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (hasAnyPermission(PERMISSIONS.PRODUCTS)) {
-      const timer = setTimeout(() => fetchProducts(searchTerm), 350);
-      return () => clearTimeout(timer);
+    if (hasAnyPermission([PERMISSIONS.PRODUCTS])) {
+        fetchProducts();
     } else {
-      setIsLoading(false);
+        setIsLoading(false);
     }
-  }, [searchTerm, fetchProducts, hasAnyPermission]);
+  }, [fetchProducts, hasAnyPermission]);
 
-  // --- 2. FILTRADO LOCAL (Stock Positivo/Negativo) ---
   useEffect(() => {
     let result = products;
-
-    if (stockFilter === 'positive') {
-        result = products.filter(p => parseInt(p.stock_quantity) > 0);
-    } else if (stockFilter === 'negative') {
-        // Incluye 0 y negativos
-        result = products.filter(p => parseInt(p.stock_quantity) <= 0);
+    if (searchTerm) {
+        const lowerSearch = searchTerm.toLowerCase();
+        result = result.filter(p => 
+            p.name.toLowerCase().includes(lowerSearch) || 
+            p.sku.toLowerCase().includes(lowerSearch)
+        );
     }
-
+    if (stockFilter === 'positive') result = result.filter(p => p.stock_quantity > 0);
+    else if (stockFilter === 'negative') result = result.filter(p => p.stock_quantity <= 0);
+    
     setFilteredProducts(result);
-  }, [products, stockFilter]);
+  }, [searchTerm, stockFilter, products]);
 
-
-  // --- 3. REGISTRAR MOVIMIENTO (PUT) ---
-  const handleUpdateStock = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!selectedProduct) return;
-    if (!quantity || parseInt(quantity) < 0) {
-        setNotification({ type: 'error', message: 'Ingresa una cantidad válida.' });
-        return;
-    }
-    if (!reason.trim()) {
-        setNotification({ type: 'error', message: 'El motivo es obligatorio.' });
+    if (!selectedProduct || !quantity || !reason) {
+        setNotification({ type: 'error', message: 'Llena todos los campos.' });
         return;
     }
 
     setIsSubmitting(true);
-    setNotification({ type: '', message: '' });
-
     try {
-      const response = await fetch(`${PRODUCTS_ENDPOINT}/${selectedProduct.id}/inventory`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ 
-            type: moveType,          
-            quantity: parseInt(quantity),
+        const payload = {
+            move_type: moveType,
+            quantity: Number(quantity),
             reason: reason
-        })
-      });
+        };
 
-      const data = await response.json();
+        const res = await fetch(`${PRODUCTS_ENDPOINT}/${selectedProduct.id}/inventory`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+        });
 
-      if (data.success) {
-        setNotification({ type: 'success', message: data.message }); 
-        fetchProducts(searchTerm);
-        if (data.data && data.data.new_stock !== undefined) {
-            setSelectedProduct(prev => ({ ...prev, stock_quantity: data.data.new_stock }));
+        const data = await res.json();
+        
+        if (data.success) {
+            setNotification({ type: 'success', message: 'Inventario actualizado.' });
+            setQuantity('');
+            setReason('');
+            fetchProducts();
+            const updatedProduct = { ...selectedProduct, stock_quantity: data.new_stock };
+            setSelectedProduct(updatedProduct);
+        } else {
+            setNotification({ type: 'error', message: data.message });
         }
-        setQuantity('');
-        setReason('');
-      } else {
-        setNotification({ type: 'error', message: data.message });
-      }
     } catch (error) {
-      setNotification({ type: 'error', message: 'Error al actualizar el inventario.' });
+        setNotification({ type: 'error', message: 'Error de red.' });
     } finally {
-      setIsSubmitting(false);
+        setIsSubmitting(false);
     }
   };
 
-  const selectProduct = (prod) => {
-    setSelectedProduct(prod);
-    setMoveType('add');
-    setQuantity('');
-    setReason('');
-    setNotification({ type: '', message: '' });
-  };
-
-  const openGeneralHistory = () => {
-    setHistoryTarget(null); // null indica historial general
-    setShowHistoryModal(true);
-  };
-
-  const openProductHistory = (e, prod) => {
-    e.stopPropagation(); // Evitar seleccionar el producto al dar click en historial
-    setHistoryTarget(prod);
-    setShowHistoryModal(true);
-  };
-
-  const getActionConfig = () => {
-    switch (moveType) {
-        case 'add': return { color: 'green', text: 'Registrar Entrada', label: 'Cantidad a Sumar' };
-        case 'subtract': return { color: 'red', text: 'Registrar Salida/Merma', label: 'Cantidad a Restar' };
-        case 'set': return { color: 'blue', text: 'Ajustar Inventario Físico', label: 'Conteo Real (Físico)' };
-        default: return { color: 'gray', text: 'Actualizar', label: 'Cantidad' };
+  const handleOpenLogs = (product = null) => {
+    if (product) {
+        setLogsProductId(product.id);
+        setLogsProductName(product.name);
+    } else {
+        setLogsProductId(null);
+        setLogsProductName('');
     }
+    setShowLogsModal(true);
   };
 
-  const actionConfig = getActionConfig();
+  // Configurador de colores estáticos para no perder estilos al compilar
+  const actionConfig = {
+      'add': { text: 'Ingresar Stock', btnClass: 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-500/30', ring: 'focus:ring-emerald-500/20 focus:border-emerald-500', icon: PlusCircleIcon },
+      'subtract': { text: 'Retirar Stock', btnClass: 'bg-rose-600 hover:bg-rose-500 shadow-rose-500/30', ring: 'focus:ring-rose-500/20 focus:border-rose-500', icon: MinusCircleIcon },
+      'set': { text: 'Ajuste Exacto', btnClass: 'bg-blue-600 hover:bg-blue-500 shadow-blue-500/30', ring: 'focus:ring-blue-500/20 focus:border-blue-500', icon: ClipboardDocumentCheckIcon }
+  }[moveType];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-10">
       <Notification type={notification.type} message={notification.message} onClose={() => setNotification({ type: '', message: '' })} />
 
-      {/* MODAL DE HISTORIAL */}
-      {showHistoryModal && (
-        <InventoryLogsModal 
-            productId={historyTarget?.id}
-            productName={historyTarget?.name}
-            onClose={() => setShowHistoryModal(false)}
-        />
+      {showLogsModal && (
+          <InventoryLogsModal 
+            productId={logsProductId} 
+            productName={logsProductName} 
+            onClose={() => setShowLogsModal(false)} 
+          />
       )}
 
-      {/* BARRA DE HERRAMIENTAS (Buscador + Filtros + Botón General) */}
-      <HasPermission required="view.products">
-        <div className="flex flex-col md:flex-row gap-4 items-end justify-between bg-white p-4 rounded-lg border shadow-sm">
-            
-            {/* Buscador */}
-            <div className="relative w-full md:w-1/3">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+      {/* CABECERA (Azul protagonista) */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-4">
+        <div>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-xl border border-blue-200 shadow-sm">
+                    <CubeIcon className="h-7 w-7 text-blue-600" />
                 </div>
-                <input
-                    type="search"
-                    placeholder="Buscar producto..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-                />
-            </div>
-
-            {/* Filtro de Stock */}
-            <div className="w-full md:w-1/3">
-                <label className="text-xs font-bold text-gray-500 flex items-center gap-1 mb-1">
-                    <FunnelIcon className="h-3 w-3"/> Filtrar por Estado
-                </label>
-                <select 
-                    value={stockFilter}
-                    onChange={(e) => setStockFilter(e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-md bg-gray-50 focus:ring-blue-500"
-                >
-                    <option value="all">Mostrar Todo</option>
-                    <option value="positive">🟢 Stock Saludable (Positivo)</option>
-                    <option value="negative">🔴 Stock Crítico (Cero o Negativo)</option>
-                </select>
-            </div>
-
-            {/* Botón Historial General */}
-            <button 
-                onClick={openGeneralHistory}
-                className="w-full md:w-auto flex items-center justify-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-md hover:bg-gray-900 transition-colors shadow-sm whitespace-nowrap"
-            >
-                <ClockIcon className="h-5 w-5 text-gray-300"/>
-                Historial General
-            </button>
+                Inventario Rápido
+            </h1>
+            <p className="text-sm text-slate-500 mt-2 font-medium">Gestiona entradas, salidas y ajustes de stock en tiempo real.</p>
         </div>
-      </HasPermission>
+        <button onClick={() => handleOpenLogs(null)} className="flex items-center gap-2 bg-white border border-slate-300 text-slate-700 px-5 py-2.5 rounded-xl font-bold shadow-sm hover:bg-slate-50 hover:border-slate-400 transition-all">
+            <ClockIcon className="h-5 w-5 text-slate-400" /> Historial Completo
+        </button>
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-auto lg:h-[75vh]">
         
-        {/* --- COLUMNA IZQUIERDA: LISTA --- */}
-        <div className="lg:col-span-2 bg-white shadow-lg rounded-lg overflow-hidden border border-gray-200">
-          <div className="overflow-y-auto h-[60vh]">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50 sticky top-0 z-10">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Producto</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Stock</th>
-                  <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Historial</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {isLoading ? (
-                  <tr><td colSpan="3" className="p-6 text-center text-gray-500">Cargando inventario...</td></tr>
-                ) : (
-                  filteredProducts.map((prod) => (
-                    <tr 
-                      key={prod.id} 
-                      onClick={() => selectProduct(prod)}
-                      className={`cursor-pointer transition-colors group ${
-                        selectedProduct?.id === prod.id ? 'bg-blue-50 border-l-4 border-blue-500' : 'hover:bg-gray-50 border-l-4 border-transparent'
-                      }`}
+        {/* COLUMNA IZQUIERDA: Buscador y Lista de Productos */}
+        <div className="lg:col-span-5 bg-white/90 backdrop-blur-xl shadow-xl shadow-slate-200/50 rounded-3xl border border-slate-200 flex flex-col overflow-hidden">
+            <div className="p-5 border-b border-slate-200 bg-slate-50/50">
+                <div className="relative mb-3">
+                    <MagnifyingGlassIcon className="absolute left-3.5 top-3 h-5 w-5 text-slate-400" />
+                    <input 
+                        type="search" placeholder="Buscar por nombre o SKU..." 
+                        value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-10 p-2.5 bg-white border border-slate-300 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all outline-none shadow-sm"
+                    />
+                </div>
+                <div className="relative">
+                    <FunnelIcon className="absolute left-3.5 top-3 h-5 w-5 text-slate-400" />
+                    <select 
+                        value={stockFilter} onChange={(e) => setStockFilter(e.target.value)}
+                        className="w-full pl-10 p-2.5 bg-white border border-slate-300 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all outline-none shadow-sm appearance-none cursor-pointer"
                     >
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-bold text-gray-900">{prod.sku}</div>
-                        <div className="text-sm text-gray-600">{prod.name}</div>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span className={`px-3 py-1 inline-flex text-sm font-bold rounded-full ${
-                          parseInt(prod.stock_quantity) > 0 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {prod.stock_quantity}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <button 
-                            onClick={(e) => openProductHistory(e, prod)}
-                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-100 rounded-full transition-colors"
-                            title="Ver Kardex del Producto"
-                        >
-                            <ClipboardDocumentCheckIcon className="h-5 w-5"/>
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                        <option value="all">Todos los productos</option>
+                        <option value="positive">Con Stock (> 0)</option>
+                        <option value="negative">Sin Stock (0 o menos)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div className="flex-grow overflow-y-auto bg-white p-2">
+                {isLoading ? (
+                    <div className="flex flex-col items-center justify-center h-40 text-slate-400">
+                        <ArrowPathIcon className="h-8 w-8 animate-spin mb-3 text-blue-500" />
+                        <p className="font-bold">Cargando...</p>
+                    </div>
+                ) : filteredProducts.length === 0 ? (
+                    <div className="text-center p-8 text-slate-400 font-bold">No se encontraron productos.</div>
+                ) : (
+                    <div className="space-y-1.5">
+                        {filteredProducts.map(prod => (
+                            <div 
+                                key={prod.id} 
+                                onClick={() => { setSelectedProduct(prod); setQuantity(''); setReason(''); setNotification({type:'', message:''}); }}
+                                className={`p-4 rounded-2xl cursor-pointer border-l-4 transition-all duration-200 flex justify-between items-center group ${
+                                    selectedProduct?.id === prod.id 
+                                    ? 'bg-blue-50/80 border-blue-500 shadow-sm' 
+                                    : 'border-transparent hover:bg-slate-50'
+                                }`}
+                            >
+                                <div>
+                                    <h4 className="font-extrabold text-slate-900 text-sm group-hover:text-blue-700 transition-colors">{prod.name}</h4>
+                                    <p className="text-xs font-bold text-slate-400 font-mono tracking-wide mt-0.5">{prod.sku}</p>
+                                </div>
+                                <div className="text-right flex flex-col items-end gap-1">
+                                    <span className={`px-2.5 py-1 text-xs font-black rounded-lg border ${
+                                        prod.stock_quantity > 10 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 
+                                        prod.stock_quantity > 0 ? 'bg-amber-50 text-amber-700 border-amber-200' : 
+                                        'bg-rose-50 text-rose-700 border-rose-200'
+                                    }`}>
+                                        {prod.stock_quantity} un.
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 )}
-              </tbody>
-            </table>
-          </div>
+            </div>
         </div>
 
-        {/* --- COLUMNA DERECHA: FORMULARIO --- */}
-        <div className="lg:col-span-1">
+        {/* COLUMNA DERECHA: Formulario de Acción */}
+        <div className="lg:col-span-7 h-full">
             {selectedProduct ? (
-                <div className="bg-white p-6 rounded-lg shadow-lg border border-blue-100 sticky top-6">
-                    {/* (Contenido del formulario igual que antes...) */}
-                    <div className="flex items-center gap-2 mb-4 text-blue-800 border-b border-blue-100 pb-2">
-                        <CubeIcon className="h-6 w-6" />
-                        <h3 className="text-lg font-bold">Gestionar Stock</h3>
-                    </div>
+                <div className="bg-white/90 backdrop-blur-xl shadow-xl shadow-slate-200/50 rounded-3xl border border-slate-200 p-8 h-full flex flex-col animate-fadeIn">
                     
-                    <div className="mb-4">
-                        <p className="text-xs text-gray-500 uppercase">Producto Seleccionado</p>
-                        <p className="font-medium text-gray-900">{selectedProduct.name}</p>
+                    {/* Header del Producto Seleccionado */}
+                    <div className="flex justify-between items-start border-b border-slate-100 pb-5 mb-6">
+                        <div>
+                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Producto Seleccionado</p>
+                            <h2 className="text-2xl font-extrabold text-slate-900">{selectedProduct.name}</h2>
+                            <p className="text-sm font-bold text-slate-500 font-mono mt-1">SKU: {selectedProduct.sku}</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Stock Actual</p>
+                            <p className={`text-4xl font-black ${selectedProduct.stock_quantity <= 0 ? 'text-rose-600' : 'text-slate-800'}`}>
+                                {selectedProduct.stock_quantity}
+                            </p>
+                        </div>
                     </div>
 
                     <HasPermission required="adjust.inventory">
-                        <form onSubmit={handleUpdateStock} className="space-y-5">
-                            {/* Selector Tipo */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de Movimiento</label>
-                                <div className="grid grid-cols-3 gap-2">
-                                    <button 
-                                        type="button" onClick={() => setMoveType('add')}
-                                        className={`flex flex-col items-center justify-center p-2 rounded-md border text-xs font-bold transition-all ${
-                                            moveType === 'add' ? 'bg-green-50 border-green-500 text-green-700 ring-1 ring-green-500' : 'bg-white hover:bg-gray-50'
-                                        }`}
-                                    >
-                                        <PlusCircleIcon className="h-6 w-6 mb-1"/> Entrada
+                        <form onSubmit={handleSubmit} className="flex-grow flex flex-col">
+                            
+                            {/* Segmented Control de Tipo de Movimiento */}
+                            <div className="mb-8">
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Tipo de Movimiento</label>
+                                <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+                                    <button type="button" onClick={() => setMoveType('add')} className={`flex-1 flex justify-center items-center gap-2 py-2.5 text-sm font-bold rounded-lg transition-all ${moveType === 'add' ? 'bg-white text-emerald-600 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
+                                        <PlusCircleIcon className="h-5 w-5"/> Ingreso
                                     </button>
-                                    <button 
-                                        type="button" onClick={() => setMoveType('subtract')}
-                                        className={`flex flex-col items-center justify-center p-2 rounded-md border text-xs font-bold transition-all ${
-                                            moveType === 'subtract' ? 'bg-red-50 border-red-500 text-red-700 ring-1 ring-red-500' : 'bg-white hover:bg-gray-50'
-                                        }`}
-                                    >
-                                        <MinusCircleIcon className="h-6 w-6 mb-1"/> Salida
+                                    <button type="button" onClick={() => setMoveType('subtract')} className={`flex-1 flex justify-center items-center gap-2 py-2.5 text-sm font-bold rounded-lg transition-all ${moveType === 'subtract' ? 'bg-white text-rose-600 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
+                                        <MinusCircleIcon className="h-5 w-5"/> Salida
                                     </button>
-                                    <button 
-                                        type="button" onClick={() => setMoveType('set')}
-                                        className={`flex flex-col items-center justify-center p-2 rounded-md border text-xs font-bold transition-all ${
-                                            moveType === 'set' ? 'bg-blue-50 border-blue-500 text-blue-700 ring-1 ring-blue-500' : 'bg-white hover:bg-gray-50'
-                                        }`}
-                                    >
-                                        <ClipboardDocumentCheckIcon className="h-6 w-6 mb-1"/> Auditoría
+                                    <button type="button" onClick={() => setMoveType('set')} className={`flex-1 flex justify-center items-center gap-2 py-2.5 text-sm font-bold rounded-lg transition-all ${moveType === 'set' ? 'bg-white text-blue-600 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
+                                        <ClipboardDocumentCheckIcon className="h-5 w-5"/> Ajuste
                                     </button>
                                 </div>
                             </div>
 
-                            {/* Cantidad y Motivo */}
-                            <div>
-                                <label className={`block text-sm font-bold mb-1 text-${actionConfig.color}-700`}>{actionConfig.label}</label>
-                                <input 
-                                    type="number" required min="1"
-                                    value={quantity} onChange={(e) => setQuantity(e.target.value)}
-                                    className={`block w-full p-3 border rounded-md focus:ring-${actionConfig.color}-500 focus:border-${actionConfig.color}-500 text-lg font-semibold text-center border-gray-300`}
-                                    placeholder="0"
-                                />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Cantidad <span className="text-rose-500">*</span></label>
+                                    <input 
+                                        type="number" min="0" required
+                                        className={`w-full p-3.5 bg-slate-50 border border-slate-300 rounded-xl text-2xl font-black text-center focus:bg-white outline-none transition-all ${actionConfig.ring}`}
+                                        value={quantity} onChange={(e) => setQuantity(e.target.value)}
+                                        placeholder="0"
+                                    />
+                                </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Motivo / Razón *</label>
+                            
+                            <div className="mb-auto">
+                                <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Motivo del Movimiento <span className="text-rose-500">*</span></label>
                                 <textarea 
-                                    required rows="2"
+                                    required rows="3"
+                                    className={`w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium focus:bg-white outline-none transition-all ${actionConfig.ring}`}
                                     value={reason} onChange={(e) => setReason(e.target.value)}
-                                    className="block w-full p-2 border border-gray-300 rounded-md text-sm"
-                                    placeholder="Ej: Compra proveedor #123"
+                                    placeholder="Ej: Compra a proveedor, Merma, Ajuste por inventario físico..."
                                 ></textarea>
                             </div>
 
-                            <button type="submit" disabled={isSubmitting} className={`w-full flex justify-center items-center gap-2 py-3 px-4 rounded-md text-white font-bold shadow-md transition-colors disabled:bg-gray-300 bg-${actionConfig.color}-600 hover:bg-${actionConfig.color}-700`}>
-                                {isSubmitting ? 'Procesando...' : <><ArrowPathIcon className="h-5 w-5" /> {actionConfig.text}</>}
+                            <button type="submit" disabled={isSubmitting} className={`mt-6 w-full flex justify-center items-center gap-2 py-4 rounded-xl text-white text-lg font-extrabold shadow-lg transition-all disabled:bg-slate-300 disabled:shadow-none ${actionConfig.btnClass}`}>
+                                {isSubmitting ? 'Procesando...' : <><actionConfig.icon className="h-6 w-6" /> {actionConfig.text}</>}
                             </button>
                         </form>
                     </HasPermission>
 
                     {!hasAnyPermission(['adjust.inventory']) && (
-                        <div className="mt-4 p-4 bg-yellow-50 text-yellow-800 text-sm rounded text-center border border-yellow-200">
-                            🔒 No tienes permisos para realizar movimientos.
+                        <div className="mt-4 p-4 bg-amber-50 text-amber-800 font-bold text-sm rounded-xl text-center border border-amber-200">
+                            🔒 No tienes permisos para realizar movimientos de inventario.
                         </div>
                     )}
+                    
+                    <div className="mt-4 pt-4 border-t border-slate-100 text-center">
+                         <button onClick={() => handleOpenLogs(selectedProduct)} className="text-sm font-bold text-blue-600 hover:text-blue-700 flex justify-center items-center gap-1.5 w-full">
+                            <ClockIcon className="h-4 w-4" /> Ver movimientos de este producto
+                        </button>
+                    </div>
                 </div>
             ) : (
-                <div className="bg-gray-50 p-10 rounded-lg border-2 border-dashed border-gray-300 text-center h-full flex flex-col justify-center items-center">
-                    <CubeIcon className="h-16 w-16 text-gray-300 mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900">Control de Inventario</h3>
-                    <p className="text-gray-500 mt-2 text-sm">Selecciona un producto para gestionar stock.</p>
+                <div className="bg-white/60 backdrop-blur-sm p-10 rounded-3xl border-2 border-dashed border-slate-300 text-center h-full flex flex-col justify-center items-center">
+                    <div className="bg-slate-100 p-4 rounded-full mb-4">
+                        <CubeIcon className="h-16 w-16 text-slate-300" />
+                    </div>
+                    <h3 className="text-xl font-extrabold text-slate-800">Control de Inventario</h3>
+                    <p className="text-slate-500 mt-2 font-medium">Selecciona un producto de la lista izquierda para gestionar su stock.</p>
                 </div>
             )}
         </div>

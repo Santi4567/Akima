@@ -4,16 +4,17 @@ export const OrderHub = ({ activeTab, onTabChange }) => {
   
   const getTabClass = (tabName) => {
     const isActive = activeTab === tabName;
-    return `whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+    return `whitespace-nowrap px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all duration-200 ${
       isActive
-        ? 'border-green-500 text-green-600'
-        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm'
+        : 'text-slate-600 bg-transparent hover:text-emerald-700 hover:bg-emerald-50 border border-transparent'
     }`;
   };
 
   return (
-    <div className="border-b border-gray-200 mb-6">
-      <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+    <div className="mb-8">
+      {/* Contenedor con fondo blanco puro y borde definido para que resalte sobre el fondo general */}
+      <nav className="inline-flex p-1.5 space-x-2 bg-white border border-slate-300 rounded-xl overflow-x-auto shadow-sm" aria-label="Tabs">
         
         <button onClick={() => onTabChange('list')} className={getTabClass('list')}>
           <ClipboardDocumentCheckIcon className="h-5 w-5" />

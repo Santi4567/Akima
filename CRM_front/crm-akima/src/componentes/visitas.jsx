@@ -3,13 +3,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { 
   ArrowLeftIcon, 
-  PlusIcon, // Corregido (antes CalendarPlusIcon)
+  PlusIcon, 
   PencilIcon, 
   TrashIcon, 
   CalendarDaysIcon,
-  MagnifyingGlassIcon, // Para la búsqueda
+  MagnifyingGlassIcon,
   CheckCircleIcon,
-  XCircleIcon
+  XCircleIcon,
+  ArrowPathIcon,
+  UserIcon,
+  MapPinIcon,
+  ClockIcon
 } from '@heroicons/react/24/solid';
 import { useAuth } from '../context/AuthContext.jsx';
 import { HasPermission } from './HasPermission.jsx';
@@ -44,7 +48,6 @@ export const Visitas = () => {
   const [selectedVisit, setSelectedVisit] = useState(null);
   const [editingVisit, setEditingVisit] = useState(null);
   
-  // --- NUEVO: Estado para la búsqueda ---
   const [searchTerm, setSearchTerm] = useState('');
 
   const { hasPermission, hasAnyPermission } = useAuth();
@@ -68,9 +71,9 @@ export const Visitas = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []); // Dependencias vacías, solo se define una vez
+  }, []);
 
-  // --- NUEVO: Función para BUSCAR visitas ---
+  // Función para BUSCAR visitas
   const searchVisits = useCallback(async (query) => {
     setIsLoading(true);
     setSelectedVisit(null);
@@ -84,7 +87,7 @@ export const Visitas = () => {
       if (data.success) {
         setVisits(data.data);
       } else {
-        setVisits([]); // Limpia la lista si la búsqueda falla
+        setVisits([]);
         throw new Error(data.message || 'Error al buscar');
       }
     } catch (error) {
@@ -92,9 +95,9 @@ export const Visitas = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []); // Dependencias vacías
+  }, []);
 
-  // Cargar visitas al montar (si tiene permiso)
+  // Cargar visitas al montar
   useEffect(() => {
     const canView = hasAnyPermission(PERMISSIONS.VISITS); 
     if (canView) {
@@ -103,27 +106,23 @@ export const Visitas = () => {
       setIsLoading(false);
       setNotification({ type: 'error', message: 'No tienes permisos para ver visitas.' });
     }
-  }, [fetchVisits, hasAnyPermission]); // Solo se ejecuta al montar
+  }, [fetchVisits, hasAnyPermission]);
 
-  // --- NUEVO: useEffect para la búsqueda "en vivo" (debounced) ---
+  // useEffect para la búsqueda "en vivo" (debounced)
   useEffect(() => {
-    // No hacer nada si estamos en la vista de formulario
     if (view !== 'list') return;
 
-    // Inicia un temporizador
     const timerId = setTimeout(() => {
       if (searchTerm === '') {
-        fetchVisits(); // Si el input está vacío, carga todas
+        fetchVisits(); 
       } else {
-        searchVisits(searchTerm); // Si hay texto, busca
+        searchVisits(searchTerm); 
       }
-    }, 350); // 350ms de espera
+    }, 350); 
 
-    // Limpieza: si el usuario sigue tecleando, cancela el temporizador anterior
     return () => clearTimeout(timerId);
     
-  }, [searchTerm, view, fetchVisits, searchVisits]); // Se re-ejecuta cada vez que searchTerm o view cambia
-
+  }, [searchTerm, view, fetchVisits, searchVisits]);
 
   // Función para Borrar
   const handleDelete = async () => {
@@ -140,7 +139,6 @@ export const Visitas = () => {
         if (data.success) {
           setNotification({ type: 'success', message: data.message });
           setSelectedVisit(null);
-          // Vuelve a cargar la lista (o la búsqueda actual)
           searchTerm ? searchVisits(searchTerm) : fetchVisits();
         } else {
           throw new Error(data.message || 'Error al eliminar');
@@ -151,12 +149,10 @@ export const Visitas = () => {
     }
   };
 
-  // Vistas
   const showListView = () => {
     setView('list');
     setEditingVisit(null);
     setNotification({ type: '', message: '' });
-    // Limpiamos la búsqueda al volver del formulario
     if (searchTerm !== '') {
       setSearchTerm(''); 
     }
@@ -168,7 +164,6 @@ export const Visitas = () => {
     setNotification({ type: '', message: '' });
   };
 
-  // Renderizado
   if (view === 'form') {
     return (
       <VisitForm
@@ -176,9 +171,6 @@ export const Visitas = () => {
         onClose={showListView}
         onSuccess={() => {
           showListView();
-          // No necesitamos fetchVisits() aquí, 
-          // showListView() pondrá el searchTerm en ''
-          // y el useEffect se encargará de recargar la lista.
           setNotification({ type: 'success', message: 'Visita guardada exitosamente.' });
         }}
         onError={(message) => {
@@ -188,25 +180,30 @@ export const Visitas = () => {
     );
   }
 
-  // Vista de Lista (Default)
+  // Vista de Lista
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-10">
       <Notification
         type={notification.type}
         message={notification.message}
         onClose={() => setNotification({ type: '', message: '' })}
       />
       
-      {/* --- Cabecera: Título y Botón de Agregar --- */}
-      <div className="flex justify-between items-center pb-2 border-b border-gray-300">
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-          <CalendarDaysIcon className="h-8 w-8 mr-3 text-gray-700" />
-          Agenda de Visitas
-        </h1>
+      {/* CABECERA (Acento Índigo) */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2">
+        <div>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
+                <div className="p-2 bg-indigo-100 rounded-xl border border-indigo-200 shadow-sm">
+                    <CalendarDaysIcon className="h-7 w-7 text-indigo-600" />
+                </div>
+                Agenda de Visitas
+            </h1>
+            <p className="text-sm text-slate-500 mt-2 font-medium">Programa y da seguimiento a las citas comerciales</p>
+        </div>
         <HasPermission required="add.visits">
           <button
             onClick={() => showFormView(null)}
-            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 hover:-translate-y-0.5 transition-all active:translate-y-0"
           >
             <PlusIcon className="h-5 w-5" />
             Agendar Visita
@@ -214,90 +211,113 @@ export const Visitas = () => {
         </HasPermission>
       </div>
 
-      {/* --- NUEVO: Barra de Búsqueda --- */}
-      <HasPermission any={PERMISSIONS.VISITS}>
-        <div className="flex gap-2">
-          <div className="relative w-full">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        {/* BUSCADOR */}
+        <HasPermission any={PERMISSIONS.VISITS}>
+            <div className="relative w-full md:max-w-md">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+                    <MagnifyingGlassIcon className="h-5 w-5 text-slate-400" aria-hidden="true" />
+                </div>
+                <input
+                type="search"
+                placeholder="Buscar por cliente, vendedor o notas..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full p-3 pl-11 bg-white/80 backdrop-blur-sm border border-slate-300 text-slate-900 placeholder-slate-400 rounded-xl shadow-sm text-sm font-semibold focus:bg-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 transition-all outline-none"
+                />
             </div>
-            <input
-              type="search"
-              placeholder="Buscar por cliente, vendedor o notas..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full p-2 pl-10 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-        </div>
-      </HasPermission>
+        </HasPermission>
 
-      {/* --- Barra de Acciones - Editar y Eliminar --- */}
-      <div className="flex justify-start gap-3">
-        <HasPermission required="edit.visits">
-          <button
-            disabled={!selectedVisit}
-            onClick={() => showFormView(selectedVisit)}
-            className="flex items-center gap-2 bg-yellow-500 text-white px-4 py-2 rounded-lg shadow-md hover:bg-yellow-600 disabled:bg-gray-300"
-          >
-            <PencilIcon className="h-5 w-5" />
-            Editar
-          </button>
-        </HasPermission>
-        <HasPermission required="delete.visits">
-          <button
-            disabled={!selectedVisit}
-            onClick={handleDelete}
-            className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-red-700 disabled:bg-gray-300"
-          >
-            <TrashIcon className="h-5 w-5" />
-            Eliminar
-          </button>
-        </HasPermission>
+        {/* ACCIONES */}
+        <div className="flex gap-3 flex-wrap">
+            <HasPermission required="edit.visits">
+            <button
+                disabled={!selectedVisit}
+                onClick={() => showFormView(selectedVisit)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 hover:border-amber-400 disabled:opacity-50 disabled:bg-slate-100 disabled:border-slate-200 disabled:text-slate-400 shadow-sm"
+            >
+                <PencilIcon className="h-4 w-4" /> Modificar
+            </button>
+            </HasPermission>
+            <HasPermission required="delete.visits">
+            <button
+                disabled={!selectedVisit}
+                onClick={handleDelete}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border border-rose-300 bg-rose-50 text-rose-800 hover:bg-rose-100 hover:border-rose-400 disabled:opacity-50 disabled:bg-slate-100 disabled:border-slate-200 disabled:text-slate-400 shadow-sm"
+            >
+                <TrashIcon className="h-4 w-4" /> Eliminar
+            </button>
+            </HasPermission>
+        </div>
       </div>
 
-      {/* --- Tabla de Visitas --- */}
-      <div className="bg-white shadow-xl rounded-lg overflow-hidden">
-        <div className="overflow-y-auto h-[60vh]"> {/* <-- Aquí está el scrollbar */}
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-100 sticky top-0 z-10">
+      {/* TABLA GLASSMORPHISM */}
+      <div className="bg-white/90 backdrop-blur-xl shadow-xl shadow-slate-200/40 rounded-3xl border border-slate-200 overflow-hidden">
+        <div className="overflow-y-auto max-h-[60vh]">
+          <table className="min-w-full divide-y divide-slate-200 text-left">
+            <thead className="bg-slate-50/90 backdrop-blur-md sticky top-0 z-10 border-b border-slate-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Cliente</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Vendedor Asignado</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Fecha Programada</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Estado</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Notas</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">Cliente</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">Vendedor Asignado</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">Fecha Programada</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">Estado</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">Notas</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white divide-y divide-slate-100">
               {isLoading ? (
-                <tr><td colSpan="5" className="p-6 text-center text-gray-500 animate-pulse">Cargando visitas...</td></tr>
+                <tr><td colSpan="5" className="p-16 text-center text-slate-400 font-medium"><ArrowPathIcon className="h-8 w-8 animate-spin mx-auto mb-3 text-indigo-500" />Cargando visitas...</td></tr>
               ) : (
                 visits.map((visit) => (
                   <tr
                     key={visit.id}
                     onClick={() => setSelectedVisit(visit)}
-                    className={`cursor-pointer ${selectedVisit?.id === visit.id ? 'bg-blue-100' : 'hover:bg-gray-50'}`}
+                    className={`cursor-pointer transition-all duration-200 border-l-4 ${selectedVisit?.id === visit.id ? 'bg-indigo-50/80 border-indigo-500' : 'border-transparent hover:bg-slate-50'}`}
                   >
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{visit.client_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{visit.user_name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">{formatDateTime(visit.scheduled_for)}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        visit.status === 'completed' ? 'bg-green-100 text-green-800' :
-                        visit.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-red-100 text-red-800' // 'cancelled'
+                        <div className="flex items-center gap-3">
+                            <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors ${
+                                selectedVisit?.id === visit.id ? 'bg-white border-indigo-200 text-indigo-600 shadow-sm' : 'bg-slate-100 border-slate-200 text-slate-400'
+                            }`}>
+                                <MapPinIcon className="h-5 w-5" />
+                            </div>
+                            <span className="font-extrabold text-slate-900 text-sm">{visit.client_name}</span>
+                        </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-bold text-slate-700 flex items-center gap-1.5">
+                            <UserIcon className="h-4 w-4 text-slate-400"/>
+                            {visit.user_name}
+                        </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center text-sm font-bold text-slate-800">
+                            <ClockIcon className="h-4 w-4 mr-1.5 text-indigo-400" />
+                            {formatDateTime(visit.scheduled_for)}
+                        </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-3 py-1 inline-flex text-xs font-extrabold rounded-full border capitalize ${
+                        visit.status === 'completed' ? 'bg-emerald-100 text-emerald-800 border-emerald-300' :
+                        visit.status === 'pending' ? 'bg-amber-100 text-amber-800 border-amber-300' :
+                        'bg-rose-100 text-rose-800 border-rose-300'
                       }`}>
-                        {visit.status}
+                         <svg className={`mr-1.5 h-2 w-2 ${
+                              visit.status === 'completed' ? 'text-emerald-500' : 
+                              visit.status === 'pending' ? 'text-amber-500' : 'text-rose-500'
+                          }`} fill="currentColor" viewBox="0 0 8 8">
+                              <circle cx="4" cy="4" r="3" />
+                          </svg>
+                        {visit.status === 'completed' ? 'Completada' : visit.status === 'pending' ? 'Pendiente' : 'Cancelada'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-700 max-w-xs truncate" title={visit.notes}>{visit.notes}</td>
+                    <td className="px-6 py-4 text-sm font-medium text-slate-500 max-w-xs truncate" title={visit.notes}>{visit.notes || '-'}</td>
                   </tr>
                 ))
               )}
               {!isLoading && visits.length === 0 && (
                 <tr>
-                  <td colSpan="5" className="p-6 text-center text-gray-500">
+                  <td colSpan="5" className="p-16 text-center text-slate-400 font-bold text-lg">
                     {searchTerm ? `No se encontraron visitas para "${searchTerm}"` : 'No hay visitas agendadas.'}
                   </td>
                 </tr>
@@ -310,7 +330,7 @@ export const Visitas = () => {
   );
 };
 
-// --- Sub-componente del Formulario (con campos de Fecha y Hora separados) ---
+// --- Sub-componente del Formulario (con lógica original restaurada) ---
 
 const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
   const { user, hasPermission } = useAuth(); 
@@ -338,23 +358,20 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
   const isEditing = !!initialData;
   const formTitle = isEditing ? 'Editar Visita' : 'Agendar Visita';
 
-  // --- LÓGICA DE FILTRADO ---
-  // Filtramos clientes basándonos en la búsqueda
+  // --- LÓGICA DE FILTRADO (Restaurada) ---
   const filteredClients = clientSearch
     ? allClients.filter(client =>
         `${client.first_name} ${client.last_name}`.toLowerCase().includes(clientSearch.toLowerCase())
       )
     : allClients;
 
-  // Filtramos usuarios basándonos en la búsqueda (si aplica)
   const filteredUsers = userSearch
-    ? allUsers.filter(user =>
-        user.Nombre.toLowerCase().includes(userSearch.toLowerCase())
+    ? allUsers.filter(usr =>
+        usr.Nombre.toLowerCase().includes(userSearch.toLowerCase())
       )
     : allUsers;
 
 
-  // Cargar Clientes y Usuarios (sin cambios)
   useEffect(() => {
     if (hasPermission('view.clients')) {
       fetch(CLIENTS_ENDPOINT, { credentials: 'include' })
@@ -377,8 +394,8 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
           if (data.success) {
             setAllUsers(data.data);
             if (initialData?.user_id) {
-              const user = data.data.find(u => u.ID === initialData.user_id);
-              if (user) setUserSearch(user.Nombre);
+              const usr = data.data.find(u => u.ID === initialData.user_id);
+              if (usr) setUserSearch(usr.Nombre);
             }
           }
         });
@@ -386,7 +403,6 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
   }, [initialData, hasPermission]);
 
 
-  // Cargar datos iniciales o valores por defecto
   useEffect(() => {
     if (isEditing) {
       let datePart = '';
@@ -421,27 +437,19 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
     setFormErrors(prev => ({ ...prev, client_id: null }));
   };
   
-  const selectUser = (user) => {
-    setFormData(prev => ({ ...prev, user_id: user.ID }));
-    setUserSearch(user.Nombre);
+  const selectUser = (usr) => {
+    setFormData(prev => ({ ...prev, user_id: usr.ID }));
+    setUserSearch(usr.Nombre);
     setUserDropdown(false);
     setFormErrors(prev => ({ ...prev, user_id: null }));
   };
   
   const validateForm = () => {
     const errors = {};
-    if (!formData.client_id) {
-      errors.client_id = 'Debes seleccionar un cliente';
-    }
-    if (!formData.user_id) {
-      errors.user_id = 'Debes asignar la visita a un vendedor';
-    }
-    if (!formData.visit_date) {
-      errors.visit_date = 'La fecha es obligatoria';
-    }
-    if (!formData.visit_time) {
-      errors.visit_time = 'La hora es obligatoria';
-    }
+    if (!formData.client_id) errors.client_id = 'Debes seleccionar un cliente';
+    if (!formData.user_id) errors.user_id = 'Debes asignar la visita a un vendedor';
+    if (!formData.visit_date) errors.visit_date = 'La fecha es obligatoria';
+    if (!formData.visit_time) errors.visit_time = 'La hora es obligatoria';
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -449,12 +457,11 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
     
     setIsSubmitting(true);
     
+    // Reunir fecha y hora (Restaurado)
     const mysqlDateTime = `${formData.visit_date} ${formData.visit_time}:00`;
     
     const payload = {
@@ -497,35 +504,35 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
   };
   
   const getInputClasses = (fieldName) => {
-    return `mt-1 block w-full p-2 border rounded-md shadow-sm ${
+    return `mt-1.5 block w-full p-3 bg-slate-50 border rounded-xl text-sm font-medium transition-all outline-none ${
       formErrors[fieldName]
-      ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
-      : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+      ? 'border-rose-400 focus:bg-white focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500'
+      : 'border-slate-300 focus:bg-white focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500'
     }`;
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4">
-      <div className="flex items-center gap-4">
+    <div className="max-w-4xl mx-auto space-y-6 pb-10">
+      <div className="flex items-center gap-4 border-b border-slate-200 pb-4">
         <button
           onClick={onClose} 
-          className="p-2 text-gray-600 hover:bg-gray-100 rounded-full"
+          className="p-2.5 text-slate-500 bg-white border border-slate-300 hover:bg-slate-50 hover:text-slate-800 hover:border-slate-400 rounded-xl transition-all shadow-sm"
           title="Regresar a la lista"
         >
-          <ArrowLeftIcon className="h-6 w-6" />
+          <ArrowLeftIcon className="h-5 w-5" />
         </button>
-        <h1 className="text-3xl font-bold text-gray-900">{formTitle}</h1>
+        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">{formTitle}</h1>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-xl space-y-6">
+      <form onSubmit={handleSubmit} className="bg-white/90 backdrop-blur-xl p-8 rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-200 space-y-6">
         
-        {/* Fila de Buscadores (Cliente y Vendedor) */}
+        {/* Buscadores (Cliente y Vendedor) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           
-          {/* BUSCADOR DE CLIENTES (Requerido) */}
+          {/* BUSCADOR DE CLIENTES */}
           <div className="relative">
-            <label htmlFor="client" className="block text-sm font-medium text-gray-700">
-              Cliente <span className="text-red-500">*</span>
+            <label htmlFor="client" className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+              Cliente <span className="text-rose-500">*</span>
             </label>
             <input
               id="client"
@@ -544,30 +551,30 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
               className={getInputClasses('client_id')}
             />
             {clientDropdown && (
-              <ul className="absolute z-20 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-60 overflow-y-auto shadow-lg">
+              <ul className="absolute z-20 w-full bg-white border border-slate-200 rounded-xl mt-2 max-h-60 overflow-y-auto shadow-xl">
                 {filteredClients.length > 0 ? (
                   filteredClients.map(client => (
                     <li key={client.id} 
                         onMouseDown={() => selectClient(client)}
-                        className="p-2 hover:bg-blue-100 cursor-pointer">
+                        className="p-3 hover:bg-indigo-50 cursor-pointer text-sm font-bold text-slate-700 border-b border-slate-100 last:border-0">
                       {client.first_name} {client.last_name}
                     </li>
                   ))
                 ) : (
-                  <li className="p-2 text-gray-500">No se encontraron clientes</li>
+                  <li className="p-3 text-slate-500 text-sm font-medium">No se encontraron clientes</li>
                 )}
               </ul>
             )}
             {formErrors.client_id && (
-              <p className="mt-1 text-xs text-red-600">{formErrors.client_id}</p>
+              <p className="mt-1.5 text-xs font-bold text-rose-500">{formErrors.client_id}</p>
             )}
           </div>
 
-          {/* BUSCADOR DE USUARIOS (Solo Gerentes, Requerido) */}
+          {/* BUSCADOR DE USUARIOS */}
           <HasPermission required="assign.visits">
              <div className="relative">
-              <label htmlFor="user" className="block text-sm font-medium text-gray-700">
-                Asignar a Vendedor <span className="text-red-500">*</span>
+              <label htmlFor="user" className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Asignar a Vendedor <span className="text-rose-500">*</span>
               </label>
               <input
                 id="user"
@@ -586,35 +593,35 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
                 className={getInputClasses('user_id')}
               />
               {userDropdown && (
-                <ul className="absolute z-20 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-60 overflow-y-auto shadow-lg">
+                <ul className="absolute z-20 w-full bg-white border border-slate-200 rounded-xl mt-2 max-h-60 overflow-y-auto shadow-xl">
                   {filteredUsers.length > 0 ? (
-                    filteredUsers.map(user => (
-                      <li key={user.ID} 
-                          onMouseDown={() => selectUser(user)}
-                          className="p-2 hover:bg-blue-100 cursor-pointer">
-                        {user.Nombre} ({user.rol})
+                    filteredUsers.map(usr => (
+                      <li key={usr.ID} 
+                          onMouseDown={() => selectUser(usr)}
+                          className="p-3 hover:bg-indigo-50 cursor-pointer text-sm font-bold text-slate-700 border-b border-slate-100 last:border-0">
+                        {usr.Nombre} ({usr.rol})
                       </li>
                     ))
                   ) : (
-                    <li className="p-2 text-gray-500">No se encontraron usuarios</li>
+                    <li className="p-3 text-slate-500 text-sm font-medium">No se encontraron usuarios</li>
                   )}
                 </ul>
               )}
               {formErrors.user_id && (
-                <p className="mt-1 text-xs text-red-600">{formErrors.user_id}</p>
+                <p className="mt-1.5 text-xs font-bold text-rose-500">{formErrors.user_id}</p>
               )}
             </div>
           </HasPermission>
           
-          {/* Asignado (para Vendedor) */}
+          {/* Asignado (Si no tiene permisos de reasignar) */}
           {!hasPermission('assign.visits') && (
              <div>
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                 Asignado a
               </label>
-              <p className="mt-1 block w-full p-2 bg-gray-100 text-gray-700 rounded-md">
+              <div className="mt-1.5 block w-full p-3 bg-slate-100 border border-slate-200 text-slate-600 font-bold rounded-xl">
                 {user.nombre} (Yo)
-              </p>
+              </div>
             </div>
           )}
 
@@ -623,8 +630,8 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
         {/* Fila de Fecha y Hora */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label htmlFor="visit_date" className="block text-sm font-medium text-gray-700">
-              Fecha <span className="text-red-500">*</span>
+            <label htmlFor="visit_date" className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+              Fecha <span className="text-rose-500">*</span>
             </label>
             <input
               type="date"
@@ -637,13 +644,13 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
               className={getInputClasses('visit_date')}
             />
             {formErrors.visit_date && (
-              <p className="mt-1 text-xs text-red-600">{formErrors.visit_date}</p>
+              <p className="mt-1.5 text-xs font-bold text-rose-500">{formErrors.visit_date}</p>
             )}
           </div>
 
           <div>
-            <label htmlFor="visit_time" className="block text-sm font-medium text-gray-700">
-              Hora <span className="text-red-500">*</span>
+            <label htmlFor="visit_time" className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+              Hora <span className="text-rose-500">*</span>
             </label>
             <input
               type="time"
@@ -656,7 +663,7 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
               className={getInputClasses('visit_time')}
             />
             {formErrors.visit_time && (
-              <p className="mt-1 text-xs text-red-600">{formErrors.visit_time}</p>
+              <p className="mt-1.5 text-xs font-bold text-rose-500">{formErrors.visit_time}</p>
             )}
           </div>
         </div>
@@ -664,14 +671,14 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
         {/* Fila de Estado (solo editando) */}
         {isEditing && (
           <div>
-            <label htmlFor="status" className="block text-sm font-medium text-gray-700">
+            <label htmlFor="status" className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
               Estado de la Visita
             </label>
             <select
               id="status"
               value={formData.status}
               onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value }))}
-              className="mt-1 block w-full p-2 border border-gray-300 rounded-md bg-white"
+              className={`${getInputClasses('status')} bg-slate-50 font-bold`}
             >
               <option value="pending">Pendiente</option>
               <option value="completed">Completada</option>
@@ -680,10 +687,10 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
           </div>
         )}
         
-        {/* Fila de Notas (Opcional) */}
+        {/* Fila de Notas */}
         <div>
-          <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
-            Notas
+          <label htmlFor="notes" className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+            Notas u Objetivo de la cita
           </label>
           <textarea
             id="notes"
@@ -691,15 +698,16 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
             value={formData.notes}
             onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
             className={getInputClasses('notes')}
+            placeholder="Ej: Presentación de nuevos productos, cotización presencial..."
           ></textarea>
         </div>
 
-        {/* Botones de Acción (con Cancelar) */}
-        <div className="flex justify-end gap-4 pt-4">
+        {/* Botones de Acción */}
+        <div className="flex justify-end gap-4 pt-6 border-t border-slate-100">
           <button
             type="button" 
             onClick={onClose}
-            className="bg-white py-2 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+            className="px-6 py-3 border border-slate-300 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 shadow-sm transition-all"
           >
             Cancelar
           </button>
@@ -707,9 +715,9 @@ const VisitForm = ({ initialData, onClose, onSuccess, onError }) => {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="bg-green-600 text-white px-6 py-2 rounded-lg shadow-md hover:bg-green-700 disabled:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-indigo-500/30 hover:bg-indigo-700 disabled:bg-slate-300 disabled:shadow-none transition-all"
           >
-            {isSubmitting ? 'Guardando...' : (isEditing ? 'Actualizar Visita' : 'Agendar Visita')}
+            {isSubmitting ? 'Procesando...' : (isEditing ? 'Actualizar Visita' : 'Agendar Visita')}
           </button>
         </div>
       </form>

@@ -15,7 +15,7 @@ export const Ordenes = () => {
   // Estado para Órdenes
   const [selectedOrder, setSelectedOrder] = useState(null); 
 
-  // Estado para Devoluciones (¡ESTA ES LA LÍNEA QUE TE FALTABA!)
+  // Estado para Devoluciones
   const [selectedReturn, setSelectedReturn] = useState(null);
 
   // --- LÓGICA DE NAVEGACIÓN ---
@@ -60,7 +60,11 @@ export const Ordenes = () => {
     <div>
       {/* NAVEGACIÓN (Solo si no estamos en detalles profundos para no saturar) */}
       {view !== 'details' && view !== 'return-details' && (
-        <OrderHub activeTab={view === 'return-form' ? 'returns' : view === 'form' ? 'list' : view} onTabChange={handleTabChange} />
+        <OrderHub 
+          // AQUÍ ESTÁ LA CORRECCIÓN: Si es return-form ilumina returns, de lo contrario pasa el view normal ('list' o 'form')
+          activeTab={view === 'return-form' ? 'returns' : view} 
+          onTabChange={handleTabChange} 
+        />
       )}
 
       {/* 1. SECCIÓN ÓRDENES */}
@@ -97,7 +101,6 @@ export const Ordenes = () => {
       {view === 'returns' && (
          <ReturnsList 
             onCreate={handleCreateReturn}
-            // AQUÍ USAMOS EL ESTADO QUE FALTABA
             onViewDetails={(rma) => { setSelectedReturn(rma); setView('return-details'); }}
          />
       )}

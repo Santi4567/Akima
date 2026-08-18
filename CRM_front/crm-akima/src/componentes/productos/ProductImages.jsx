@@ -17,7 +17,7 @@ import { Notification } from '../Notification';
 const API_URL = import.meta.env.VITE_API_URL;
 const PRODUCTS_ENDPOINT = `${API_URL}/api/products`;
 
-export const ProductImages = ({ initialProduct, onClose }) => {
+export const ProductImages = ({ initialProduct, onClose, onTabChange }) => {
   // --- Estados ---
   const [selectedProduct, setSelectedProduct] = useState(initialProduct || null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,8 +35,12 @@ export const ProductImages = ({ initialProduct, onClose }) => {
   const { hasPermission } = useAuth();
 
   // --- 1. NAVEGACIÓN DEL HUB ---
-  const handleTabChange = (tab) => {
-    if (tab === 'list') onClose();
+  const handleNavChange = (tab) => {
+    if (onTabChange) {
+        onTabChange(tab); // Si el padre nos dio la función, cambiamos a cualquier pestaña
+    } else {
+        if (tab === 'list') onClose(); // Fallback de seguridad
+    }
   };
 
   // --- 2. BUSCADOR DE PRODUCTOS ---
@@ -107,7 +111,6 @@ export const ProductImages = ({ initialProduct, onClose }) => {
       
       const data = await res.json();
       if (data.success) {
-        // MENSAJE DE ÉXITO VISIBLE SIEMPRE
         setNotification({ type: 'success', message: '¡Imagen subida correctamente!' });
         fetchImages(); 
       } else {
@@ -141,7 +144,6 @@ export const ProductImages = ({ initialProduct, onClose }) => {
     }
   };
 
-  // Función para resetear la selección (Botón Cancelar)
   const handleResetSelection = () => {
     setSelectedProduct(null);
     setSearchTerm('');
@@ -154,38 +156,37 @@ export const ProductImages = ({ initialProduct, onClose }) => {
 
   // --- RENDER ---
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-10">
+    <div className=" mx-auto space-y-6 pb-10">
       
-      {/* Notificación visible siempre arriba */}
       <Notification 
         type={notification.type} 
         message={notification.message} 
         onClose={() => setNotification({ type: '', message: '' })} 
       />
 
-      <ProductHubNav activeTab="images" onTabChange={handleTabChange} />
+      <ProductHubNav activeTab="images" onTabChange={handleNavChange} />
 
       <div className="flex items-center gap-4">
-        <button onClick={onClose} className="p-2 text-gray-600 hover:bg-gray-100 rounded-full">
-          <ArrowLeftIcon className="h-6 w-6" />
+        <button onClick={onClose} className="p-2.5 text-slate-500 bg-white border border-slate-300 hover:bg-slate-50 hover:text-slate-800 hover:border-slate-400 rounded-xl transition-all shadow-sm">
+          <ArrowLeftIcon className="h-5 w-5" />
         </button>
-        <h1 className="text-3xl font-bold text-gray-900">Galería de Productos</h1>
+        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Galería de Productos</h1>
       </div>
 
       {/* --- ÁREA DE SELECCIÓN DE PRODUCTO --- */}
-      <div className="bg-white p-6 rounded-lg shadow-md border border-gray-200">
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-300">
         
         {/* CASO 1: NO HAY PRODUCTO SELECCIONADO (Muestra Buscador) */}
         {!selectedProduct && (
-            <>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Seleccionar Producto</label>
+            <div className="max-w-2xl">
+                <label className="block text-sm font-bold text-slate-700 mb-2">Seleccionar Producto a Gestionar</label>
                 <div className="relative">
                     <div className="relative">
-                        <MagnifyingGlassIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                        <MagnifyingGlassIcon className="absolute left-3.5 top-3.5 h-5 w-5 text-slate-400" />
                         <input 
                             type="text" 
                             placeholder="Buscar por nombre o SKU..."
-                            className="w-full pl-10 p-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+                            className="w-full pl-11 p-3 bg-white border border-slate-300 rounded-xl shadow-sm text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all outline-none"
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                             onFocus={() => setSearchResults([])} 
@@ -193,40 +194,41 @@ export const ProductImages = ({ initialProduct, onClose }) => {
                     </div>
                     {/* Lista de resultados */}
                     {searchResults.length > 0 && (
-                        <ul className="absolute z-10 w-full bg-white border mt-1 max-h-60 overflow-y-auto shadow-xl rounded-md">
+                        <ul className="absolute z-20 w-full bg-white border border-slate-200 mt-2 max-h-60 overflow-y-auto shadow-xl rounded-xl">
                             {searchResults.map(prod => (
                                 <li key={prod.id} 
                                     onClick={() => { setSelectedProduct(prod); setSearchTerm(''); setSearchResults([]); }}
-                                    className="p-3 hover:bg-blue-50 cursor-pointer border-b flex justify-between"
+                                    className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-100 flex justify-between items-center transition-colors"
                                 >
-                                    <span className="font-medium">{prod.name}</span>
-                                    <span className="text-gray-500 text-sm">{prod.sku}</span>
+                                    <span className="font-bold text-slate-800 text-sm">{prod.name}</span>
+                                    <span className="text-slate-400 text-xs font-mono font-bold bg-slate-100 px-2 py-1 rounded-md">{prod.sku}</span>
                                 </li>
                             ))}
                         </ul>
                     )}
                 </div>
-            </>
+            </div>
         )}
 
         {/* CASO 2: PRODUCTO SELECCIONADO (Muestra Info + Botón Cancelar) */}
         {selectedProduct && (
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                     <p className="text-sm text-gray-500 mb-1">Editando imágenes de:</p>
-                     <div className="flex items-center gap-3 bg-green-100 px-4 py-3 rounded-md border border-green-300">
-                        <PhotoIcon className="h-6 w-6 text-green-700"/>
+                     <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Editando galería de:</p>
+                     <div className="flex items-center gap-4 bg-slate-50 px-5 py-3 rounded-xl border border-slate-200">
+                        <div className="bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
+                            <PhotoIcon className="h-6 w-6 text-emerald-600"/>
+                        </div>
                         <div>
-                            <p className="font-bold text-green-900 text-lg">{selectedProduct.sku}</p>
-                            <p className="text-green-800 text-sm">{selectedProduct.name}</p>
+                            <p className="font-extrabold text-slate-900 text-lg leading-tight">{selectedProduct.sku}</p>
+                            <p className="text-slate-500 text-sm font-medium">{selectedProduct.name}</p>
                         </div>
                     </div>
                 </div>
                 
-                {/* Botón "Cambiar" fuera del recuadro verde */}
                 <button 
                     onClick={handleResetSelection}
-                    className="whitespace-nowrap px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-red-50 hover:text-red-600 hover:border-red-300 transition-colors"
+                    className="whitespace-nowrap px-4 py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-sm transition-all"
                 >
                     Cambiar Producto
                 </button>
@@ -240,9 +242,9 @@ export const ProductImages = ({ initialProduct, onClose }) => {
             
             {/* === PORTADA === */}
             <div className="lg:col-span-1 space-y-4">
-                <div className="bg-white p-4 rounded-lg shadow-md border border-gray-200">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <StarIcon className="h-5 w-5 text-yellow-500" /> Portada
+                <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-300">
+                    <h3 className="text-lg font-extrabold text-slate-800 mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
+                        <StarIcon className="h-5 w-5 text-amber-500" /> Portada Principal
                     </h3>
                     
                     {primaryImage ? (
@@ -250,28 +252,27 @@ export const ProductImages = ({ initialProduct, onClose }) => {
                             <img 
                                 src={`${API_URL}${primaryImage.image_path}`} 
                                 alt="Portada" 
-                                className="w-full h-64 object-cover rounded-md border"
+                                className="w-full h-72 object-cover rounded-xl border border-slate-200 shadow-sm"
                             />
-                            <div className="absolute top-2 right-2">
+                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <HasPermission required="edit.products">
                                     <button 
                                         onClick={() => handleDeleteImage(primaryImage.id)}
-                                        className="bg-red-600 text-white p-2 rounded-full shadow hover:bg-red-700 transition"
+                                        className="bg-rose-500/90 backdrop-blur-sm text-white p-2 rounded-lg shadow-md hover:bg-rose-600 transition-colors"
                                         title="Eliminar portada"
                                     >
                                         <TrashIcon className="h-4 w-4" />
                                     </button>
                                 </HasPermission>
                             </div>
-                            <p className="mt-2 text-sm text-center text-gray-500 font-medium">Imagen Principal</p>
                         </div>
                     ) : (
-                        <div className="text-center py-10 bg-gray-50 rounded-md border-2 border-dashed border-gray-300">
-                            <PhotoIcon className="h-12 w-12 text-gray-300 mx-auto mb-2" />
-                            <p className="text-gray-500 text-sm mb-4">Sin portada asignada</p>
+                        <div className="text-center py-12 bg-slate-50 rounded-xl border-2 border-dashed border-slate-300">
+                            <PhotoIcon className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+                            <p className="text-slate-500 text-sm mb-4 font-medium">Sin portada asignada</p>
                             
                             <HasPermission required="edit.products">
-                                <label className="cursor-pointer inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm">
+                                <label className="cursor-pointer inline-flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 text-sm font-bold shadow-md shadow-emerald-500/20 transition-all">
                                     <CloudArrowUpIcon className="h-4 w-4" />
                                     {isUploading ? 'Subiendo...' : 'Subir Portada'}
                                     <input 
@@ -288,33 +289,33 @@ export const ProductImages = ({ initialProduct, onClose }) => {
 
             {/* === GALERÍA === */}
             <div className="lg:col-span-2 space-y-4">
-                <div className="bg-white p-4 rounded-lg shadow-md border border-gray-200">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                        <PhotoIcon className="h-5 w-5 text-blue-500" /> Galería
+                <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-300">
+                    <h3 className="text-lg font-extrabold text-slate-800 mb-4 flex items-center gap-2 border-b border-slate-100 pb-3">
+                        <PhotoIcon className="h-5 w-5 text-sky-500" /> Galería Secundaria
                     </h3>
 
                     {secondaryImages.length > 0 ? (
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
                             {secondaryImages
                                 .sort((a, b) => a.display_order - b.display_order)
                                 .map(img => (
-                                <div key={img.id} className="relative group border rounded-md overflow-hidden">
+                                <div key={img.id} className="relative group border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow bg-slate-50">
                                     <img 
                                         src={`${API_URL}${img.image_path}`} 
                                         alt={`Img ${img.display_order}`} 
-                                        className="w-full h-32 object-cover"
+                                        className="w-full h-36 object-cover"
                                     />
-                                    <div className="absolute bottom-0 left-0 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded-tr-md">
-                                        #{img.display_order}
+                                    <div className="absolute bottom-0 left-0 bg-slate-900/70 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-tr-lg">
+                                        # {img.display_order}
                                     </div>
                                     
                                     <HasPermission required="edit.products">
-                                        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                             <button 
                                                 onClick={() => handleDeleteImage(img.id)}
-                                                className="bg-red-600 text-white p-1.5 rounded-full shadow hover:bg-red-700"
+                                                className="bg-rose-500/90 backdrop-blur-sm text-white p-1.5 rounded-lg shadow-sm hover:bg-rose-600 transition-colors"
                                             >
-                                                <TrashIcon className="h-3 w-3" />
+                                                <TrashIcon className="h-4 w-4" />
                                             </button>
                                         </div>
                                     </HasPermission>
@@ -322,33 +323,34 @@ export const ProductImages = ({ initialProduct, onClose }) => {
                             ))}
                         </div>
                     ) : (
-                        <p className="text-gray-500 italic mb-6">No hay imágenes secundarias.</p>
+                        <div className="text-center py-10 bg-slate-50 rounded-xl border border-slate-200 mb-8">
+                            <p className="text-slate-500 font-medium text-sm">No hay imágenes secundarias en esta galería.</p>
+                        </div>
                     )}
 
                     <HasPermission required="edit.products">
-                        <div className="border-t pt-4">
-                            <h4 className="text-sm font-semibold text-gray-700 mb-3">Agregar a Galería</h4>
-                            <div className="flex flex-col sm:flex-row gap-4 items-end">
+                        <div className="border-t border-slate-100 pt-5">
+                            <h4 className="text-sm font-extrabold text-slate-700 mb-3">Añadir Nueva Imagen</h4>
+                            <div className="flex flex-col sm:flex-row gap-4 items-stretch">
                                 
-                                <div className="w-full sm:w-32">
-                                    <label className="block text-xs text-gray-500 mb-1">Orden (Num)</label>
+                                <div className="w-full sm:w-28 shrink-0">
+                                    <label className="block text-xs font-bold text-slate-500 mb-1.5">Orden (#)</label>
                                     <input 
                                         type="number" 
                                         min="0"
                                         value={secondaryOrder}
                                         onChange={(e) => setSecondaryOrder(Number(e.target.value))}
-                                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm font-medium focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none text-center"
                                     />
                                 </div>
 
-                                <div className="flex-grow w-full">
-                                    <label className="flex justify-center px-6 pt-2 pb-2 border-2 border-gray-300 border-dashed rounded-md cursor-pointer hover:bg-gray-50">
-                                        <div className="space-y-1 text-center">
-                                            <div className="text-sm text-gray-600">
-                                                <span className="font-medium text-blue-600 hover:text-blue-500">
-                                                    {isUploading ? 'Procesando...' : 'Seleccionar Imagen'}
-                                                </span>
-                                            </div>
+                                <div className="flex-grow">
+                                    <label className="flex items-center justify-center h-full min-h-[46px] px-6 border-2 border-slate-300 border-dashed rounded-lg cursor-pointer hover:bg-slate-50 transition-colors">
+                                        <div className="flex items-center gap-2 text-sm text-slate-600">
+                                            <CloudArrowUpIcon className="h-5 w-5 text-slate-400" />
+                                            <span className="font-bold text-sky-600 hover:text-sky-700">
+                                                {isUploading ? 'Procesando...' : 'Seleccionar Imagen'}
+                                            </span>
                                         </div>
                                         <input 
                                             type="file" 
@@ -369,15 +371,20 @@ export const ProductImages = ({ initialProduct, onClose }) => {
             </div>
         </div>
       ) : (
-        // Estado Vacío o Sin Permisos
-        <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+        // Estado Vacío (Initial State)
+        <div className="text-center py-20 bg-white shadow-sm rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center">
             {selectedProduct && !hasPermission('view.products') ? (
-                <p className="text-red-500 font-bold">Acceso restringido: No tienes permisos para ver las imágenes.</p>
+                <div className="bg-rose-50 p-4 rounded-xl border border-rose-200">
+                    <p className="text-rose-600 font-bold">Acceso restringido: No tienes permisos para ver las imágenes.</p>
+                </div>
             ) : (
-                <>
-                    <PhotoIcon className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-500 text-lg">Selecciona un producto arriba para gestionar.</p>
-                </>
+                <div className="max-w-sm">
+                    <div className="bg-slate-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-200">
+                        <PhotoIcon className="h-10 w-10 text-slate-400" />
+                    </div>
+                    <h3 className="text-lg font-extrabold text-slate-800 mb-2">Ningún producto seleccionado</h3>
+                    <p className="text-slate-500 text-sm font-medium leading-relaxed">Usa el buscador de arriba para encontrar un producto y comenzar a gestionar su galería de imágenes.</p>
+                </div>
             )}
         </div>
       )}

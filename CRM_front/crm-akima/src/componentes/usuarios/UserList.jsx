@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { 
-  PlusIcon, MagnifyingGlassIcon, FunnelIcon, UserIcon 
+  PlusIcon, MagnifyingGlassIcon, FunnelIcon, UserIcon, ArrowPathIcon, UsersIcon
 } from '@heroicons/react/24/solid';
 import { useAuth } from '../../context/AuthContext';
 import { HasPermission } from '../HasPermission';
@@ -15,15 +15,13 @@ export const UserList = ({ onViewDetails, onCreateNew }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Filtros
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'active', 'inactive'
+  const [statusFilter, setStatusFilter] = useState('all'); 
   const [roleFilter, setRoleFilter] = useState('all');
-  const [availableRoles, setAvailableRoles] = useState([]); // Roles dinámicos
+  const [availableRoles, setAvailableRoles] = useState([]); 
 
   const [notification, setNotification] = useState({ type: '', message: '' });
   const { hasAnyPermission } = useAuth();
 
-  // Cargar Usuarios
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -33,13 +31,9 @@ export const UserList = ({ onViewDetails, onCreateNew }) => {
       if (data.success) {
         setUsers(data.data);
         setFilteredUsers(data.data);
-        
-        // Extraer roles únicos para el filtro dinámico
         const roles = [...new Set(data.data.map(u => u.rol))];
         setAvailableRoles(roles);
-      } else {
-        throw new Error(data.message);
-      }
+      } else throw new Error(data.message);
     } catch (error) {
       setNotification({ type: 'error', message: error.message });
     } finally {
@@ -47,7 +41,6 @@ export const UserList = ({ onViewDetails, onCreateNew }) => {
     }
   }, []);
 
-  // Buscar (Server-side search si hay query, sino filtrado local)
   const handleSearch = async (query) => {
     if (!query) {
         fetchUsers();
@@ -57,9 +50,7 @@ export const UserList = ({ onViewDetails, onCreateNew }) => {
     try {
         const response = await fetch(`${API_URL}/api/users/search?q=${query}`, { credentials: 'include' });
         const data = await response.json();
-        if (data.success) {
-            setUsers(data.data); // Actualizamos la base
-        }
+        if (data.success) setUsers(data.data);
     } catch (error) {
         console.error(error);
     } finally {
@@ -67,93 +58,81 @@ export const UserList = ({ onViewDetails, onCreateNew }) => {
     }
   };
 
-  // Efecto de carga inicial
   useEffect(() => {
-    if (hasAnyPermission(PERMISSIONS.USERS)) {
-      fetchUsers();
-    } else {
-      setIsLoading(false);
-    }
+    if (hasAnyPermission(PERMISSIONS.USERS)) fetchUsers();
+    else setIsLoading(false);
   }, [fetchUsers, hasAnyPermission]);
 
-  // Efecto de Debounce para Buscador
   useEffect(() => {
     const timer = setTimeout(() => {
         if (searchTerm) handleSearch(searchTerm);
-        else fetchUsers(); // Reset si limpia
+        else fetchUsers(); 
     }, 400);
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // Efecto para aplicar Filtros (Local)
   useEffect(() => {
     let result = users;
-
-    // 1. Filtro Estado
     if (statusFilter !== 'all') {
         const isActive = statusFilter === 'active';
-        // Nota: Tu API devuelve Estado: 1 (true) o 0 (false)
         result = result.filter(u => (u.Estado === 1) === isActive);
     }
-
-    // 2. Filtro Rol
     if (roleFilter !== 'all') {
         result = result.filter(u => u.rol === roleFilter);
     }
-
     setFilteredUsers(result);
   }, [users, statusFilter, roleFilter]);
 
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-10">
       <Notification type={notification.type} message={notification.message} onClose={() => setNotification({type:'', message:''})} />
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-2 border-b">
-        <h1 className="text-3xl font-bold text-gray-900">Gestión de Usuarios</h1>
+      {/* Cabecera Azul */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2">
+        <div>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-xl border border-blue-200 shadow-sm">
+                    <UsersIcon className="h-7 w-7 text-blue-600" />
+                </div>
+                Directorio de Usuarios
+            </h1>
+            <p className="text-sm text-slate-500 mt-2 font-medium">Administra los accesos y cuentas del equipo de trabajo</p>
+        </div>
         <HasPermission required="add.users">
-          <button onClick={onCreateNew} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-green-700">
+          <button onClick={onCreateNew} className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-500/30 hover:bg-blue-700 hover:-translate-y-0.5 transition-all active:translate-y-0">
             <PlusIcon className="h-5 w-5" /> Nuevo Usuario
           </button>
         </HasPermission>
       </div>
 
       {/* Barra de Herramientas: Buscador y Filtros */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-gray-50 p-4 rounded-lg border">
-        
-        {/* Buscador */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-white/80 backdrop-blur-sm p-5 rounded-3xl border border-slate-200 shadow-sm">
         <div className="md:col-span-2 relative">
-            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+            <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+                <MagnifyingGlassIcon className="h-5 w-5 text-slate-400" />
             </div>
             <input
-                type="search"
-                placeholder="Buscar por nombre..."
-                value={searchTerm}
+                type="search" placeholder="Buscar por nombre..." value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full p-2 pl-10 border border-gray-300 rounded-md focus:ring-green-500"
+                className="w-full p-2.5 pl-11 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold focus:bg-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all outline-none"
             />
         </div>
-
-        {/* Filtro Estado */}
-        <div>
+        <div className="relative">
+            <FunnelIcon className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
             <select 
-                className="w-full p-2 border border-gray-300 rounded-md"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full p-2.5 pl-10 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold focus:bg-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all outline-none appearance-none"
             >
                 <option value="all">Todos los Estados</option>
-                <option value="active">Activos</option>
-                <option value="inactive">Inactivos</option>
+                <option value="active">Solo Activos</option>
+                <option value="inactive">Solo Inactivos</option>
             </select>
         </div>
-
-        {/* Filtro Rol (Dinámico) */}
-        <div>
+        <div className="relative">
+            <UserIcon className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
             <select 
-                className="w-full p-2 border border-gray-300 rounded-md"
-                value={roleFilter}
-                onChange={(e) => setRoleFilter(e.target.value)}
+                value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}
+                className="w-full p-2.5 pl-10 bg-slate-50 border border-slate-300 rounded-xl text-sm font-semibold focus:bg-white focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all outline-none appearance-none capitalize"
             >
                 <option value="all">Todos los Roles</option>
                 {availableRoles.map(role => (
@@ -163,60 +142,60 @@ export const UserList = ({ onViewDetails, onCreateNew }) => {
         </div>
       </div>
 
-      {/* Tabla */}
-      <div className="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200">
-        <div className="overflow-y-auto h-[60vh]">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-100 sticky top-0 z-10">
+      {/* Tabla Premium Glassmorphism */}
+      <div className="bg-white/90 backdrop-blur-xl shadow-xl shadow-slate-200/40 rounded-3xl border border-slate-200 overflow-hidden">
+        <div className="overflow-y-auto max-h-[60vh]">
+          <table className="min-w-full text-left border-collapse">
+            <thead className="bg-slate-50/90 backdrop-blur-md sticky top-0 z-10 border-b border-slate-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Nombre</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Rol</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-600 uppercase">Estado</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase">Acciones</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">Colaborador</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">Rol del Sistema</th>
+                <th className="px-6 py-4 text-center text-xs font-black text-slate-500 uppercase tracking-widest">Estado</th>
+                <th className="px-6 py-4 text-right text-xs font-black text-slate-500 uppercase tracking-widest">Acciones</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-slate-100">
               {isLoading ? (
-                <tr><td colSpan="4" className="p-6 text-center text-gray-500">Cargando usuarios...</td></tr>
+                <tr><td colSpan="4" className="p-16 text-center text-slate-400 font-medium"><ArrowPathIcon className="h-8 w-8 animate-spin mx-auto mb-3 text-blue-500" />Cargando usuarios...</td></tr>
+              ) : filteredUsers.length === 0 ? (
+                <tr><td colSpan="4" className="p-16 text-center text-slate-400 font-bold text-lg">No se encontraron usuarios.</td></tr>
               ) : (
                 filteredUsers.map((user) => (
-                  <tr key={user.ID} className="hover:bg-gray-50 transition-colors">
+                  <tr key={user.ID} className="hover:bg-slate-50 transition-colors group">
                     <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                            <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold mr-3">
+                        <div className="flex items-center gap-4">
+                            <div className="h-11 w-11 rounded-2xl bg-blue-100 flex items-center justify-center text-blue-600 font-black border border-blue-200 shadow-sm group-hover:scale-105 transition-transform">
                                 {user.Nombre.charAt(0).toUpperCase()}
                             </div>
                             <div>
-                                <div className="text-sm font-medium text-gray-900">{user.Nombre}</div>
-                                <div className="text-xs text-gray-500">{user.Correo}</div>
+                                <div className="text-sm font-extrabold text-slate-900">{user.Nombre}</div>
+                                <div className="text-xs font-medium text-slate-500 mt-0.5">{user.Correo}</div>
                             </div>
                         </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        <span className="inline-flex items-center px-3 py-1 rounded-md text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 capitalize">
                             {user.rol}
                         </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          user.Estado === 1 ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-extrabold border ${
+                          user.Estado === 1 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-rose-100 text-rose-800 border-rose-300'
                         }`}>
+                            <svg className={`mr-1.5 h-2 w-2 ${user.Estado === 1 ? 'text-emerald-500' : 'text-rose-500'}`} fill="currentColor" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3" /></svg>
                           {user.Estado === 1 ? 'Activo' : 'Inactivo'}
                         </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
                       <button 
                         onClick={() => onViewDetails(user)}
-                        className="text-blue-600 hover:text-blue-900 flex items-center justify-end gap-1 ml-auto"
+                        className="text-blue-600 hover:text-blue-800 bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50 px-3 py-1.5 rounded-lg flex items-center justify-center gap-2 ml-auto text-xs font-bold transition-all shadow-sm"
                       >
-                        <UserIcon className="h-4 w-4" /> Detalles
+                        <UserIcon className="h-3.5 w-3.5" /> Ficha Técnica
                       </button>
                     </td>
                   </tr>
                 ))
-              )}
-              {!isLoading && filteredUsers.length === 0 && (
-                  <tr><td colSpan="4" className="p-6 text-center text-gray-500">No se encontraron usuarios.</td></tr>
               )}
             </tbody>
           </table>

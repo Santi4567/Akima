@@ -1,10 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { 
-  PlusIcon, 
-  CheckCircleIcon, 
-  XCircleIcon, 
-  EyeIcon 
-} from '@heroicons/react/24/solid';
+import { PlusIcon, EyeIcon, ArrowUturnLeftIcon, ArrowPathIcon } from '@heroicons/react/24/solid';
 import { useAuth } from '../../context/AuthContext';
 import { HasPermission } from '../HasPermission';
 import { Notification } from '../Notification';
@@ -17,153 +12,103 @@ export const ReturnsList = ({ onCreate, onViewDetails }) => {
   const [notification, setNotification] = useState({ type: '', message: '' });
   const { hasPermission } = useAuth();
 
-  // --- 1. CARGAR DEVOLUCIONES ---
   const fetchReturns = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch(`${API_URL}/api/returns`, { credentials: 'include' });
       const data = await response.json();
-      
-      if (data.success) {
-        setReturns(data.data);
-      } else {
-        setReturns([]);
-      }
+      if (data.success) setReturns(data.data);
+      else setReturns([]);
     } catch (error) {
-      console.error(error);
       setNotification({ type: 'error', message: 'No se pudieron cargar las devoluciones.' });
     } finally {
       setIsLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchReturns();
-  }, [fetchReturns]);
+  useEffect(() => { fetchReturns(); }, [fetchReturns]);
 
-  // --- 2. ACTUALIZAR ESTADO ---
-  const handleUpdateStatus = async (id, newStatus) => {
-    const actionText = newStatus === 'completed' ? 'aprobar' : 'cancelar';
-    if(!window.confirm(`¿Estás seguro de ${actionText} esta devolución?`)) return;
-
-    try {
-      const res = await fetch(`${API_URL}/api/returns/${id}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ status: newStatus })
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        setNotification({ type: 'success', message: 'Estado actualizado correctamente.' });
-        fetchReturns(); 
-      } else {
-        setNotification({ type: 'error', message: data.message });
-      }
-    } catch (error) {
-      setNotification({ type: 'error', message: 'Error de conexión.' });
-    }
-  };
-
-  // Helper para fecha
   const formatDate = (isoString) => {
     if (!isoString) return '';
     return new Date(isoString).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
   };
 
-  // Helper para colores
   const getStatusColor = (status) => {
     switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'cancelled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'completed': return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+      case 'pending': return 'bg-amber-100 text-amber-800 border-amber-300';
+      case 'cancelled': return 'bg-rose-100 text-rose-800 border-rose-300';
+      default: return 'bg-slate-100 text-slate-800 border-slate-300';
     }
   };
 
   return (
-    <div className="space-y-6">
-      <Notification 
-        type={notification.type} 
-        message={notification.message} 
-        onClose={() => setNotification({type:'', message:''})} 
-      />
+    <div className="space-y-6 pb-10">
+      <Notification type={notification.type} message={notification.message} onClose={() => setNotification({type:'', message:''})} />
 
-      <div className="flex justify-between items-center pb-2">
-        <h1 className="text-3xl font-bold text-gray-900">Gestión de Devoluciones (RMA)</h1>
+      {/* Cabecera Rosa/Rojo (Identidad visual de RMA/Devoluciones) */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pb-2">
+        <div>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-3">
+                <div className="p-2 bg-rose-100 rounded-xl border border-rose-200 shadow-sm">
+                    <ArrowUturnLeftIcon className="h-7 w-7 text-rose-600" />
+                </div>
+                Gestión de Devoluciones
+            </h1>
+            <p className="text-sm text-slate-500 mt-2 font-medium">Historial general de garantías, retornos y reembolsos (RMA)</p>
+        </div>
         <HasPermission required="issue.refund"> 
-          <button 
-            onClick={onCreate} 
-            className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg shadow-md hover:bg-red-700 transition-colors"
-          >
+          <button onClick={onCreate} className="flex items-center gap-2 bg-rose-600 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-rose-500/30 hover:bg-rose-700 hover:-translate-y-0.5 transition-all active:translate-y-0">
             <PlusIcon className="h-5 w-5" /> Registrar Devolución
           </button>
         </HasPermission>
       </div>
 
-      <div className="bg-white shadow-xl rounded-lg overflow-hidden border border-gray-200">
-        <div className="overflow-y-auto h-[60vh]">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-100 sticky top-0 z-10">
+      <div className="bg-white/90 backdrop-blur-xl shadow-xl shadow-slate-200/40 rounded-3xl border border-slate-200 overflow-hidden">
+        <div className="overflow-y-auto max-h-[60vh]">
+          <table className="min-w-full text-left border-collapse">
+            <thead className="bg-slate-50/90 backdrop-blur-md sticky top-0 z-10 border-b border-slate-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">ID / Fecha</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Orden</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Cliente</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Atendido Por</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase">Total</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-gray-600 uppercase">Estado</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase">Acciones</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">RMA / Fecha</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">Orden Orig.</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">Cliente</th>
+                <th className="px-6 py-4 text-xs font-black text-slate-500 uppercase tracking-widest">Monto Ref.</th>
+                <th className="px-6 py-4 text-center text-xs font-black text-slate-500 uppercase tracking-widest">Estado</th>
+                <th className="px-6 py-4 text-right text-xs font-black text-slate-500 uppercase tracking-widest">Acciones</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="divide-y divide-slate-100 bg-white">
               {isLoading ? (
-                <tr><td colSpan="7" className="p-6 text-center text-gray-500 animate-pulse">Cargando devoluciones...</td></tr>
+                <tr><td colSpan="6" className="p-16 text-center text-slate-400 font-medium"><ArrowPathIcon className="h-8 w-8 animate-spin mx-auto mb-3 text-rose-500" />Cargando RMA...</td></tr>
               ) : returns.length === 0 ? (
-                <tr><td colSpan="7" className="p-8 text-center text-gray-500 italic">No hay devoluciones registradas.</td></tr>
+                <tr><td colSpan="6" className="p-16 text-center text-slate-400 font-bold text-lg">No hay devoluciones registradas en el sistema.</td></tr>
               ) : (
                 returns.map((rma) => (
-                  <tr key={rma.id} className="hover:bg-gray-50 transition-colors">
-                    {/* ID y Fecha */}
+                  <tr key={rma.id} className="hover:bg-slate-50 transition-colors group">
                     <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-bold text-gray-900">#{rma.id}</div>
-                        <div className="text-xs text-gray-500">{formatDate(rma.created_at)}</div>
+                        <div className="text-sm font-black text-slate-900">RMA #{rma.id}</div>
+                        <div className="text-xs font-bold text-slate-500 mt-0.5">{formatDate(rma.created_at)}</div>
                     </td>
-                    {/* Orden Original */}
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 font-medium">
-                        Orden #{rma.order_id}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="inline-flex bg-slate-100 border border-slate-200 text-slate-800 font-bold px-2.5 py-1 rounded-lg text-xs">
+                            Ord #{rma.order_id}
+                        </span>
                     </td>
-                    {/* Cliente (Nuevo dato) */}
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-800">
                         {rma.client_name}
                     </td>
-                    {/* Vendedor (Nuevo dato) */}
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {rma.user_name}
-                    </td>
-                    {/* Monto Total */}
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-800">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-black text-rose-600">
                         ${rma.total_refunded}
                     </td>
-                    {/* Estado */}
                     <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(rma.status)}`}>
+                      <span className={`px-3 py-1 inline-flex text-xs font-extrabold rounded-full border capitalize ${getStatusColor(rma.status)}`}>
                         {rma.status}
                       </span>
                     </td>
-                    {/* Acciones */}
                     <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex justify-end items-center gap-3">
-                        <button 
-                          onClick={() => onViewDetails(rma)}
-                          className="text-blue-600 hover:text-blue-900 flex items-center gap-1 text-sm font-medium transition-colors"
-                          title="Ver detalles completos"
-                        >Mas detalles
-                          <EyeIcon className="h-5 w-5" />
+                        <button onClick={() => onViewDetails(rma)} className="text-blue-600 hover:text-blue-800 bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50 px-3 py-1.5 rounded-lg flex items-center justify-center gap-2 ml-auto text-xs font-bold transition-all shadow-sm">
+                          <EyeIcon className="h-4 w-4" /> Detalles
                         </button>
-
-                        
-                      </div>
                     </td>
                   </tr>
                 ))

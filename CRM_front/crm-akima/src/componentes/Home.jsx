@@ -15,21 +15,19 @@ export const Home = () => {
   return (
     <div className="pb-10">
       
-      {/* 1. HEADER GLOBAL (Siempre visible) */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex items-center gap-4">
-            <div className="bg-green-100 p-2 rounded-full hidden sm:block">
-                <UserCircleIcon className="h-10 w-10 text-green-700" />
-            </div>
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                    Hola, {user?.nombre}
-                </h1>
-                <p className="text-sm text-gray-500">
-                    Panel de Control | <span className="font-semibold capitalize text-green-600">{user?.rol}</span>
-                </p>
-            </div>
-        </div>
+      {/* 1. TARJETA DE BIENVENIDA (Efecto Cristal) */}
+      <div className="bg-white/80 backdrop-blur-xl shadow-sm border border-slate-200 rounded-3xl p-6 flex items-center gap-5 mb-8 transition-all hover:shadow-md">
+          <div className="bg-emerald-100 p-3 rounded-2xl hidden sm:block border border-emerald-200/50 shadow-inner">
+              <UserCircleIcon className="h-10 w-10 text-emerald-600" />
+          </div>
+          <div>
+              <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                  Hola, {user?.nombre}
+              </h1>
+              <p className="text-sm text-slate-500 mt-1 font-medium">
+                  Panel de Control | <span className="font-bold capitalize text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">{user?.rol}</span>
+              </p>
+          </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">

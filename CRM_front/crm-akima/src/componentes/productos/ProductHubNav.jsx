@@ -3,25 +3,25 @@ import {
   CubeIcon, 
   TagIcon, 
   PhotoIcon, 
-  ClipboardDocumentListIcon // Nuevo icono para la lista
+  ClipboardDocumentListIcon
 } from '@heroicons/react/24/solid';
 
 export const ProductHubNav = ({ activeTab, onTabChange }) => {
   
   const getTabClass = (tabName) => {
     const isActive = activeTab === tabName;
-    return `whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+    return `whitespace-nowrap px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all duration-200 ${
       isActive
-        ? 'border-green-500 text-green-600'
-        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm'
+        : 'text-slate-600 bg-transparent hover:text-emerald-700 hover:bg-emerald-50 border border-transparent'
     }`;
   };
 
   return (
-    <div className="border-b border-gray-200 mb-6">
-      <nav className="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
+    <div className="mb-8">
+      {/* Contenedor con fondo blanco puro y borde definido para que resalte sobre el fondo general */}
+      <nav className="inline-flex p-1.5 space-x-2 bg-white border border-slate-300 rounded-xl overflow-x-auto shadow-sm" aria-label="Tabs">
         
-        {/* TAB 1: LISTA DE PRODUCTOS (Antes Inventario) */}
         {onTabChange ? (
           <button onClick={() => onTabChange('list')} className={getTabClass('list')}>
             <ClipboardDocumentListIcon className="h-5 w-5" />
@@ -34,7 +34,6 @@ export const ProductHubNav = ({ activeTab, onTabChange }) => {
           </Link>
         )}
 
-        {/* TAB 2: INVENTARIO (NUEVA PESTAÑA DE STOCK) */}
         {onTabChange ? (
           <button onClick={() => onTabChange('inventory')} className={getTabClass('inventory')}>
             <CubeIcon className="h-5 w-5" />
@@ -47,7 +46,6 @@ export const ProductHubNav = ({ activeTab, onTabChange }) => {
           </Link>
         )}
 
-        {/* TAB 3: IMÁGENES */}
         {onTabChange ? (
           <button onClick={() => onTabChange('images')} className={getTabClass('images')}>
             <PhotoIcon className="h-5 w-5" />
@@ -60,7 +58,6 @@ export const ProductHubNav = ({ activeTab, onTabChange }) => {
           </Link>
         )}
 
-        {/* TAB 4: CATEGORÍAS */}
         <Link to="/productos/categorias" className={getTabClass('categories')}>
           <TagIcon className="h-5 w-5" />
           Categorías

@@ -48,6 +48,11 @@ export const Productos = () => {
       setHubNotification(notificationMsg);
     }
   };
+  const handleTabChange = (tab) => {
+    setView(tab);
+    setEditingProduct(null);
+    setImagesProduct(null);
+  };
 
   // --- RENDERIZADO ---
 
@@ -67,6 +72,7 @@ export const Productos = () => {
       <ProductImages 
         initialProduct={imagesProduct}
         onClose={() => handleBackToList()}
+        onTabChange={handleTabChange} 
       />
     );
   }
@@ -77,7 +83,7 @@ export const Productos = () => {
       {/* MENU TABS (HUB) */}
       <ProductHubNav 
         activeTab={view}       
-        onTabChange={setView}  
+        onTabChange={handleTabChange} 
       />
 
       {/* Vista: Lista de Productos (Datos Generales) */}
